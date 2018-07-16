@@ -19,7 +19,7 @@ Installation
 
 .. code:: shell
 
-    git clone https://github.com/omardrwch/mfanalysis.git
+    git clone https://github.com/neurospin/mfanalysis.git
     cd mfanalysis
     python setup.py install
 
