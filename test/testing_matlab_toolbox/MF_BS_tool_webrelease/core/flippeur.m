@@ -1,0 +1,1 @@
+%flippeur.mfunction [a,b]=flippeur(c,d);ls=max(size(c));b=-ls+1-d;a=fliplr(c);
