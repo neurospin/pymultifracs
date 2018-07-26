@@ -14,6 +14,8 @@ import numpy as np
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 
+from colored_noise import powerlaw_psd_gaussian
+
 #-------------------------------------------------------------------------------
 # Function to load data
 #-------------------------------------------------------------------------------
@@ -35,7 +37,13 @@ data = get_data_from_mat_file(data_file)
 data = data / data.std()
 
 # generate noise
-noise =np.random.normal(loc = 0, scale = 1.0, size=len(data)) #  np.sin(np.arange(len(data))) 
+NOISE_TYPE = 'pink'
+
+if NOISE_TYPE == 'white':
+	noise = np.random.normal(loc = 0, scale = 1.0, size=len(data)) #  np.sin(np.arange(len(data))) 
+elif NOISE_TYPE == 'pink':
+	noise = powerlaw_psd_gaussian(2.0, 32768)
+
 
 # vector of sigma^2 (variances)
 sigma2 = np.linspace(0., 0.2, 1000) # np.array([0., 0.000001]) 
@@ -46,8 +54,8 @@ sigma2 = np.linspace(0., 0.2, 1000) # np.array([0., 0.000001])
 # Multifractal analysis object
 mfa = mf.MFA()
 mfa.wt_name = 'db3'
-mfa.p = np.inf
-mfa.j1 = 8
+mfa.p = 2#np.inf
+mfa.j1 = 4
 mfa.j2 = 12
 mfa.n_cumul = 3
 mfa.gamint = 0.0  # !!!!!!!!!!!!!!!!!!!!!!!!
@@ -67,12 +75,19 @@ mfa.wtype = 0
 c1_list = []
 c2_list = []
 
-for s in sigma2:
+
+for idx, s in enumerate(sigma2):
 	signal = data + np.sqrt(s)*noise	
 	mfa.analyze(signal)
 	cp  = mfa.cumulants.log_cumulants
 	c1_list.append(cp[0])
 	c2_list.append(cp[1])
+
+	if idx == 0:
+		mfa.cumulants.plot(fignum = 1)
+
+
+mfa.cumulants.plot(fignum = 2)
 
 # Plot c1
 plt.figure()
