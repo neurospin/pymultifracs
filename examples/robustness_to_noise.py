@@ -1,9 +1,9 @@
 """
-This script tests the impact of additive gaussian noise on the estimation
+This script tests the impact of additive noise on the estimation
 of multifractal properties.
 
-Precisely, let X_t be a multifractal random process; and let N_t be a 
-white gaussian noise. We analyze here the signal Y_t = X_t + sigma*N_t
+Precisely, let X_t be a multifractal random process; and let N_t be the 
+noise. We analyze here the signal Y_t = X_t + sigma*N_t
 aiming to see for which values of sigma the log-cumulants of Y_t are 
 sufficiently close to the log-cumulants of X_t.
 """
@@ -42,11 +42,11 @@ NOISE_TYPE = 'pink'
 if NOISE_TYPE == 'white':
 	noise = np.random.normal(loc = 0, scale = 1.0, size=len(data)) #  np.sin(np.arange(len(data))) 
 elif NOISE_TYPE == 'pink':
-	noise = powerlaw_psd_gaussian(2.0, 32768)
+	noise = powerlaw_psd_gaussian(1.34, 32768)
 
 
 # vector of sigma^2 (variances)
-sigma2 = np.linspace(0., 0.2, 1000) # np.array([0., 0.000001]) 
+sigma2 = np.linspace(0., 0.1, 500) # np.array([0., 0.000001]) 
 
 #-------------------------------------------------------------------------------
 # MFA parameters
@@ -55,19 +55,21 @@ sigma2 = np.linspace(0., 0.2, 1000) # np.array([0., 0.000001])
 mfa = mf.MFA()
 mfa.wt_name = 'db3'
 mfa.p = 2#np.inf
-mfa.j1 = 4
-mfa.j2 = 12
+mfa.j1 = 3
+mfa.j2 = 8
 mfa.n_cumul = 3
-mfa.gamint = 0.0  # !!!!!!!!!!!!!!!!!!!!!!!!
+mfa.gamint = 1.0  # !!!!!!!!!!!!!!!!!!!!!!!!
 mfa.verbose = 1
 mfa.wtype = 0
 
-# # get cumulants
-# mfa.analyze(data)
-# cp  = mfa.cumulants.log_cumulants
-# print("c1 = ", cp[0])
-# print("c2 = ", cp[1])
-# print("c3 = ", cp[2])
+mfa.q = [2]#np.arange(-8, 9)
+
+# get cumulants
+mfa.analyze(data)
+cp  = mfa.cumulants.log_cumulants
+print("c1 = ", cp[0])
+print("c2 = ", cp[1])
+print("c3 = ", cp[2])
 #-------------------------------------------------------------------------------
 # Analyze data
 #-------------------------------------------------------------------------------
@@ -84,10 +86,14 @@ for idx, s in enumerate(sigma2):
 	c2_list.append(cp[1])
 
 	if idx == 0:
+		# mfa.structure.plot('A.0', 'A.1')
 		mfa.cumulants.plot(fignum = 1)
+		
 
 
+# mfa.structure.plot('B.0', 'B.1')
 mfa.cumulants.plot(fignum = 2)
+
 
 # Plot c1
 plt.figure()
