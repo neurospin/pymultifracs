@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='mfanalysis',
-      version='0.12dev',
+      version='0.13dev',
       description='Implements wavelet based multifractal analysis of 1d signals.',
       url='https://github.com/neurospin/mfanalysis',
       author='Omar Darwiche Domingues',

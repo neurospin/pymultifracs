@@ -54,7 +54,7 @@ sigma2 = np.linspace(0., 0.1, 500) # np.array([0., 0.000001])
 # Multifractal analysis object
 mfa = mf.MFA()
 mfa.wt_name = 'db3'
-mfa.p = 2#np.inf
+mfa.p = np.inf
 mfa.j1 = 3
 mfa.j2 = 8
 mfa.n_cumul = 3
