@@ -382,8 +382,8 @@ Max level and j2 set to ", self.max_level)
 
 
         # warning
-        if (self.hmin + self.gamint < 0) and self.verbose > 0:
-            print("(!) hmin + gamint < 0. The value of gamint should be increased.")
+        if (self.hmin < 0) and self.verbose > 0:
+            print("(!) hmin < 0. The value of gamint should be increased.")
 
         # plot
         plt = self.plt
