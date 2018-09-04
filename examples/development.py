@@ -39,7 +39,7 @@ if mf_process in [1,2]:
 
 else:
 	from fbm import FBM
-	f = FBM(2**15, 0.3)
+	f = FBM(2**15, 0.75)
 	fgn_sample = f.fgn()
 	fbm_sample = f.fbm()
 	if mf_process == 10:
@@ -68,8 +68,8 @@ mfa.wtype = 0
 # Test
 #-------------------------------------------------------------------------------
 # mfa._test(data)
-
-hurst = mfa.compute_hurst(data)
+mfa.analyze(data)
+# hurst = mfa.compute_hurst(data)
 
 
 

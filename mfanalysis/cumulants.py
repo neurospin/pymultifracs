@@ -10,12 +10,7 @@ class Cumulants:
     """
     This class provides methods for computing and analyzing cumulants, C_m(j)
 
-    (!!!!!!!!!!!!!)
-    IMPORTANT:
-
-    var_log_cumulants NOT DEBUGGED
-    (!!!!!!!!!!!!!)
-
+    IMPORTANT: var_log_cumulants NOT DEBUGGED
 
     Args:
         mrq (MultiResolutionQuantity):   multiresolution quantity used to compute
@@ -206,7 +201,7 @@ class Cumulants:
             num = fignum,
             squeeze = False)
 
-        fig.suptitle(self.name + ' - cumulants log_2[C_m(j)]')
+        fig.suptitle(self.name + ' - cumulants $\log_2(C_m(j))$')
 
         x = self.j
         for ind_m, m in enumerate(self.m):
@@ -228,7 +223,7 @@ class Cumulants:
                 intercept = self.intercept[ind_m]
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
-                legend = 'slope*log2(e) = '+'%.5f' % (slope_log2_e)
+                legend = 'slope [$\\times \log_2(e)]$ = '+'%.5f' % (slope_log2_e)
 
                 ax.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label = legend)

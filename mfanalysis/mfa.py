@@ -392,8 +392,8 @@ Max level and j2 set to ", self.max_level)
             plt.figure(self.HMIN_FIG_LABEL)
             plt.plot(x, y, 'r--.')
             plt.xlabel('j')
-            plt.ylabel('log2[ sup_k |d(j,k)| ]')
-            plt.suptitle('hmin')
+            plt.ylabel('$\log_2(\sup_k |d(j,k)|)$')
+            plt.suptitle('$h_\mathrm{min}$')
             plt.draw()
             plt.grid()
 
@@ -402,7 +402,7 @@ Max level and j2 set to ", self.max_level)
             x1 = self.j2_eff 
             y0 = slope*x0 + intercept
             y1 = slope*x1 + intercept
-            legend = 'hmin = '+'%.5f' % (self.hmin)
+            legend = '$h_\mathrm{min}$ = '+'%.5f' % (self.hmin)
 
             plt.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label = legend)
@@ -566,7 +566,7 @@ Max level and j2 set to ", self.max_level)
         if self.verbose >= 2:
             structure_dwt.plot(self.STRUCTURE_FIG_LABEL, self.SCALING_FIG_LABEL)
             self.plt.show()
-            
+
         return hurst
 
     def _test(self, signal):
