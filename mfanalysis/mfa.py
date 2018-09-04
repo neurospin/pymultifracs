@@ -538,6 +538,37 @@ Max level and j2 set to ", self.max_level)
             self.plt.show()
 
 
+    def compute_hurst(self, signal):
+        """
+        Estimate the Hurst exponent using the wavelet structure function for q=2
+        """
+
+        # Verify parameters
+        self._set_and_verify_parameters()
+
+        # Clear previously computed data
+        self.wavelet_coeffs = None
+        self.wavelet_leaders = None
+        self.structure = None
+        self.cumulants = None
+
+        # Compute wavelet coefficients and wavelet leaders
+        self._wavelet_analysis(signal)
+
+
+        structure_dwt = StructureFunction(self.wavelet_coeffs,
+                                          np.array([2.0]),
+                                          self.j1,
+                                          self.j2_eff,
+                                          self.wtype)
+        hurst  = structure_dwt.zeta[0]/2
+
+        if self.verbose >= 2:
+            structure_dwt.plot(self.STRUCTURE_FIG_LABEL, self.SCALING_FIG_LABEL)
+            self.plt.show()
+            
+        return hurst
+
     def _test(self, signal):
         """
         Used for development purposes
