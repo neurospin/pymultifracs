@@ -58,18 +58,20 @@ mfa.wt_name = 'db3'
 mfa.p = np.inf
 mfa.j1 = 3
 mfa.j2 = 12
-mfa.q = np.arange(-8, 9)
+mfa.q = [2] #np.arange(-8, 9)
 mfa.n_cumul = 3
 mfa.gamint = 0
-mfa.verbose = 2
+mfa.verbose = 1
 mfa.wtype = 0
 
 #-------------------------------------------------------------------------------
 # Test
 #-------------------------------------------------------------------------------
 # mfa._test(data)
-mfa.analyze(data)
-# hurst = mfa.compute_hurst(data)
+# mfa.analyze(data)
+hurst = mfa.compute_hurst(data)
+Sj_2 = mfa.hurst_structure
 
+print(Sj_2)
 
-
+mfa.plot_structure(show=True)

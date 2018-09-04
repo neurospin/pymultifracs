@@ -102,6 +102,8 @@ class MFA:
 
         eta_p (float)              : value of the wavelet scaling function at exponent p,
                                       used to correct the values of the cumulants when p-leaders are used
+
+        hurst_structure (numpy.array): structure function log2(S(j, 2)) computed in function compute_hurst()
     """
     def __init__(self,
                  formalism = 'wlmf',
@@ -561,13 +563,20 @@ Max level and j2 set to ", self.max_level)
                                           self.j1,
                                           self.j2_eff,
                                           self.wtype)
+        self.structure = structure_dwt
+
+        log2_Sj_2 = np.log2(structure_dwt.values[0,:])  # function log2(S(j, 2))
+        self.hurst_structure = log2_Sj_2
+
         hurst  = structure_dwt.zeta[0]/2
 
         if self.verbose >= 2:
             structure_dwt.plot(self.STRUCTURE_FIG_LABEL, self.SCALING_FIG_LABEL)
             self.plt.show()
 
+
         return hurst
+
 
     def _test(self, signal):
         """
