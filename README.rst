@@ -13,6 +13,9 @@ Implemented features:
 The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) Matlab toolbox written by Herwig Wendt (https://www.irit.fr/~Herwig.Wendt/software.html) and on the documents provided in his website (his PhD thesis in particular, which can be found at https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf).
 
 
+For a brief introduction to multifractal analysis, see the file THEORY.ipynb
+
+
 Installation
 ============
 
