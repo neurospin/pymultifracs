@@ -1,11 +1,5 @@
 """
-This script shows how to use the MFA class to compute the structure functions,
-cumulants and log-cumulants.
-
-NOTE:
-    This example uses the same 1d data as the code demo_pleaders_basic.m written
-    by Roberto Leonarduzzi for the PLBMF Matlab toolbox, found at:
-    https://www.irit.fr/~Herwig.Wendt/software.html
+This script shows how to use the MFA class to perform a bivariate multifractal analysis.
 """
 
 #-------------------------------------------------------------------------------
