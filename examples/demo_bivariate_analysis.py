@@ -103,7 +103,7 @@ c02 = mfa.cumulants.log_cumulants[1] # c02
 
 # Print results
 print("c10  (c1 of data 1) = ", mfa.bi_cumulants.log_cumulants[1,0])
-print("c01  (c1 of data 1) = ", mfa.bi_cumulants.log_cumulants[0,1])
+print("c01  (c1 of data 2) = ", mfa.bi_cumulants.log_cumulants[0,1])
 print("c11  = ", mfa.bi_cumulants.log_cumulants[1,1])
 
 c11 =  mfa.bi_cumulants.log_cumulants[1,1]
