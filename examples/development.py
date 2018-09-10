@@ -18,7 +18,7 @@ def get_data_from_mat_file(filename):
 #-------------------------------------------------------------------------------
 # Select example data
 #-------------------------------------------------------------------------------
-mf_process = 10; # 1 or 2
+mf_process = 2; # 1 or 2
 
 if mf_process in [1,2]:
 	if mf_process == 1:
@@ -47,7 +47,11 @@ else:
 	if mf_process == 11:
 		data = fgn_sample
 
-
+from fbm import FBM
+f = FBM(2**15, 0.75)
+data_1 = data #f.fbm()
+f = FBM(2**15, 0.6)
+data_2 = f.fbm()
 #-------------------------------------------------------------------------------
 # Setup analysis
 #-------------------------------------------------------------------------------
@@ -58,20 +62,13 @@ mfa.wt_name = 'db3'
 mfa.p = np.inf
 mfa.j1 = 3
 mfa.j2 = 12
-mfa.q = [2] #np.arange(-8, 9)
-mfa.n_cumul = 3
+mfa.q = np.arange(-2, 3)
+mfa.n_cumul = 2
 mfa.gamint = 0
-mfa.verbose = 1
+mfa.verbose = 2
 mfa.wtype = 0
 
 #-------------------------------------------------------------------------------
 # Test
 #-------------------------------------------------------------------------------
-# mfa._test(data)
-# mfa.analyze(data)
-hurst = mfa.compute_hurst(data)
-Sj_2 = mfa.hurst_structure
-
-print(Sj_2)
-
-mfa.plot_structure(show=True)
+mfa.bivariate_analysis(data_1, data_2)
