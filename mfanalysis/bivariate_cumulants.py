@@ -90,11 +90,13 @@ class BiCumulants:
         for ind_j, j in enumerate(self.j):
             T_X_j_1 = np.abs(self.mrq_1.values[j])
             T_X_j_2 = np.abs(self.mrq_2.values[j])
+            log_T_X_j_1 = np.log(T_X_j_1)
+            log_T_X_j_2 = np.log(T_X_j_2)
 
-            C10j = self.values[1, 0, :]
-            C01j = self.values[0, 1, :]
+            C10j = self.values[1, 0, ind_j]
+            C01j = self.values[0, 1, ind_j]
             C11j = np.mean( log_T_X_j_1*log_T_X_j_2 ) - C01j*C10j
-            self.values[1, 1, :] = C11j
+            self.values[1, 1, ind_j] = C11j
         # ----
 
         self.moments = moments
