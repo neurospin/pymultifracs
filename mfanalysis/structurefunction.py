@@ -101,7 +101,8 @@ class StructureFunction:
         fig, axes = plt.subplots(plot_dim_1,
             plot_dim_2,
             num = figlabel_structure,
-            squeeze = False)
+            squeeze = False,
+            figsize = (30, 10))
 
         fig.suptitle(self.mrq.name + ' - structure functions $\log_2(S(j,q))$')
 
@@ -112,7 +113,7 @@ class StructureFunction:
             ax  = axes[ind_q % 4][ind_q // 4]
             ax.plot(x, y, 'r--.')
             ax.set_xlabel('j')
-            ax.set_ylabel('q = ' +  str(q))
+            ax.set_ylabel(f'q = {q:.3f}')
             ax.grid()
             plt.draw()
 
