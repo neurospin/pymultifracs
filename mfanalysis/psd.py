@@ -43,7 +43,7 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2):
 
     # Fourier / Welch part
 
-    _,pds_Fourier = welch(signal,
+    _,psd_Fourier = welch(signal,
                           window='hamming',
                           nperseg=segment_size,
                           noverlap=segment_size/2,
@@ -56,7 +56,7 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2):
 
     freq_Fourier = fs * np.linspace(0, 0.5, n_fft / 2 + 1)
     freq_Fourier = np.log2(freq_Fourier[1:])
-    pds_Fourier = np.log2(pds_Fourier[1:]) + 2
+    psd_Fourier = np.log2(psd_Fourier[1:]) + 2
     # +2 is to compensate for negative frequencies
 
     # Wavelet part
@@ -79,20 +79,18 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2):
 
     mfa._wavelet_analysis(signal)
 
-    pds_wavelet = [np.square(arr).mean() for arr in mfa.wavelet_coeffs.values.values()]
+    psd_wavelet = [np.square(arr).mean() for arr in mfa.wavelet_coeffs.values.values()]
 
-    j_wavelet = np.arange(len(pds_wavelet)) + 1
+    j_wavelet = np.arange(len(psd_wavelet)) + 1
     freq_wavelet = (3/4 * fs) / (np.power(2, j_wavelet))
-    freq_wavelet, pds_wavelet = np.log2(freq_wavelet), np.log2(pds_wavelet)
+    freq_wavelet, psd_wavelet = np.log2(freq_wavelet), np.log2(psd_wavelet)
 
     # Plotting
 
-    plt.plot(freq_Fourier, pds_Fourier)
-    plt.plot(freq_wavelet, pds_wavelet)
+    plt.plot(freq_Fourier, psd_Fourier)
+    plt.plot(freq_wavelet, psd_wavelet)
     plt.legend(['Fourier', 'Wavelet'])
     plt.xlabel('log_2 f')
     plt.ylabel('log_2 S(f)')
     plt.title('Power Spectral Density')
-    plt.show()
-
     plt.show()
