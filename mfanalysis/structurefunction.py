@@ -104,7 +104,7 @@ class StructureFunction:
             squeeze = False,
             figsize = (30, 10))
 
-        fig.suptitle(self.mrq.name + ' - structure functions $\log_2(S(j,q))$')
+        fig.suptitle(self.mrq.name + r' - structure functions $\log_2(S(j,q))$')
 
         x = self.j
         for ind_q, q in enumerate(self.q):
@@ -135,7 +135,7 @@ class StructureFunction:
             plt.figure(figlabel_scaling)
             plt.plot(self.q, self.zeta, 'k--.')
             plt.xlabel('q')
-            plt.ylabel('$\zeta(q)$')
+            plt.ylabel(r'$\zeta(q)$')
             plt.suptitle(self.mrq.name + ' - scaling function')
             plt.grid()
 
