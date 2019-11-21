@@ -3,11 +3,14 @@ from __future__ import unicode_literals
 
 import numpy as np
 
+
 class Utils:
     def __init__(self):
         pass
 
-    def linear_regression(self, x, y, nj, return_variance = False):
+    # TODO:Replace with sklearn import ?
+
+    def linear_regression(self, x, y, nj, return_variance=False):
         """
         Performs a (weighted or not) linear regression.
         Finds 'a' that minimizes the error:
@@ -26,9 +29,8 @@ class Utils:
         (!!!!!!!!!!!!!)
         """
 
-        bj = np.array(nj, dtype = np.float)
+        bj = np.array(nj, dtype=np.float)
         assert len(bj) == len(x)
-
 
         V_0 = np.sum(bj)
         V_1 = np.sum(bj * x)

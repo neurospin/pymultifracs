@@ -4,24 +4,26 @@ from __future__ import unicode_literals
 
 class MultiResolutionQuantity:
     """
-    The goal of this class is to provide methods to easily handle with the multiresolution
-    quantities used in multifractal analysis.
+    The goal of this class is to provide methods to easily handle with the
+    multiresolution quantities used in multifractal analysis.
 
-    It can be used to represent wavelet coefficients d_X(j, k) and wavelet leaders L_X(j, k).
+    It can be used to represent wavelet coefficients d_X(j, k)
+    and wavelet leaders L_X(j, k).
 
     Args:
-        name(str)      : 'wavelet_coeffs' or 'wavelet_leaders'
-        nj  (dict)     : nj[j] contains the number of coefficients at the scale j
-        values (dict)  : values[j] contains the list of coefficients at the scale j
+        name (str)   : 'wavelet_coeffs' or 'wavelet_leaders'
+        nj  (dict)   : nj[j] contains the number of coefficients at the scale j
+        values (dict): values[j] contains the list of coefficients
+                       at the scale j
     """
-    def __init__(self, name = 'wavelet_coeffs'):
+    def __init__(self, name='wavelet_coeffs'):
         self.name = name
-        self.nj   = {}
+        self.nj = {}
         self.values = {}
 
     def add_values(self, coeffs, j):
         self.values[j] = coeffs
-        self.nj[j]     = len(coeffs)
+        self.nj[j] = len(coeffs)
 
     def get_nj(self):
         """
