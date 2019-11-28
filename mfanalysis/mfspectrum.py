@@ -1,11 +1,11 @@
-from __future__ import print_function
-from __future__ import unicode_literals
+from collections import namedtuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+
 from .utils import Utils
 
-# Todo : transform into @dataclass ?
+WaveletParameters = namedtuple('WaveletParameters', 'j1 j2 wtype')
 
 
 class MultifractalSpectrum:
@@ -26,19 +26,15 @@ class MultifractalSpectrum:
 
     """
 
-    def __init__(self, mrq, q, j1, j2, wtype):
+    def __init__(self, mrq, q, j1, j2, wtype, **kwargs):
         self.mrq = mrq
-        self.name = mrq.name
-        self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
         self.q = q
-        self.wtype = wtype
-        self.j1 = j1
-        self.j2 = j2
-        self.utils = Utils()  # used for linear regression
 
         self.Dq = None
         self.hq = None
+
+        self.wt_param = WaveletParameters(j1=j1, j2=j2, wtype=wtype)
 
         # Compute spectrum
         self._compute()
@@ -53,7 +49,7 @@ class MultifractalSpectrum:
         V = np.zeros((len(self.j), len(self.q)))
 
         for ind_j, j in enumerate(self.j):
-            nj = self.nj[j]
+            nj = self.mrq.nj[j]
             mrq_values_j = np.abs(self.mrq.values[j])
 
             for ind_q, qq in enumerate(self.q):
@@ -71,20 +67,20 @@ class MultifractalSpectrum:
         Dq = np.zeros(len(self.q))
         hq = np.zeros(len(self.q))
 
-        x = np.arange(self.j1, self.j2+1)
+        x = np.arange(self.wt_param.j1, self.wt_param.j2+1)
 
         # weights
-        if self.wtype == 1:
-            wj = self.get_nj_interv(self.j1, self.j2)
+        if self.wt_param.wtype == 1:
+            wj = self.get_nj_interv(self.wt_param.j1, self.wt_param.j2)
         else:
             wj = np.ones(len(x))
 
         for ind_q, q in enumerate(self.q):
-            y = U[(self.j1-1):self.j2, ind_q]
-            z = V[(self.j1-1):self.j2, ind_q]
+            y = U[(self.wt_param.j1-1):self.wt_param.j2, ind_q]
+            z = V[(self.wt_param.j1-1):self.wt_param.j2, ind_q]
 
-            slope_1, intercept_1 = self.utils.linear_regression(x, y, wj)
-            slope_2, intercept_2 = self.utils.linear_regression(x, z, wj)
+            slope_1, intercept_1 = Utils().linear_regression(x, y, wj)
+            slope_2, intercept_2 = Utils().linear_regression(x, z, wj)
 
             Dq[ind_q] = 1 + slope_1
             hq[ind_q] = slope_2
@@ -106,7 +102,7 @@ class MultifractalSpectrum:
         plt.grid()
         plt.xlabel('h(q)')
         plt.ylabel('D(q)')
-        plt.suptitle(self.name + ' - multifractal spectrum')
+        plt.suptitle(self.mrq.name + ' - multifractal spectrum')
         plt.draw()
 
     def get_nj_interv(self, j1, j2):
@@ -115,5 +111,5 @@ class MultifractalSpectrum:
         """
         nj = []
         for j in range(j1, j2+1):
-            nj.append(self.nj[j])
+            nj.append(self.mrq.nj[j])
         return nj

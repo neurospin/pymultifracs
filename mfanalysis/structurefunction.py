@@ -34,7 +34,7 @@ class StructureFunction:
                                  with q = self.q[ind_q]  and j = self.j[ind_j]
 
     """
-    def __init__(self, mrq, q, j1, j2, wtype):
+    def __init__(self, mrq, q, j1, j2, wtype, **kwargs):
         self.mrq = mrq
         self.q = q
         self.j1 = j1

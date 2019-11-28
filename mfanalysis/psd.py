@@ -2,7 +2,7 @@ from scipy.signal import welch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .mfa import MFA
+from .wavelet import wavelet_analysis
 
 
 def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
@@ -124,7 +124,7 @@ def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
     _, psd = welch(signal,
                    window='hamming',
                    nperseg=segment_size,
-                   noverlap=segment_size/2,
+                   noverlap=segment_size / 2,
                    nfft=n_fft,
                    detrend=False,
                    return_onesided=True,
@@ -138,7 +138,7 @@ def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
     return freq, psd
 
 
-def wavelet_estimation(signal, fs, n_moments=2):
+def wavelet_estimation(signal, fs, n_moments):
 
     """
     PSD estimation using the Wavelet coefficients estimated through the
@@ -159,25 +159,14 @@ def wavelet_estimation(signal, fs, n_moments=2):
     """
 
     # PSD
-    mfa = MFA(wt_name=f'db{n_moments}',
-              formalism='wcmf',
-              j1=1,
-              j2=13,
-              n_cumul=2,
-              gamint=1/2,
-              wtype=0,
-              p=np.inf)
+    wt_coefs, *_ = wavelet_analysis(signal, j1=1, j2=13,
+                                    normalization=1,
+                                    wt_name=f'db{n_moments}',
+                                    gamint=0.5,
+                                    weighted=False,
+                                    p_exp=None)
 
-    mfa._set_and_verify_parameters()
-
-    mfa.wavelet_coeffs = None
-    mfa.wavelet_leaders = None
-    mfa.structure = None
-    mfa.cumulants = None
-
-    mfa._wavelet_analysis(signal)
-
-    psd = [np.square(arr).mean() for arr in mfa.wavelet_coeffs.values.values()]
+    psd = [np.square(arr).mean() for arr in wt_coefs.values.values()]
     psd = np.array(psd)
 
     # Frequency

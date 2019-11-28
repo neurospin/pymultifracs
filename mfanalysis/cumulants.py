@@ -40,7 +40,7 @@ class Cumulants:
         var_log_cumulants (numpy.array)  : estimated variance of log-cumulants
 
     """
-    def __init__(self, mrq, n_cumul, j1, j2, wtype):
+    def __init__(self, mrq, n_cumul, j1, j2, wtype, **kwargs):
         self.mrq = mrq
         self.name = mrq.name
         self.nj = mrq.nj

@@ -1,9 +1,11 @@
-from .psd import welch_estimation, wavelet_estimation, _log_plot, _log_psd
+from collections import namedtuple
 
 from sklearn.linear_model import Ridge
 
+from .psd import welch_estimation, wavelet_estimation, _log_plot, _log_psd
 
-def plot_fractal(signal, fs, log='log2', cutoff_frequency=8, n_moments=2,
+
+def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
                  n_fft=4096, segment_size=None):
     """
     Plot the superposition of Welch and Wavelet-based estimation of PSD, along
@@ -14,13 +16,13 @@ def plot_fractal(signal, fs, log='log2', cutoff_frequency=8, n_moments=2,
     signal: 1D-array_like
         Time series of sampled values
 
-    fs: float
+    s_freq: float
         Sampling frequency of the signal
 
     log: str
         Log function to use on the PSD
 
-    cutoff_frequency: int, optional
+    cutoff_freq: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of $beta$
 
@@ -39,34 +41,38 @@ def plot_fractal(signal, fs, log='log2', cutoff_frequency=8, n_moments=2,
     """
 
     # Compute the PSD
-    freq_fourier, psd_fourier = welch_estimation(signal, fs, n_fft,
+    freq_fourier, psd_fourier = welch_estimation(signal, s_freq, n_fft,
                                                  segment_size)
-    freq_wavelet, psd_wavelet = wavelet_estimation(signal, fs, n_moments)
+    freq_wavelet, psd_wavelet = wavelet_estimation(signal, s_freq, n_moments)
 
     # Estimate the 1/f slope
-    beta, log_C, freq_slope = estimate_beta(freq_wavelet, psd_wavelet,
-                                         log, cutoff_frequency)
+    slope = estimate_beta(freq_wavelet, psd_wavelet, log, cutoff_freq)
 
     # Compute values to plot the 1/f slope
-    psd_slope = beta * freq_slope + log_C
+    psd_slope = slope.beta * slope.freq + slope.log_C
 
     # Plot
     freq = [freq_fourier, freq_wavelet]
     psd = [psd_fourier, psd_wavelet]
-    legend = ['Fourier', 'Wavelet', f'Slope: {beta:.2f}']
+    legend = ['Fourier', 'Wavelet', f'Slope: {slope.beta:.2f}']
 
-    _log_plot(freq, psd, legend, slope=(freq_slope, psd_slope), log=log)
-
-
-# def fractal_analysis(signal, fs, n_moments=2, cutoff_frequency=8, log='log2'):
-
-#     freq, psd = wavelet_estimation(signal, fs, n_moments)
-#     beta, log_C, _ = estimate_beta(freq, psd, cutoff_frequency, log)
-
-#     return beta, log_C
+    _log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
 
 
-def estimate_beta(freq, psd, log='log2', cutoff_frequency=8):
+def fractal_analysis(signal, fs, n_moments=2, cutoff_freq=8, log='log2'):
+
+    freq, psd = wavelet_estimation(signal, fs, n_moments)
+    fractal = estimate_beta(freq, psd, log, cutoff_freq)
+
+    return fractal.beta, fractal.log_C
+
+
+FractalValues = namedtuple('FractalValues', ['beta',
+                                             'log_C',
+                                             'freq'])
+
+
+def estimate_beta(freq, psd, log='log2', cutoff_freq=8):
 
     """
     Estimate the value of beta
@@ -82,14 +88,14 @@ def estimate_beta(freq, psd, log='log2', cutoff_frequency=8):
     log: str
         Log function to use on the PSD before fitting the slope
 
-    cutoff_frequency: int, optional
+    cutoff_freq: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of $beta$
 
     """
 
     # Low-pass the PSD
-    support = [freq < cutoff_frequency][0]
+    support = [freq < cutoff_freq][0]
     freq = freq[support].reshape(-1, 1)
     psd = psd[support]
 
@@ -97,7 +103,9 @@ def estimate_beta(freq, psd, log='log2', cutoff_frequency=8):
     freq, psd = _log_psd(freq, psd, log)
 
     # Fit ridge regressor
-    R = Ridge()
-    R.fit(freq, psd)
+    regressor = Ridge()
+    regressor.fit(freq, psd)
 
-    return R.coef_[0], R.intercept_, freq
+    return FractalValues(beta=regressor.coef_[0],
+                         log_C=regressor.intercept_,
+                         freq=freq)

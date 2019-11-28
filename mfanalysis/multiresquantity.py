@@ -1,7 +1,7 @@
-from __future__ import print_function
-from __future__ import unicode_literals
+from dataclasses import dataclass
 
 
+@dataclass
 class MultiResolutionQuantity:
     """
     The goal of this class is to provide methods to easily handle with the
@@ -16,10 +16,18 @@ class MultiResolutionQuantity:
         values (dict): values[j] contains the list of coefficients
                        at the scale j
     """
-    def __init__(self, name='wavelet_coeffs'):
-        self.name = name
-        self.nj = {}
-        self.values = {}
+    name: str = 'wcmf'
+    nj: dict = None
+    values: dict = None
+
+    def __post_init__(self):
+
+        self.nj = {} if self.nj is None else self.nj
+        self.values = {} if self.values is None else self.values
+
+        self.name = {'wcmf': 'wavelet_coeffs',
+                     'wlmf': 'wavelet_leaders',
+                     'p-leader': 'wavelet_leaders'}[self.name]
 
     def add_values(self, coeffs, j):
         self.values[j] = coeffs

@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import warnings
 import pywt
 import numpy as np
@@ -131,7 +128,7 @@ class MFA:
                  j1=1,
                  j2=10,
                  gamint=0.0,
-                 q=[2],
+                 q=None,
                  n_cumul=3,
                  verbose=1,
                  normalization=1,
@@ -144,7 +141,7 @@ class MFA:
         self.wtype = wtype
         self.gamint = gamint
         self.verbose = verbose
-        self.q = q
+        self.q = [2] if q is None else q
         self.normalization = normalization
         self.n_cumul = n_cumul
         self.max_level = 0
@@ -180,7 +177,7 @@ class MFA:
         """
 
         # Check formalism
-        self._check_formalism()
+        _check_formalism(self.p)
 
         # Initialize wavelet filters
         self._initialize_wavelet_filters()
@@ -188,270 +185,6 @@ class MFA:
         # Verify j1
         assert self.j1 >= 1, "j1 should be equal or greater than 1."
 
-    def _initialize_wavelet_filters(self):
-        """
-        Initialize filters and their parameters
-        """
-        wt = pywt.Wavelet(self.wt_name)
-        self.wt = wt
-        self.hi = -1*np.array(wt.dec_hi)
-        self.lo = np.array(wt.dec_lo)
-        self.filter_len = len(self.hi)
-
-    def _check_formalism(self):
-        """
-        Check formalism according to the value of p
-        """
-        p = self.p
-        if p is not None:
-            assert p > 0
-            if np.isinf(p):
-                self.formalism = 'wlmf'
-            else:
-                self.formalism = 'p-leader'
-
-    def _wavelet_analysis(self, signal):
-        """
-        Compute all the wavelet coefficients from scales 1 to self.j2
-
-        Wavelet coefficients are usually L^1 normalized, see page 5:
-            http://perso-math.univ-mlv.fr/users/jaffard.stephane/pdf/Mandelbrot.pdf
-
-        Explanation:
-            When computing the wavelet coefficients, the values corrupted
-            by border effects are set to infinity (np.inf).
-
-            This makes it easier to compute the wavelet leaders, since
-            corrupted values will also be infinite and can be removed.
-        """
-
-        # Initialize structures
-        self.wavelet_coeffs = MultiResolutionQuantity(self.formalism)
-        self.wavelet_leaders = MultiResolutionQuantity(self.formalism)
-
-        # Check maximum decomposition level
-        data_len = len(signal)
-        max_level = int(np.floor(np.log2(data_len / (self.filter_len + 1))))
-        self.max_level = min(int(np.floor(np.log2(data_len))), max_level)
-        # self.max_level = min(self.max_level, self.j2)
-
-        # Warning if j2 is greater than max_level
-        if self.j2 > self.max_level and self.verbose > 0:
-            print(" ")
-            print(f"(!) Warning: Value of j2 is higher than the maximum\
-            allowed level. Max level and j2 set to {self.max_level}")
-            print(" ")
-
-        # Check whether to compute wavelet leaders
-        compute_leaders = self.formalism in ['wlmf', 'p-leader']
-
-        # Up until computing `detail`, operations are not dependent on j:
-        # TODO: move these out of the loop
-
-        # Wavelet decomposition
-        approx = signal
-        for j in range(1, self.max_level+1):
-            nj_temp = len(approx)
-
-            # apply filters
-            # note: 'direct' method MUST be used, since there are elements
-            # that are np.inf inside approx
-            high = convolve(approx, self.hi, mode='full', method='direct')
-            low = convolve(approx, self.lo, mode='full', method='direct')
-
-            high[np.isnan(high)] = np.inf
-            low[np.isnan(low)] = np.inf
-
-            # index of first good value
-            fp = self.filter_len - 2
-            # index of last good value
-            lp = nj_temp - 1
-
-            # replace border with Inf
-            high[0:fp] = np.inf
-            high[lp+1:] = np.inf
-            low[0:fp] = np.inf
-            low[lp+1:] = np.inf
-
-            # offsets
-            x0 = 2
-            x0Appro = self.filter_len  # 2*self.nb_vanishing_moments
-
-            # centering and subsampling
-            detail_idx = np.arange(0, nj_temp, 2) + x0 - 1
-            approx_idx = np.arange(0, nj_temp, 2) + x0Appro - 1
-            detail = high[detail_idx]
-            approx = low[approx_idx]
-
-            # normalization
-            detail = detail*2**(j*(0.5-1/self.normalization))
-
-            # fractional integration
-            detail = detail*2.0**(self.gamint*j)
-
-            # remove infinite values and store wavelet coefficients
-            finite_idx_coef = np.logical_not(np.isinf(np.abs(detail)))
-
-            if np.sum(finite_idx_coef) == 0:
-                self.max_level = j-1
-                break
-            self.wavelet_coeffs.add_values(detail[finite_idx_coef], j)
-
-            # TODO: refactor wavelet leader computation
-
-            # wavelet leaders
-            if compute_leaders:
-                detail_abs = np.abs(detail)
-                if j == 1:
-                    if self.formalism == 'p-leader':
-                        # detail_abs = (2.0**j)*(detail_abs**self.p)
-                        detail_abs = np.power(2., j)*np.power(detail_abs,
-                                                              self.p)
-                        leaders = np.vstack((
-                                    detail_abs[0:len(detail_abs)-2],
-                                    detail_abs[1:len(detail_abs)-1],
-                                    detail_abs[2:len(detail_abs)]
-                                    )).sum(axis=0)
-                        # leaders = (2.0**(-j)*leaders)**(1.0/self.p)
-                        leaders = np.power(np.power(2., -j)*leaders, 1./self.p)
-
-                    else:
-                        leaders = np.vstack((
-                                    detail_abs[0:len(detail_abs)-2],
-                                    detail_abs[1:len(detail_abs)-1],
-                                    detail_abs[2:len(detail_abs)]
-                                    )).max(axis=0)
-                    sans_voisin = detail_abs
-
-                else:
-                    max_index = int(np.floor(len(sans_voisin) / 2))
-                    detail_abs = detail_abs[:max_index]
-
-                    if self.formalism == 'p-leader':
-                        # detail_abs = (2**j)*(detail_abs**self.p)
-                        detail_abs = np.power(2., j)*np.power(detail_abs,
-                                                              self.p)
-                        sans_voisin = np.vstack((
-                                    detail_abs,
-                                    sans_voisin[0:2*max_index:2],
-                                    sans_voisin[1:2*max_index:2]
-                                    )).sum(axis=0)
-
-                        leaders = np.vstack((
-                                    sans_voisin[0:len(sans_voisin)-2],
-                                    sans_voisin[1:len(sans_voisin)-1],
-                                    sans_voisin[2:len(sans_voisin)]
-                                    )).sum(axis=0)
-
-                        # leaders = (2.0**(-j)*leaders)**(1/self.p)
-                        leaders = np.power(np.power(2., -j)*leaders,
-                                           1./self.p)
-                    else:
-                        sans_voisin = np.vstack((
-                                    detail_abs,
-                                    sans_voisin[0:2*max_index:2],
-                                    sans_voisin[1:2*max_index:2]
-                                    )).max(axis=0)
-                        leaders = np.vstack((
-                                    sans_voisin[0:len(sans_voisin)-2],
-                                    sans_voisin[1:len(sans_voisin)-1],
-                                    sans_voisin[2:len(sans_voisin)]
-                                    )).max(axis=0)
-
-                # remove infinite values and store wavelet leaders
-                finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
-                if np.sum(finite_idx_wl) == 0:
-                    self.max_level = j-1
-                    break
-                self.wavelet_leaders.add_values(leaders[finite_idx_wl], j)
-
-        # "effective" j2, used in linear regression
-        self.j2_eff = min(self.max_level, self.j2)
-
-    def _estimate_hmin(self):
-        """
-        Estimate the value of the uniform regularity exponent hmin using
-        wavelet coefficients.
-        """
-        sup_coeffs = np.zeros(self.j2_eff - self.j1 + 1)
-
-        for j in range(self.j1, self.j2_eff+1):
-            c_j = np.abs(self.wavelet_coeffs.values[j])
-            sup_c_j = c_j.max()
-            sup_coeffs[j-self.j1] = sup_c_j
-
-        log_sup_coeffs = np.log2(sup_coeffs)
-
-        # x, y and weights for linear regression
-        x = np.arange(self.j1, self.j2_eff+1)
-        y = log_sup_coeffs
-        if self.wtype == 1:
-            nj = self.wavelet_coeffs.get_nj_interv(self.j1, self.j2_eff)
-        else:
-            nj = np.ones(len(x))
-
-        # linear regression
-        slope, intercept = self.utils.linear_regression(x, y, nj)
-        self.hmin = slope
-
-        # warning
-        if (self.hmin < 0) and self.verbose > 0:
-            print("(!) hmin < 0. The value of gamint should be increased.")
-
-        # plot
-        plt = self.plt
-        if self.verbose >= 2:
-            # plot log_sup_coeffs
-            plt.figure(self.HMIN_FIG_LABEL)
-            plt.plot(x, y, 'r--.')
-            plt.xlabel('j')
-            plt.ylabel(r'$\log_2(\sup_k |d(j,k)|)$')
-            plt.suptitle(r'$h_\mathrm{min}$')
-            plt.draw()
-            plt.grid()
-
-            # plot regression line
-            x0 = self.j1
-            x1 = self.j2_eff
-            y0 = slope*x0 + intercept
-            y1 = slope*x1 + intercept
-            legend = r'$h_\mathrm{min}$ = ' + f'{self.hmin:.5f}'
-
-            plt.plot([x0, x1], [y0, y1], color='k',
-                     linestyle='-', linewidth=2, label=legend)
-            plt.legend()
-            plt.draw()
-
-    def _estimate_eta_p(self):
-        """
-        Estimate the value of eta_p
-        """
-        assert self.formalism == 'p-leader'
-        wavelet_structure = StructureFunction(self.wavelet_coeffs,
-                                              np.array([self.p]),
-                                              self.j1, self.j2_eff, self.wtype)
-        self.eta_p = wavelet_structure.zeta[0]
-
-    def _correct_leaders(self):
-        """
-        Correct p-leaders for nonlinearity (according to the Matlab toolbox)
-        """
-        if self.eta_p > 0:
-            JJ = np.arange(1, self.max_level+1)
-            J1LF = 1
-            JJ0 = JJ - J1LF + 1
-            zqhqcorr = np.log2((1 - np.power(2., -JJ0*self.eta_p)) /
-                               (1 - np.power(2., -self.eta_p)))
-            ZPJCorr = np.power(2, (-1.0/self.p)*zqhqcorr)
-
-            for ind_j, j in enumerate(JJ):
-                self.wavelet_leaders.values[j] = \
-                    self.wavelet_leaders.values[j]*ZPJCorr[ind_j]
-        else:
-            # TODO: raise warning instead
-            print("(!) Warning: eta(p) <= 0, p-Leaders correction was not\
-                   applied.A smaller value of p (or larger value of gamint)\
-                   should be selected.")
 
     def plot_cumulants(self, show=False):
         """
