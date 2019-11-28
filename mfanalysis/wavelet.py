@@ -73,8 +73,8 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
 
     # Warning if j2 is greater than max_level
     if j2 > max_level and warn is not False:
-        warnings.warn(f"Value of j2 is higher than the maximum allowed level.\
-                        Max level and j2 set to {max_level}")
+        warnings.warn("Value of j2 is higher than the maximum allowed level. "
+                      f"Max level and j2 set to {max_level}")
 
     # max_level = min(max_level, self.j2)
 

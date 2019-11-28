@@ -112,7 +112,7 @@ class Signal:
 
         self._check_wt_transform()
 
-        return mf_analysis(**self.fractal._asdict(),
+        return mf_analysis(**self.wt_transform._asdict(),
                            p_exp=self.wt_param.p_exp,
                            j1=self.wt_param.j1,
                            weighted=self.wt_param.weighted,
@@ -124,7 +124,7 @@ class Signal:
         self._check_wt_transform()
 
         return compute_hurst(self.wt_transform.wt_coefs,
-                             self.wt_param.j1, self.wt_param.j2,
+                             self.wt_param.j1, self.wt_transform.j2_eff,
                              self.wt_param.weighted)
 
     def hmin(self):
@@ -136,10 +136,14 @@ class Signal:
                              j2_eff=self.wt_transform.j2_eff,
                              weighted=self.wt_param.weighted)
 
-    def mf_analysis(self, j1, j2, normalization, gamint, weighted, wt_name,
-                    p_exp, q, n_cumul):
+    def mf_analysis_full(self, j1=1, j2=10, normalization=1, gamint=0.0,
+                         weighted=True, wt_name='db3', p_exp=None, q=None,
+                         n_cumul=3):
+
+        if q is None:
+            q = [2]
 
         self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,
                               p_exp)
 
-        return self._mf_analysis(q, n_cumul)
+        return self.mf_analysis(q, n_cumul)

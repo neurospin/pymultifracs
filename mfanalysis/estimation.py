@@ -63,6 +63,7 @@ def estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn=True,
         nj = None
 
     # linear regression
+    x = x.reshape(-1, 1)
     regressor = Ridge()
     regressor.fit(x, y, nj)
     hmin = regressor.coef_[0]
