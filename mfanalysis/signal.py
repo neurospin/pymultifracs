@@ -29,6 +29,30 @@ class Signal:
     """
     Class used to manage the signal data, in order to reuse intermediary
     results, and share global parameters.
+
+    Parameters
+    ----------
+
+    data: np.ndarray
+        Time series to process
+    
+    fs: float
+        Sampling frequency of the signal
+
+    log: str, optional
+        name of the log function to use on the PSD
+
+    wt_psd_moments: int | None
+        number of vanishing moments of the Daubechies wavelet in the wavelet PSD estimation
+
+    wt_psd: WaveletPSD | None
+        stores the output of the wavelet PSD
+    
+    fractal_param: FractalParameters | None
+        stores the parameters used in the fractal analysis
+
+
+    TODO add a method to fetch values of interest
     """
     data: np.ndarray
     fs: float
@@ -83,8 +107,6 @@ class Signal:
         if self.wt_param is None or self.wt_param != new_param:
             self.wt_param = new_param
 
-        # self.wt_transform = wavelet_analysis(self.data, j1, j2, normalization,
-                                            #  gamint, weighted, wt_name, p_exp)
         self.wt_transform = wavelet_analysis(self.data,
                                              **self.wt_param._asdict())
 
@@ -120,6 +142,7 @@ class Signal:
                            n_cumul=n_cumul)
 
     def hurst(self):
+        # TODO store Hurst exponent
 
         self._check_wt_transform()
 
@@ -128,6 +151,7 @@ class Signal:
                              self.wt_param.weighted)
 
     def hmin(self):
+        # TODO store h_min
 
         self._check_wt_transform()
 
@@ -139,6 +163,8 @@ class Signal:
     def mf_analysis_full(self, j1=1, j2=10, normalization=1, gamint=0.0,
                          weighted=True, wt_name='db3', p_exp=None, q=None,
                          n_cumul=3):
+
+        # TODO store structure functions, cumulants, multifractal spectrum, and parameters used
 
         if q is None:
             q = [2]

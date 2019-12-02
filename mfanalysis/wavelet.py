@@ -236,6 +236,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
         # Compute wavelet leaders if needed
         if formalism in ['wlmf', 'p-leader']:
 
+            # TODO check if I should use detail or detail_scale
             leaders, sans_voisin = _compute_leaders(detail, sans_voisin, scale,
                                                     formalism, p_exp)
 

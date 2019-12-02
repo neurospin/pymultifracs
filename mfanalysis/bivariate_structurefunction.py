@@ -1,15 +1,12 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import numpy as np
 import matplotlib.pyplot as plt
-from .utils import Utils
 
 # For zeta(q1, q2) plot
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
+from .utils import Utils
 
 class BiStructureFunction:
     """
