@@ -30,7 +30,7 @@ class Signal:
     Class used to manage the signal data, in order to reuse intermediary
     results, and share global parameters.
 
-    Parameters
+    Attributes
     ----------
 
     data: np.ndarray
@@ -50,6 +50,15 @@ class Signal:
     
     fractal_param: FractalParameters | None
         stores the parameters used in the fractal analysis
+
+    fractal: FractalValues | None
+        stores the output of the fractal analysis
+    
+    wt_transform: WaveletTransform | None
+        stores the output of the wavelet transform
+
+    wt_param: WaveletParameters | None
+        stores the parameters used in the wavelet transform
 
 
     TODO add a method to fetch values of interest

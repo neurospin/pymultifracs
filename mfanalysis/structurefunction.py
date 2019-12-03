@@ -1,11 +1,7 @@
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import numpy as np
 import matplotlib.pyplot as plt
-from .utils import Utils
 
-# Todo : transform into @dataclass
+from .utils import Utils
 
 
 class StructureFunction:

@@ -14,7 +14,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     Parameters
     ----------
     signal: 1D-array_like
-        Time series of sampled values
+        Time series to process
 
     s_freq: float
         Sampling frequency of the signal
@@ -59,9 +59,32 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     _log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
 
 
-def fractal_analysis(signal, fs, n_moments=2, cutoff_freq=8, log='log2'):
+def fractal_analysis(signal, s_freq, n_moments=2, cutoff_freq=8, log='log2'):
+    """
+    Perform the estimation of the value of beta and the logged value of C, \
+    where beta and log_C are defined in relation with the PSD:
+        PSD(f) = C|f|^-beta
 
-    freq, psd = wavelet_estimation(signal, fs, n_moments)
+    signal: 1D-array_like
+        Time series to process
+
+    s_freq: float
+        Sampling frequency of the signal
+
+    n_moments: int, optional
+        Number of vanishing moments of the Daubechies wavelet used in the
+        Wavelet decomposition.
+
+    cutoff_freq: int, optional
+        Frequency (in Hertz) which delimitates the higher bound of frequencies
+        to use during the estimation of `beta`
+
+    log: str
+        Log function to apply to the PSD
+
+    """
+
+    freq, psd = wavelet_estimation(signal, s_freq, n_moments)
     fractal = estimate_beta(freq, psd, log, cutoff_freq)
 
     return fractal.beta, fractal.log_C
@@ -72,10 +95,10 @@ FractalValues = namedtuple('FractalValues', ['beta',
                                              'freq'])
 
 
-def estimate_beta(freq, psd, log='log2', cutoff_freq=8):
-
+def estimate_beta(freq, psd, cutoff_freq=8, log='log2'):
     """
-    Estimate the value of beta
+    From the PSD and its frequency support, estimate the C and beta variables, where
+        PSD(f) = C|f|^-beta
 
     Parameters
     ----------
@@ -85,12 +108,12 @@ def estimate_beta(freq, psd, log='log2', cutoff_freq=8):
     psd: 1D-array_like
         Power spectral density
 
-    log: str
-        Log function to use on the PSD before fitting the slope
-
     cutoff_freq: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of $beta$
+
+    log: str
+        Log function to use on the PSD before fitting the slope
 
     """
 

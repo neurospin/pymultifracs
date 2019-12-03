@@ -83,9 +83,6 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
 
 def filtering(approx, high_filter, low_filter):
     """
-    NOTE equations were coded in for `approx`, but were left unused:
-    only `detail` is computed here, the full version is available at
-    `filtering_original`
     """
 
     nj_temp = len(approx)
@@ -143,6 +140,9 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
 
 def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
+    """
+    Compute wavelet leaders
+    """
 
     detail = np.abs(detail)
 
@@ -195,6 +195,23 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
             -None means wavelet coefficient
             -np.inf means wavelet leader
             -int value means p-leader
+
+    wt_name: str
+        name of the wavelet function to use, as defined in the pywavelet package
+
+    j2: int
+        upper bound of the scale range for which wavelet coefficients will be conputed
+
+    gamint: float
+        fractional integration coefficient
+
+    normalization: int
+        norm to use
+
+    weighted: bool
+
+    j1: int
+        lower bound of the scale range on which to estimate eta_p in p-leader correction
     """
 
     # Initialize the filter

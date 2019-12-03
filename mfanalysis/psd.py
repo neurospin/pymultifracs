@@ -34,6 +34,9 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
         Number of vanishing moments of the Daubechies wavelet used in the
         Wavelet decomposition.
 
+    log: str
+        Log function to use on the frequency and power axes
+
     """
 
     # Computing
@@ -55,6 +58,9 @@ log_function = {'log2': np.log2,
 
 
 def _log_psd(freq, psd, log):
+    """
+    Compute the logged values of a PSD and its frequency support similarly to the MATLAB toolbox
+    """
 
     # Avoid computing log(0)
     if np.any(freq == 0):
@@ -70,6 +76,9 @@ def _log_psd(freq, psd, log):
 
 
 def _log_plot(freq_list, psd_list, legend=None, slope=None, log='log2'):
+    """
+    Perform a log-log plot over a list of paired frequency range and PSD, with optional legend and fitted slope
+    """
 
     for freq, psd in zip(freq_list, psd_list):
         freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
