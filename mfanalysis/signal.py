@@ -4,7 +4,7 @@ from collections import namedtuple
 import numpy as np
 
 from .fractal_analysis import plot_fractal, estimate_beta, FractalValues
-from .psd import plot_psd, wavelet_estimation
+from .psd import plot_psd, wavelet_estimation, welch_estimation, PSD
 from .wavelet import wavelet_analysis
 from .mf_analysis import mf_analysis
 from .estimation import compute_hurst, estimate_hmin
@@ -18,10 +18,12 @@ WaveletParameters = namedtuple('WaveletParameters', ['j1',
                                                      'wt_name',
                                                      'p_exp'])
 
-WaveletPSD = namedtuple('WaveletPSD', 'freq psd')
-
 FractalParameters = namedtuple('FractalParameters', ['n_moments',
                                                      'cutoff_freq'])
+
+WelchParameters = namedtuple('WelchParameters', 'n_fft seg_size')
+
+WTParametersPSD = namedtuple('WTParametersPSD', 'n_moments j2')
 
 
 @dataclass
@@ -45,7 +47,7 @@ class Signal:
     wt_psd_moments: int | None
         number of vanishing moments of the Daubechies wavelet in the wavelet PSD estimation
 
-    wt_psd: WaveletPSD | None
+    wt_psd: PSD | None
         stores the output of the wavelet PSD
     
     fractal_param: FractalParameters | None
@@ -66,44 +68,66 @@ class Signal:
     data: np.ndarray
     fs: float
     log: str = 'log2'
-    wt_psd_moments: int = None
-    wt_psd: WaveletPSD = None
+    wt_psd_param: WTParametersPSD = None
+    wt_psd: PSD = None
+    welch_param: WelchParameters = None
+    welch_psd: PSD = None
     fractal_param: FractalParameters = None
     fractal: FractalValues = None
     wt_transform = WaveletTransform = None
     wt_param: WaveletParameters = None
 
-    def _wavelet_psd(self, n_moments=2):
+    def estimate_wavelet_psd(self, n_moments=2, j2=13):
 
-        if self.wt_psd is None or self.wt_psd_moments != n_moments:
+        param = WTParametersPSD(n_moments=n_moments, j2=j2)
 
-            self.wt_psd_moments = n_moments
+        if self.wt_psd is None or self.wt_psd_param != param:
 
-            freq, psd = wavelet_estimation(self.data, self.fs,
-                                           n_moments=n_moments)
+            self.wt_param = param
 
-            self.wt_psd = WaveletPSD(freq=freq,
-                                     psd=psd)
+            self.wt_psd = wavelet_estimation(self.data, self.fs,
+                                             n_moments=n_moments,
+                                             j2=j2)
 
-    def plot_psd(self, n_fft=4096, segment_size=None, n_moments=2):
+        return self.wt_psd
+
+    def estimate_welch_psd(self, n_fft=4096, seg_size=None):
+
+        param = WelchParameters(n_fft=n_fft, seg_size=seg_size)
+
+        if self.welch_psd is None or self.welch_param != param:
+
+            self.welch_param = param
+
+            self.welch_psd = welch_estimation(self.data, self.fs,
+                                              n_fft=n_fft,
+                                              seg_size=seg_size)
+
+        return self.welch_psd
+
+    def plot_psd(self, n_fft=4096, seg_size=None, n_moments=2):
+
+        # TODO use estimate_welch_psd instead
 
         plot_psd(self.data, self.fs, log=self.log,
                  n_moments=n_moments,
-                 segment_size=segment_size,
+                 seg_size=seg_size,
                  n_fft=n_fft)
 
     def plot_fractal(self, n_moments=2, cutoff_freq=8,
-                     n_fft=4096, segment_size=None):
+                     n_fft=4096, seg_size=None):
+
+        # TODO use fractal_analysis instead
 
         plot_fractal(self.data, self.fs, log=self.log,
-                     segment_size=segment_size,
+                     seg_size=seg_size,
                      cutoff_freq=cutoff_freq,
                      n_moments=n_moments,
                      n_fft=n_fft)
 
     def fractal_analysis(self, n_moments=2, cutoff_freq=8):
 
-        self._wavelet_psd(n_moments)
+        self.estimate_wavelet_psd(n_moments, None)
         self.fractal = estimate_beta(self.wt_psd.freq,
                                      self.wt_psd.psd,
                                      log=self.log,

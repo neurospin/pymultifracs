@@ -17,4 +17,4 @@ dist/
 
 .ipynb_checkpoints/
 .vscode
-
+*.code-workspace

@@ -1,11 +1,15 @@
+from collections import namedtuple
+
 from scipy.signal import welch
 import numpy as np
 import matplotlib.pyplot as plt
 
 from .wavelet import wavelet_analysis
 
+PSD = namedtuple('PSD', 'freq psd')
 
-def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
+
+def plot_psd(signal, fs, n_fft=4096, seg_size=None, n_moments=2,
              log='log2'):
     """
     Plot the superposition of Fourier-based Welch estimation and Wavelet-based
@@ -24,9 +28,9 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
 
     n_fft: int, optional
         Length of the FFT desired.
-        If `segment_size` is greater, ``n_fft = segment_size``.
+        If `seg_size` is greater, ``n_fft = seg_size``.
 
-    segment_size: int | None
+    seg_size: int | None
         Length of Welch segments.
         Defaults to None, which sets it equal to `n_fft`
 
@@ -42,7 +46,7 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
     # Computing
 
     freq_fourier, psd_fourier = welch_estimation(signal, fs, n_fft,
-                                                 segment_size)
+                                                 seg_size)
     freq_wavelet, psd_wavelet = wavelet_estimation(signal, fs, n_moments)
 
     # Plotting
@@ -50,7 +54,7 @@ def plot_psd(signal, fs, n_fft=4096, segment_size=None, n_moments=2,
     freq = [freq_fourier, freq_wavelet]
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet']
-    _log_plot(freq, psd, legend, log=log)
+    log_plot(freq, psd, legend, log=log)
 
 
 log_function = {'log2': np.log2,
@@ -75,14 +79,39 @@ def _log_psd(freq, psd, log):
     return freq, psd
 
 
-def _log_plot(freq_list, psd_list, legend=None, slope=None, log='log2'):
+def log_plot(freq_list, psd_list, legend=None, color=None, slope=None, log='log2'):
     """
     Perform a log-log plot over a list of paired frequency range and PSD, with optional legend and fitted slope
+
+    Parameters
+    ----------
+    freq_list: list
+        list of frequency supports of the PSDs to plot
+
+    psd_list: list
+        list of PSDs to plot
+    
+    legend: list | None
+        list of labels to assign to the PSDs
+
+    color: list | None
+        colors to assign to the plotted PSDs
+
+    slope: (freq, psd) | None
+        2-tuple containing the frequency support and PSD representation of a slope to plot
+        TODO: replace (freq, psd) with (beta, log_C)
+
+    log: str
+        name of log function to use on the data before plotting
     """
 
-    for freq, psd in zip(freq_list, psd_list):
+    if color is None:
+        cmap = plt.get_cmap("tab10")
+        color = [cmap(i % 10) for i in range(len(freq_list))]
+
+    for freq, psd, col in zip(freq_list, psd_list, color):
         freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
-        plt.plot(freq, psd)
+        plt.plot(freq, psd, c=col)
 
     if slope is not None:
         plt.plot(*slope, color='black')
@@ -97,7 +126,7 @@ def _log_plot(freq_list, psd_list, legend=None, slope=None, log='log2'):
     plt.show()
 
 
-def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
+def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
     """
     Wrapper for scipy.signal.welch to compute the PSD using the Welch estimator
 
@@ -111,20 +140,20 @@ def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
 
     n_fft: int, optional
         Length of the FFT desired.
-        If `segment_size` is greater, ``n_fft = segment_size``.
+        If `seg_size` is greater, ``n_fft = seg_size``.
 
-    segment_size: int | None
+    seg_size: int | None
         Length of Welch segments.
         Defaults to None, which sets it equal to `n_fft`
     """
 
     # Input argument sanitizing
 
-    if segment_size is None:
-        segment_size = n_fft
+    if seg_size is None:
+        seg_size = n_fft
 
-    if n_fft < segment_size:
-        n_fft = segment_size
+    if n_fft < seg_size:
+        n_fft = seg_size
 
     # Frequency
     freq = fs * np.linspace(0, 0.5, n_fft / 2 + 1)
@@ -132,8 +161,8 @@ def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
     # PSD
     _, psd = welch(signal,
                    window='hamming',
-                   nperseg=segment_size,
-                   noverlap=segment_size / 2,
+                   nperseg=seg_size,
+                   noverlap=seg_size / 2,
                    nfft=n_fft,
                    detrend=False,
                    return_onesided=True,
@@ -144,10 +173,10 @@ def welch_estimation(signal, fs, n_fft=4096, segment_size=None):
     psd *= 4        # compensating for negative frequencies
     psd = np.array(psd)
 
-    return freq, psd
+    return PSD(freq=freq, psd=psd)
 
 
-def wavelet_estimation(signal, fs, n_moments):
+def wavelet_estimation(signal, fs, n_moments, j2=None):
 
     """
     PSD estimation using the Wavelet coefficients estimated through the
@@ -168,18 +197,18 @@ def wavelet_estimation(signal, fs, n_moments):
     """
 
     # PSD
-    wt_coefs, *_ = wavelet_analysis(signal, j1=1, j2=13,
-                                    normalization=1,
-                                    wt_name=f'db{n_moments}',
-                                    gamint=0.5,
-                                    weighted=False,
-                                    p_exp=None)
+    transform = wavelet_analysis(signal, j1=1, j2=j2,
+                                 normalization=1,
+                                 wt_name=f'db{n_moments}',
+                                 gamint=0.5,
+                                 weighted=False,
+                                 p_exp=None)
 
-    psd = [np.square(arr).mean() for arr in wt_coefs.values.values()]
+    psd = [np.square(arr).mean() for arr in transform.wt_coefs.values.values()]
     psd = np.array(psd)
 
     # Frequency
     scale = np.arange(len(psd)) + 1
     freq = (3/4 * fs) / (np.power(2, scale))
 
-    return freq, psd
+    return PSD(freq=freq, psd=psd)

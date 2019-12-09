@@ -2,11 +2,11 @@ from collections import namedtuple
 
 from sklearn.linear_model import Ridge
 
-from .psd import welch_estimation, wavelet_estimation, _log_plot, _log_psd
+from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
 
 def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
-                 n_fft=4096, segment_size=None):
+                 n_fft=4096, seg_size=None):
     """
     Plot the superposition of Welch and Wavelet-based estimation of PSD, along
     with the estimation of the $beta$ coefficient on a log-log graphic.
@@ -32,9 +32,9 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
 
     n_fft: int, optional
         Length of the FFT desired.
-        If `segment_size` is greater, ``n_fft = segment_size``.
+        If `seg_size` is greater, ``n_fft = seg_size``.
 
-    segment_size: int | None
+    seg_size: int | None
         Length of Welch segments.
         Defaults to None, which sets it equal to `n_fft`
 
@@ -42,7 +42,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
 
     # Compute the PSD
     freq_fourier, psd_fourier = welch_estimation(signal, s_freq, n_fft,
-                                                 segment_size)
+                                                 seg_size)
     freq_wavelet, psd_wavelet = wavelet_estimation(signal, s_freq, n_moments)
 
     # Estimate the 1/f slope
@@ -56,7 +56,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet', f'Slope: {slope.beta:.2f}']
 
-    _log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
+    log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
 
 
 def fractal_analysis(signal, s_freq, n_moments=2, cutoff_freq=8, log='log2'):

@@ -62,6 +62,17 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
     return wt_leaders
 
 
+def decomposition_level(length, wt_name):
+
+    wt = pywt.Wavelet(wt_name)
+    filter_len = len(wt.dec_hi)
+
+    max_level = int(np.floor(np.log2(length / (filter_len + 1))))
+    max_level = min(int(np.floor(np.log2(length))), max_level)
+
+    return max_level
+
+
 def _decomposition_level(signal, filter_len, j2, warn=True):
     """
     Check maximum decomposition level
@@ -72,9 +83,9 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
     max_level = min(int(np.floor(np.log2(length))), max_level)
 
     # Warning if j2 is greater than max_level
-    if j2 > max_level and warn is not False:
+    if j2 is not None and j2 > max_level and warn is not False:
         warnings.warn("Value of j2 is higher than the maximum allowed level. "
-                      f"Max level and j2 set to {max_level}")
+                      f"Max level and j2 set to {max_level}", UserWarning)
 
     # max_level = min(max_level, self.j2)
 
@@ -223,7 +234,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     max_level = _decomposition_level(signal, len(high_filter), j2)
 
-    # Initialize structures
+    # Initialize structures 1
     wt_coefs = MultiResolutionQuantity(formalism)
     wt_leaders = MultiResolutionQuantity(formalism)
 
@@ -266,9 +277,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
             wt_leaders.add_values(leaders[finite_idx_wl], scale)
 
     # "effective" j2, used in linear regression
-    j2_eff = min(max_level, j2)
-    assert j2_eff == max_level, "max level is different from j2_eff, and needs\
-                                 to be returned"
+    j2_eff = min(max_level, j2) if j2 is not None else max_level
 
     if formalism == 'p-leader':
         wt_leaders = _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
