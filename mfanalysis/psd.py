@@ -79,7 +79,8 @@ def _log_psd(freq, psd, log):
     return freq, psd
 
 
-def log_plot(freq_list, psd_list, legend=None, color=None, slope=None, log='log2'):
+def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], log='log2',
+             lowpass_freq=np.inf, xticks=None, title='Power Spectral Density'):
     """
     Perform a log-log plot over a list of paired frequency range and PSD, with optional legend and fitted slope
 
@@ -97,31 +98,41 @@ def log_plot(freq_list, psd_list, legend=None, color=None, slope=None, log='log2
     color: list | None
         colors to assign to the plotted PSDs
 
-    slope: (freq, psd) | None
-        2-tuple containing the frequency support and PSD representation of a slope to plot
+    slope: [(freq, psd)] | []
+        list of 2-tuples containing the frequency support and PSD representation of a slope to plot
         TODO: replace (freq, psd) with (beta, log_C)
 
     log: str
         name of log function to use on the data before plotting
     """
 
+    plt.xlabel('log_2 f')
+    plt.ylabel('log_2 S(f)')
+    plt.title(title)
+
     if color is None:
         cmap = plt.get_cmap("tab10")
         color = [cmap(i % 10) for i in range(len(freq_list))]
 
-    for freq, psd, col in zip(freq_list, psd_list, color):
-        freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
-        plt.plot(freq, psd, c=col)
+    if fmt is None:
+        fmt = ['-'] * len(freq_list)
 
-    if slope is not None:
-        plt.plot(*slope, color='black')
+    for i, (freq, psd, f, col) in enumerate(zip(freq_list, psd_list, fmt, color)):
+
+        indx = tuple([freq < lowpass_freq])
+        freq, psd = freq[indx], psd[indx]
+        log_freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
+
+        plt.plot(log_freq, psd, f, c=col)
+
+        if xticks is not None and i == xticks:
+            plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
+
+    for tup in slope:
+        plt.plot(*tup, color='black')
 
     if legend is not None:
         plt.legend(legend)
-
-    plt.xlabel('log_2 f')
-    plt.ylabel('log_2 S(f)')
-    plt.title('Power Spectral Density')
 
     plt.show()
 
