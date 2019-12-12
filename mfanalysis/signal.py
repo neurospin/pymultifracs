@@ -19,7 +19,7 @@ WaveletParameters = namedtuple('WaveletParameters', ['j1',
                                                      'p_exp'])
 
 FractalParameters = namedtuple('FractalParameters', ['n_moments',
-                                                     'cutoff_freq'])
+                                                     'freq_band'])
 
 WelchParameters = namedtuple('WelchParameters', 'n_fft seg_size')
 
@@ -114,24 +114,24 @@ class Signal:
                  seg_size=seg_size,
                  n_fft=n_fft)
 
-    def plot_fractal(self, n_moments=2, cutoff_freq=8,
+    def plot_fractal(self, n_moments=2, freq_band=(0.01, 2),
                      n_fft=4096, seg_size=None):
 
         # TODO use fractal_analysis instead
 
         plot_fractal(self.data, self.fs, log=self.log,
                      seg_size=seg_size,
-                     cutoff_freq=cutoff_freq,
+                     freq_band=freq_band,
                      n_moments=n_moments,
                      n_fft=n_fft)
 
-    def fractal_analysis(self, n_moments=2, cutoff_freq=8):
+    def fractal_analysis(self, n_moments=2, freq_band=(0.01, 2)):
 
         self.estimate_wavelet_psd(n_moments, None)
         self.fractal = estimate_beta(self.wt_psd.freq,
                                      self.wt_psd.psd,
                                      log=self.log,
-                                     cutoff_freq=cutoff_freq)
+                                     freq_band=freq_band)
 
         return self.fractal
 

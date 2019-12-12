@@ -1,11 +1,12 @@
 from collections import namedtuple
 
+import numpy as np
 from sklearn.linear_model import Ridge
 
 from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
 
-def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
+def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
                  n_fft=4096, seg_size=None):
     """
     Plot the superposition of Welch and Wavelet-based estimation of PSD, along
@@ -22,7 +23,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     log: str
         Log function to use on the PSD
 
-    cutoff_freq: int, optional
+    freq_band: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of $beta$
 
@@ -46,7 +47,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     freq_wavelet, psd_wavelet = wavelet_estimation(signal, s_freq, n_moments)
 
     # Estimate the 1/f slope
-    slope = estimate_beta(freq_wavelet, psd_wavelet, log, cutoff_freq)
+    slope = estimate_beta(freq_wavelet, psd_wavelet, log, freq_band)
 
     # Compute values to plot the 1/f slope
     psd_slope = slope.beta * slope.freq + slope.log_C
@@ -59,7 +60,7 @@ def plot_fractal(signal, s_freq, log='log2', cutoff_freq=8, n_moments=2,
     log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
 
 
-def fractal_analysis(signal, s_freq, n_moments=2, cutoff_freq=8, log='log2'):
+def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2'):
     """
     Perform the estimation of the value of beta and the logged value of C, \
     where beta and log_C are defined in relation with the PSD:
@@ -75,7 +76,7 @@ def fractal_analysis(signal, s_freq, n_moments=2, cutoff_freq=8, log='log2'):
         Number of vanishing moments of the Daubechies wavelet used in the
         Wavelet decomposition.
 
-    cutoff_freq: int, optional
+    freq_band: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of `beta`
 
@@ -85,7 +86,7 @@ def fractal_analysis(signal, s_freq, n_moments=2, cutoff_freq=8, log='log2'):
     """
 
     freq, psd = wavelet_estimation(signal, s_freq, n_moments)
-    fractal = estimate_beta(freq, psd, log, cutoff_freq)
+    fractal = estimate_beta(freq, psd, log, freq_band)
 
     return fractal.beta, fractal.log_C
 
@@ -95,7 +96,7 @@ FractalValues = namedtuple('FractalValues', ['beta',
                                              'freq'])
 
 
-def estimate_beta(freq, psd, cutoff_freq=8, log='log2'):
+def estimate_beta(freq, psd, freq_band=(0.01, 2), log='log2'):
     """
     From the PSD and its frequency support, estimate the C and beta variables, where
         PSD(f) = C|f|^-beta
@@ -105,10 +106,10 @@ def estimate_beta(freq, psd, cutoff_freq=8, log='log2'):
     freq: 1D-array_like
         Frequencies at which the PSD has been estimated
 
-    psd: 1D-array_like
+    psd: 1D-array_likes
         Power spectral density
 
-    cutoff_freq: int, optional
+    freq_band: int, optional
         Frequency (in Hertz) which delimitates the higher bound of frequencies
         to use during the estimation of $beta$
 
@@ -117,8 +118,9 @@ def estimate_beta(freq, psd, cutoff_freq=8, log='log2'):
 
     """
 
-    # Low-pass the PSD
-    support = [freq < cutoff_freq][0]
+    # Band-pass the PSD
+
+    support = np.logical_and(freq_band[0] <= freq, freq <= freq_band[1])
     freq = freq[support].reshape(-1, 1)
     psd = psd[support]
 
