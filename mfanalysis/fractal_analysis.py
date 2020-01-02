@@ -47,7 +47,7 @@ def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
     freq_wavelet, psd_wavelet = wavelet_estimation(signal, s_freq, n_moments)
 
     # Estimate the 1/f slope
-    slope = estimate_beta(freq_wavelet, psd_wavelet, log, freq_band)
+    slope = estimate_beta(freq_wavelet, psd_wavelet, freq_band, log)
 
     # Compute values to plot the 1/f slope
     psd_slope = slope.beta * slope.freq + slope.log_C
@@ -57,7 +57,7 @@ def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet', f'Slope: {slope.beta:.2f}']
 
-    log_plot(freq, psd, legend, slope=(slope.freq, psd_slope), log=log)
+    log_plot(freq, psd, legend, slope=[(slope.freq, psd_slope)], log=log)
 
 
 def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2'):

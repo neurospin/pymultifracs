@@ -80,7 +80,7 @@ def _log_psd(freq, psd, log):
 
 
 def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], log='log2',
-             lowpass_freq=np.inf, xticks=None, title='Power Spectral Density'):
+             lowpass_freq=np.inf, xticks=None, title='Power Spectral Density', ax=None, show=False):
     """
     Perform a log-log plot over a list of paired frequency range and PSD, with optional legend and fitted slope
 
@@ -106,9 +106,11 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
         name of log function to use on the data before plotting
     """
 
-    plt.xlabel('log_2 f')
-    plt.ylabel('log_2 S(f)')
-    plt.title(title)
+    ax = plt.gca() if ax is None else ax
+
+    ax.set_xlabel('log_2 f')
+    ax.set_ylabel('log_2 S(f)')
+    ax.set_title(title)
 
     if color is None:
         cmap = plt.get_cmap("tab10")
@@ -123,18 +125,21 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
         freq, psd = freq[indx], psd[indx]
         log_freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
 
-        plt.plot(log_freq, psd, f, c=col)
+        ax.plot(log_freq, psd, f, c=col)
 
         if xticks is not None and i == xticks:
-            plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
+            ax.set_xticks(log_freq)
+            ax.set_xticklabels([f'{fr:.2f}' for fr in freq])
+            # plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
 
     for tup in slope:
-        plt.plot(*tup, color='black')
+        ax.plot(*tup, color='black')
 
     if legend is not None:
-        plt.legend(legend)
+        ax.legend(legend)
 
-    plt.show()
+    if show:
+        plt.show()
 
 
 def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
