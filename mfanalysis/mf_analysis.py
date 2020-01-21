@@ -1,13 +1,21 @@
+from collections import namedtuple
+
 from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
 from .wavelet import wavelet_analysis, _check_formalism
 
+MFractalData = namedtuple('MFractalData', 'structure cumulants spectrum')
 
 def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
                 n_cumul, q):
     """
-    Perform multifractal analysis on given signal with specified parameters
+    Perform multifractal analysis
+
+    Parameters
+    ----------
+    
+
     """
 
     formalism = _check_formalism(p_exp)
@@ -27,7 +35,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
     cumulants = Cumulants(**parameters)
     spectrum = MultifractalSpectrum(**parameters)
 
-    return structure, cumulants, spectrum
+    return MFractalData(structure, cumulants, spectrum)
 
 
 def mf_analysis_full(signal, j1=1, j2=10, normalization=1, gamint=0.0,

@@ -6,7 +6,7 @@ import numpy as np
 from .fractal_analysis import plot_fractal, estimate_beta, FractalValues
 from .psd import plot_psd, wavelet_estimation, welch_estimation, PSD
 from .wavelet import wavelet_analysis
-from .mf_analysis import mf_analysis
+from .mf_analysis import mf_analysis, MFractalData
 from .estimation import compute_hurst, estimate_hmin
 
 
@@ -24,6 +24,8 @@ FractalParameters = namedtuple('FractalParameters', ['n_moments',
 WelchParameters = namedtuple('WelchParameters', 'n_fft seg_size')
 
 WTParametersPSD = namedtuple('WTParametersPSD', 'n_moments j2')
+
+MFParameters = namedtuple('MFParameters', 'q n_cumul')
 
 
 @dataclass
@@ -76,6 +78,8 @@ class Signal:
     fractal: FractalValues = None
     wt_transform = WaveletTransform = None
     wt_param: WaveletParameters = None
+    mf_param: MFParameters = None
+    multi_fractal: MFractalData = None
 
     def estimate_wavelet_psd(self, n_moments=2, j2=13):
 
@@ -138,10 +142,10 @@ class Signal:
     def _wavelet_analysis(self, new_param):
 
         if self.wt_param is None or self.wt_param != new_param:
-            self.wt_param = new_param
 
-        self.wt_transform = wavelet_analysis(self.data,
-                                             **self.wt_param._asdict())
+            self.wt_param = new_param
+            self.wt_transform = wavelet_analysis(self.data,
+                                                 **self.wt_param._asdict())
 
         return self.wt_transform
 
@@ -167,12 +171,22 @@ class Signal:
 
         self._check_wt_transform()
 
-        return mf_analysis(**self.wt_transform._asdict(),
-                           p_exp=self.wt_param.p_exp,
-                           j1=self.wt_param.j1,
-                           weighted=self.wt_param.weighted,
-                           q=q,
-                           n_cumul=n_cumul)
+        new_param = MFParameters(q, n_cumul)
+
+        if self.multi_fractal is None or new_param != self.mf_param:
+
+            self.mf_param = new_param
+
+            self.multi_fractal = mf_analysis(
+                **self.wt_transform._asdict(),
+                p_exp=self.wt_param.p_exp,
+                j1=self.wt_param.j1,
+                weighted=self.wt_param.weighted,
+                q=q,
+                n_cumul=n_cumul
+            )
+
+        return self.multi_fractal
 
     def hurst(self):
         # TODO store Hurst exponent
@@ -197,12 +211,9 @@ class Signal:
                          weighted=True, wt_name='db3', p_exp=None, q=None,
                          n_cumul=3):
 
-        # TODO store structure functions, cumulants, multifractal spectrum, and parameters used
-
         if q is None:
             q = [2]
 
-        self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,
-                              p_exp)
+        self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,p_exp)
 
         return self.mf_analysis(q, n_cumul)

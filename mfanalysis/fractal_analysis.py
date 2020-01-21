@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, LinearRegression
 
 from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
@@ -128,7 +128,8 @@ def estimate_beta(freq, psd, freq_band=(0.01, 2), log='log2'):
     freq, psd = _log_psd(freq, psd, log)
 
     # Fit ridge regressor
-    regressor = Ridge()
+    # regressor = Ridge()
+    regressor = LinearRegression()
     regressor.fit(freq, psd)
 
     return FractalValues(beta=regressor.coef_[0],

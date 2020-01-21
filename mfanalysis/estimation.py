@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
 
 from .utils import Utils
 from .structurefunction import StructureFunction
@@ -64,7 +64,7 @@ def estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn=True,
 
     # linear regression
     x = x.reshape(-1, 1)
-    regressor = Ridge()
+    regressor = LinearRegression()
     regressor.fit(x, y, nj)
     hmin = regressor.coef_[0]
 
