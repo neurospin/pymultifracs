@@ -19,33 +19,14 @@ For a brief introduction to multifractal analysis, see the file THEORY.ipynb
 Installation
 ============
 
-
 .. code:: shell
 
     git clone https://github.com/neurospin/mfanalysis.git
+    pip install -e mfanalysis
     cd mfanalysis
-    python setup.py install
-
+    conda env create -f examples/Maquette.yml
 
 How to use the package
 ============
 
-See scripts in /examples, mainly /examples/demo_pleaders.py 
-
-The data used for the examples were taken from the example data of the PLBMF Matlab toolbox (https://www.irit.fr/~Herwig.Wendt/software.html, MF_BS_tool_webrelease/demo/WLBMF_example_data).
-
-
-Testing
-============
-
-The scripts in /test allow us to compare the outputs of this package and the PLBMF Matlab toolbox (https://www.irit.fr/~Herwig.Wendt/software.html). 
-
-How to perform a test:
-
-1. Run define_testing_parameters.py to define a range of parameters to be tested and generate params.json.
-
-2. Put .mat files in folder /test_data containing signals to be tested (each file must have a 'data' variable representing a 1d signal).
-
-3. Run /test/testing_python_package/test.py to generate python outputs and run  /test/testing_matlab_toolbox/test.m to generate matlab outputs.
-
-4. Done! Output csv files are stored in /test_outputs. The script compare_outputs.py can be used to compare these output files.
+See the examples/ folder, mainly examples/Demo.ipynb and examples/Maquette.ipynb

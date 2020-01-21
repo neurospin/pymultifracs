@@ -86,10 +86,9 @@ def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2
     """
 
     freq, psd = wavelet_estimation(signal, s_freq, n_moments)
-    fractal = estimate_beta(freq, psd, log, freq_band)
+    fractal = estimate_beta(freq, psd, freq_band, log)
 
-    return fractal.beta, fractal.log_C
-
+    return fractal
 
 FractalValues = namedtuple('FractalValues', ['beta',
                                              'log_C',

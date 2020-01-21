@@ -4,7 +4,7 @@ from collections import namedtuple
 import numpy as np
 
 from .fractal_analysis import plot_fractal, estimate_beta, FractalValues
-from .psd import plot_psd, wavelet_estimation, welch_estimation, PSD
+from .psd import log_plot, wavelet_estimation, welch_estimation, PSD
 from .wavelet import wavelet_analysis
 from .mf_analysis import mf_analysis, MFractalData
 from .estimation import compute_hurst, estimate_hmin
@@ -81,7 +81,7 @@ class Signal:
     mf_param: MFParameters = None
     multi_fractal: MFractalData = None
 
-    def estimate_wavelet_psd(self, n_moments=2, j2=13):
+    def estimate_wavelet_psd(self, n_moments=2, j2=None):
 
         param = WTParametersPSD(n_moments=n_moments, j2=j2)
 
@@ -109,25 +109,30 @@ class Signal:
 
         return self.welch_psd
 
-    def plot_psd(self, n_fft=4096, seg_size=None, n_moments=2):
+    def plot_psd(self, n_fft=4096, seg_size=None, n_moments=2, j2=None):
 
-        # TODO use estimate_welch_psd instead
+        self.estimate_wavelet_psd(n_moments, j2)
+        self.estimate_welch_psd(n_fft, seg_size)
 
-        plot_psd(self.data, self.fs, log=self.log,
-                 n_moments=n_moments,
-                 seg_size=seg_size,
-                 n_fft=n_fft)
+        log_plot([self.welch_psd.freq, self.wt_psd.freq],
+                 [self.welch_psd.psd, self.wt_psd.psd],
+                 ['Fourier', 'Wavelet'],
+                 log=self.log)
 
     def plot_fractal(self, n_moments=2, freq_band=(0.01, 2),
                      n_fft=4096, seg_size=None):
 
-        # TODO use fractal_analysis instead
+        self.estimate_wavelet_psd(n_moments, None)
+        self.estimate_welch_psd(n_fft, seg_size)
+        self.fractal_analysis(n_moments, freq_band)
 
-        plot_fractal(self.data, self.fs, log=self.log,
-                     seg_size=seg_size,
-                     freq_band=freq_band,
-                     n_moments=n_moments,
-                     n_fft=n_fft)
+        psd_slope = self.fractal.beta * self.fractal.freq + self.fractal.log_C
+
+        log_plot([self.welch_psd.freq, self.wt_psd.freq],
+                 [self.welch_psd.psd, self.wt_psd.psd],
+                 ['Fourier', 'Wavelet', f'Slope: {self.fractal.beta:.2f}'],
+                 slope=[(self.fractal.freq, psd_slope)],
+                 log=self.log)
 
     def fractal_analysis(self, n_moments=2, freq_band=(0.01, 2)):
 

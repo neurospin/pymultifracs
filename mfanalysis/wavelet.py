@@ -63,6 +63,18 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
 
 
 def decomposition_level(length, wt_name):
+    """
+    Checks the maximum scale which can be used to decompose a signal of given length
+
+    Parameters
+    ----------
+
+    length: int
+        Length of the signal considered
+
+    wt_name: str
+        Name of the wavelet function to use, following the pywavelet convention
+    """
 
     wt = pywt.Wavelet(wt_name)
     filter_len = len(wt.dec_hi)
@@ -210,6 +222,9 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
     wt_name: str
         name of the wavelet function to use, as defined in the pywavelet package
 
+    j1: int
+        lower bound of the scale range on which to estimate eta_p in p-leader correction
+
     j2: int
         upper bound of the scale range for which wavelet coefficients will be conputed
 
@@ -220,9 +235,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
         norm to use
 
     weighted: bool
-
-    j1: int
-        lower bound of the scale range on which to estimate eta_p in p-leader correction
     """
 
     # Initialize the filter
