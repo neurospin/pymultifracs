@@ -7,7 +7,7 @@ from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
 
 def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
-                 n_fft=4096, seg_size=None):
+                 n_fft=4096, seg_size=None, lowpass_freq=49):
     """
     Plot the superposition of Welch and Wavelet-based estimation of PSD, along
     with the estimation of the $beta$ coefficient on a log-log graphic.
@@ -57,7 +57,7 @@ def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet', f'Slope: {slope.beta:.2f}']
 
-    log_plot(freq, psd, legend, slope=[(slope.freq, psd_slope)], log=log)
+    log_plot(freq, psd, legend, slope=[(slope.freq, psd_slope)], log=log, lowpass_freq=lowpass_freq)
 
 
 def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2'):
@@ -123,12 +123,18 @@ def estimate_beta(freq, psd, freq_band=(0.01, 2), log='log2'):
     freq = freq[support].reshape(-1, 1)
     psd = psd[support]
 
+# Move this input sanitization to the megfractal package instead
+    # if psd.min() < 0:
+    #     psd -= psd.min()
+    #     psd += 1e-26
+
     # Log the values
     freq, psd = _log_psd(freq, psd, log)
 
     # Fit ridge regressor
     # regressor = Ridge()
     regressor = LinearRegression()
+
     regressor.fit(freq, psd)
 
     return FractalValues(beta=regressor.coef_[0],

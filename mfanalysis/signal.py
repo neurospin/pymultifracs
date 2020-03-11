@@ -167,6 +167,28 @@ class Signal:
 
         return self._wavelet_analysis(new_param)
 
+    def psd_difference(self, other, log=None):
+        # the log argument is a pair of functions with the second one being the inverse of the first
+
+        common_support, idx_self, idx_other = np.intersect1d(
+            self.wt_psd.freq, other.wt_psd.freq,
+            assume_unique=True, return_indices=True)
+
+        if log is None:
+            psd = self.wt_psd.psd[idx_self] - other.wt_psd.psd[idx_other]
+        else:
+            self_psd = log[0](self.wt_psd.psd[idx_self])
+            other_psd = log[0](other.wt_psd.psd[idx_other])
+
+            psd = self_psd - other_psd
+            psd -= psd.min()
+            psd += 0.1
+
+            psd = log[1](psd)
+
+        return Signal(None, self.fs, self.log, self.wt_psd_param, 
+                      PSD(common_support, psd))
+ 
     def _check_wt_transform(self):
 
         if self.wt_transform is None or self.wt_param is None:

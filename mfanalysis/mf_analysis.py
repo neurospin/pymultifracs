@@ -7,6 +7,7 @@ from .wavelet import wavelet_analysis, _check_formalism
 
 MFractalData = namedtuple('MFractalData', 'structure cumulants spectrum')
 
+
 def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
                 n_cumul, q):
     """
@@ -14,7 +15,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
 
     Parameters
     ----------
-    
+
 
     """
 
