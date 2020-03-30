@@ -108,8 +108,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
 
     ax = plt.gca() if ax is None else ax
 
-    ax.set_xlabel('log_2 f')
-    ax.set_ylabel('log_2 S(f)')
+    ax.set_xlabel(f'{log} f')
+    ax.set_ylabel(f'{log} S(f)')
     ax.set_title(title)
 
     if color is None:
@@ -172,7 +172,7 @@ def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
         n_fft = seg_size
 
     # Frequency
-    freq = fs * np.linspace(0, 0.5, n_fft / 2 + 1)
+    freq = fs * np.linspace(0, 0.5, n_fft // 2 + 1)
 
     # PSD
     _, psd = welch(signal,

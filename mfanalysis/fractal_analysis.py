@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-from sklearn.linear_model import Ridge, LinearRegression
+from sklearn.linear_model import LinearRegression
 
 from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
@@ -89,6 +89,7 @@ def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2
     fractal = estimate_beta(freq, psd, freq_band, log)
 
     return fractal
+
 
 FractalValues = namedtuple('FractalValues', ['beta',
                                              'log_C',

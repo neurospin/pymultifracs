@@ -18,18 +18,55 @@ https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf).
 For a brief introduction to multifractal analysis, see the file THEORY.ipynb
 
 
-Installation
-============
+Installing the package only
+===========================
+
+Using conda
+-----------
+
+You first need to get the environment file for the package
 
 .. code:: shell
 
-    git clone https://github.com/MerlinDumeur/mfanalysis.git
-    conda env create -f examples/Maquette.yml
-    conda activate Multifracs
+    wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/examples/env.yml
+
+Creating a new environment (recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code:: shell
+
+    conda env create -f env.yml
+
+Installing into a pre-existing environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Note that this package requires a recent version of python (>=3.7)
+
+.. code:: shell
+
+    conda env update -f env.yml
+
+Using pip
+---------
+
+.. code:: shell
+    
+    pip install git+https://github.com/MerlinDumeur/mfanalysis.git@master
+
+
+Cloning the whole repository (including examples)
+=================================================
+
+.. code:: shell
+
+    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+
+To install the package from the local repo, use the following command.
+
+.. code:: shell
+
     pip install -e mfanalysis
-    cd mfanalysis
 
 How to use the package
-============
+======================
 
 See the examples/ folder, mainly examples/Demo.ipynb and examples/Maquette.ipynb
