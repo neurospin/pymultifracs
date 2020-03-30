@@ -1,14 +1,15 @@
 from setuptools import setup
 
 setup(name='mfanalysis',
-      version='0.15dev',
-      description='Implements wavelet based multifractal analysis of 1d signals.',
+      version='0.20',
+      description='Implements wavelet based fractal and multifractal analysis of 1d signals.',
       url='https://github.com/neurospin/mfanalysis',
-      author='Omar Darwiche Domingues',
+      author='Omar Darwiche Domingues, Merlin Dumeur',
       author_email='',
       license='',
       packages=['mfanalysis'],
       install_requires=[
           'pywavelets', 'scipy', 'numpy', 'matplotlib',
       ],
-      zip_safe=False)
+      zip_safe=False,
+      python_requires='>=3.7')

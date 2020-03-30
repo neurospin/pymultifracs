@@ -28,6 +28,28 @@ WTParametersPSD = namedtuple('WTParametersPSD', 'n_moments j2')
 MFParameters = namedtuple('MFParameters', 'q n_cumul')
 
 
+def same_params(old_params, new_params):
+
+    for param in old_param._asdict():
+
+        old_param = getattr(old_params, param)
+        new_param = getattr(new_params, param)
+
+        if isinstance(old_param, np.ndarray) or \
+            isinstance(new_params, np.ndarray):
+
+            same = (old_param == new_param).all()
+
+        else:
+
+            same = old_param == new_param
+
+    if not(same):
+        return False
+
+    return True
+
+
 @dataclass
 class Signal:
     """
@@ -136,6 +158,7 @@ class Signal:
 
     def fractal_analysis(self, n_moments=2, freq_band=(0.01, 2)):
 
+        self.fractal_param = FractalParameters(n_moments, freq_band)
         self.estimate_wavelet_psd(n_moments, None)
         self.fractal = estimate_beta(self.wt_psd.freq,
                                      self.wt_psd.psd,
@@ -200,7 +223,8 @@ class Signal:
 
         new_param = MFParameters(q, n_cumul)
 
-        if self.multi_fractal is None or new_param != self.mf_param:
+        if self.multi_fractal is None or not(same_params(self.mf_param,
+                                                         new_param)):
 
             self.mf_param = new_param
 
@@ -241,6 +265,7 @@ class Signal:
         if q is None:
             q = [2]
 
-        self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,p_exp)
+        self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,
+                              p_exp)
 
         return self.mf_analysis(q, n_cumul)
