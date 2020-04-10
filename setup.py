@@ -9,7 +9,7 @@ setup(name='mfanalysis',
       license='',
       packages=['mfanalysis'],
       install_requires=[
-          'pywavelets', 'scipy', 'numpy', 'matplotlib',
+          'numpy', 'scipy', 'scikit-learn', 'pywavelets', 'seaborn'
       ],
       zip_safe=False,
       python_requires='>=3.7')

@@ -31,29 +31,31 @@ class StructureFunction:
 
     """
     def __init__(self, mrq, q, j1, j2, wtype, **kwargs):
-        self.mrq = mrq
+        self.mrq_name = mrq.name
         self.q = q
         self.j1 = j1
         self.j2 = j2
         self.j = np.array(list(mrq.values))
         self.wtype = wtype
-        self.values = np.zeros((len(self.q), len(self.j)))
         self.logvalues = np.zeros((len(self.q), len(self.j)))
         self.zeta = []
         self.utils = Utils()  # used for linear regression
-        self._compute()
-        self._compute_zeta()
+        self._compute(mrq)
+        self._compute_zeta(mrq)
 
-    def _compute(self):
+    def _compute(self, mrq):
+
+        values = np.zeros((len(self.q), len(self.j)))
+
         for ind_q, q in enumerate(self.q):
             for ind_j, j in enumerate(self.j):
-                c_j = self.mrq.values[j]
+                c_j = mrq.values[j]
                 s_j_q = np.mean(np.abs(c_j)**q)
-                self.values[ind_q, ind_j] = s_j_q
+                values[ind_q, ind_j] = s_j_q
 
-        self.logvalues = np.log2(self.values)
+        self.logvalues = np.log2(values)
 
-    def _compute_zeta(self):
+    def _compute_zeta(self, mrq):
         """
         Compute the value of the scale function zeta(q) for all q
         """
@@ -63,17 +65,20 @@ class StructureFunction:
         x = np.arange(self.j1, self.j2+1)
 
         if self.wtype == 1:
-            nj = self.mrq.get_nj_interv(self.j1, self.j2)
+            nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones(len(x))
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1
-        for ind_q, q in enumerate(self.q):
+        for ind_q in range(len(self.q)):
             y = self.logvalues[ind_q, ind_j1:ind_j2+1]
             slope, intercept = self.utils.linear_regression(x, y, nj)
             self.zeta[ind_q] = slope
             self.intercept[ind_q] = intercept
+
+    def get_H(self):
+        return self.zeta[self.q == 2] or None
 
     def plot(self, figlabel_structure=None, figlabel_scaling=None):
         """
@@ -103,7 +108,7 @@ class StructureFunction:
                                  squeeze=False,
                                  figsize=(30, 10))
 
-        fig.suptitle(self.mrq.name +
+        fig.suptitle(self.mrq_name +
                      r' - structure functions $\log_2(S(j,q))$')
 
         x = self.j
@@ -136,7 +141,7 @@ class StructureFunction:
             plt.plot(self.q, self.zeta, 'k--.')
             plt.xlabel('q')
             plt.ylabel(r'$\zeta(q)$')
-            plt.suptitle(self.mrq.name + ' - scaling function')
+            plt.suptitle(self.mrq_name + ' - scaling function')
             plt.grid()
 
         plt.draw()

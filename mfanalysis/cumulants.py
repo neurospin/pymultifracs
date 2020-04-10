@@ -39,8 +39,7 @@ class Cumulants:
 
     """
     def __init__(self, mrq, n_cumul, j1, j2, wtype, **kwargs):
-        self.mrq = mrq
-        self.name = mrq.name
+        self.mrq_name = mrq.name
         self.nj = mrq.nj
         self.n_cumul = n_cumul
         self.m = np.arange(1, n_cumul+1)
@@ -52,16 +51,16 @@ class Cumulants:
         self.log_cumulants = []
         self.var_log_cumulants = []
         self.utils = Utils()  # used for linear regression
-        self._compute()
+        self._compute(mrq)
         self._compute_log_cumulants()
 
-    def _compute(self):
+    def _compute(self, mrq):
 
         moments = np.zeros((len(self.m), len(self.j)))
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(self.mrq.values[j])
+            T_X_j = np.abs(mrq.values[j])
             log_T_X_j = np.log(T_X_j)
 
             for ind_m, m in enumerate(self.m):

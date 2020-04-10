@@ -53,7 +53,7 @@ Using pip
     pip install git+https://github.com/MerlinDumeur/mfanalysis.git@master
 
 
-Cloning the whole repository (including examples)
+Cloning the whole repository (including examples and doc)
 =================================================
 
 .. code:: shell

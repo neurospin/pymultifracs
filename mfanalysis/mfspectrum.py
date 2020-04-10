@@ -27,7 +27,9 @@ class MultifractalSpectrum:
     """
 
     def __init__(self, mrq, q, j1, j2, wtype, **kwargs):
-        self.mrq = mrq
+        # self.mrq = mrq
+        self.nj = mrq.nj
+        self.mrq_name = mrq.name
         self.j = np.array(list(mrq.values))
         self.q = q
 
@@ -37,9 +39,9 @@ class MultifractalSpectrum:
         self.wt_param = WaveletParameters(j1=j1, j2=j2, wtype=wtype)
 
         # Compute spectrum
-        self._compute()
+        self._compute(mrq)
 
-    def _compute(self):
+    def _compute(self, mrq):
         """
         Computes the multifractal spectrum (Dq, hq)
         """
@@ -49,8 +51,8 @@ class MultifractalSpectrum:
         V = np.zeros((len(self.j), len(self.q)))
 
         for ind_j, j in enumerate(self.j):
-            nj = self.mrq.nj[j]
-            mrq_values_j = np.abs(self.mrq.values[j])
+            nj = mrq.nj[j]
+            mrq_values_j = np.abs(mrq.values[j])
 
             for ind_q, qq in enumerate(self.q):
                 temp = np.power(mrq_values_j, qq)  # vector of size nj
@@ -75,12 +77,12 @@ class MultifractalSpectrum:
         else:
             wj = np.ones(len(x))
 
-        for ind_q, q in enumerate(self.q):
+        for ind_q in range(len(self.q)):
             y = U[(self.wt_param.j1-1):self.wt_param.j2, ind_q]
             z = V[(self.wt_param.j1-1):self.wt_param.j2, ind_q]
 
-            slope_1, intercept_1 = Utils().linear_regression(x, y, wj)
-            slope_2, intercept_2 = Utils().linear_regression(x, z, wj)
+            slope_1, _ = Utils().linear_regression(x, y, wj)
+            slope_2, _ = Utils().linear_regression(x, z, wj)
 
             Dq[ind_q] = 1 + slope_1
             hq[ind_q] = slope_2
@@ -102,7 +104,7 @@ class MultifractalSpectrum:
         plt.grid()
         plt.xlabel('h(q)')
         plt.ylabel('D(q)')
-        plt.suptitle(self.mrq.name + ' - multifractal spectrum')
+        plt.suptitle(self.mrq_name + ' - multifractal spectrum')
         plt.draw()
 
     def get_nj_interv(self, j1, j2):
@@ -111,5 +113,5 @@ class MultifractalSpectrum:
         """
         nj = []
         for j in range(j1, j2+1):
-            nj.append(self.mrq.nj[j])
+            nj.append(self.nj[j])
         return nj

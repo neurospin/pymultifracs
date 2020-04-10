@@ -5,7 +5,7 @@ import numpy as np
 
 from .fractal_analysis import plot_fractal, estimate_beta, FractalValues
 from .psd import log_plot, wavelet_estimation, welch_estimation, PSD
-from .wavelet import wavelet_analysis
+from .wavelet import wavelet_analysis, WaveletTransform
 from .mf_analysis import mf_analysis, MFractalData
 from .estimation import compute_hurst, estimate_hmin
 
@@ -30,13 +30,13 @@ MFParameters = namedtuple('MFParameters', 'q n_cumul')
 
 def same_params(old_params, new_params):
 
-    for param in old_param._asdict():
+    for param in old_params._asdict():
 
         old_param = getattr(old_params, param)
         new_param = getattr(new_params, param)
 
-        if isinstance(old_param, np.ndarray) or \
-            isinstance(new_params, np.ndarray):
+        if (isinstance(old_param, np.ndarray)
+           or isinstance(new_params, np.ndarray)):
 
             same = (old_param == new_param).all()
 
@@ -61,7 +61,7 @@ class Signal:
 
     data: np.ndarray
         Time series to process
-    
+
     fs: float
         Sampling frequency of the signal
 
@@ -73,13 +73,13 @@ class Signal:
 
     wt_psd: PSD | None
         stores the output of the wavelet PSD
-    
+
     fractal_param: FractalParameters | None
         stores the parameters used in the fractal analysis
 
     fractal: FractalValues | None
         stores the output of the fractal analysis
-    
+
     wt_transform: WaveletTransform | None
         stores the output of the wavelet transform
 
@@ -98,7 +98,7 @@ class Signal:
     welch_psd: PSD = None
     fractal_param: FractalParameters = None
     fractal: FractalValues = None
-    wt_transform = WaveletTransform = None
+    wt_transform: WaveletTransform = None
     wt_param: WaveletParameters = None
     mf_param: MFParameters = None
     multi_fractal: MFractalData = None
@@ -211,7 +211,7 @@ class Signal:
 
         return Signal(None, self.fs, self.log, self.wt_psd_param, 
                       PSD(common_support, psd))
- 
+
     def _check_wt_transform(self):
 
         if self.wt_transform is None or self.wt_param is None:

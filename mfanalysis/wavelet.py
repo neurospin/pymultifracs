@@ -298,5 +298,3 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
     return WaveletTransform(wt_leaders=wt_leaders,
                             wt_coefs=wt_coefs,
                             j2_eff=j2_eff)
-
-
