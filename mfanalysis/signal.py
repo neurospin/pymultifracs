@@ -44,8 +44,8 @@ def same_params(old_params, new_params):
 
             same = old_param == new_param
 
-    if not(same):
-        return False
+        if not(same):
+            return False
 
     return True
 
@@ -217,7 +217,7 @@ class Signal:
         if self.wt_transform is None or self.wt_param is None:
             raise AttributeError("Wavelet analysis was not done")
 
-    def mf_analysis(self, q, n_cumul):
+    def mf_analysis(self, q, n_cumul, save=True):
 
         self._check_wt_transform()
 
@@ -228,7 +228,7 @@ class Signal:
 
             self.mf_param = new_param
 
-            self.multi_fractal = mf_analysis(
+            multi_fractal = mf_analysis(
                 **self.wt_transform._asdict(),
                 p_exp=self.wt_param.p_exp,
                 j1=self.wt_param.j1,
@@ -237,7 +237,10 @@ class Signal:
                 n_cumul=n_cumul
             )
 
-        return self.multi_fractal
+            if save:
+                self.multi_fractal = multi_fractal
+
+        return multi_fractal
 
     def hurst(self):
         # TODO store Hurst exponent
@@ -260,7 +263,7 @@ class Signal:
 
     def mf_analysis_full(self, j1=1, j2=10, normalization=1, gamint=0.0,
                          weighted=True, wt_name='db3', p_exp=None, q=None,
-                         n_cumul=3):
+                         n_cumul=3, save=True):
 
         if q is None:
             q = [2]
@@ -268,4 +271,4 @@ class Signal:
         self.wavelet_analysis(j1, j2, normalization, gamint, weighted, wt_name,
                               p_exp)
 
-        return self.mf_analysis(q, n_cumul)
+        return self.mf_analysis(q, n_cumul, save)

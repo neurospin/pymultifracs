@@ -12,15 +12,12 @@ class Cumulants:
     IMPORTANT: var_log_cumulants NOT DEBUGGED
 
     Args:
-        mrq (MultiResolutionQuantity): multiresolution quantity used to
-                                       compute the cumulants
-
         nj  (dict)                   : nj[j] contains the number of
                                        coefficients at the scale j
 
         n_cumul(int)                 : number of cumulants to compute
 
-        m (numpy.array)              : list of order m of the cumulant C_m(j)
+        m (numpy.array)              : list of orde m of the cumulant C_m(j)
 
         j1 (int)                     : smallest scale analysis
 
@@ -212,7 +209,7 @@ class Cumulants:
                                  num=fignum,
                                  squeeze=False)
 
-        fig.suptitle(self.name + r' - cumulants $\log_2(C_m(j))$')
+        fig.suptitle(self.mrq_name + r' - cumulants $\log_2(C_m(j))$')
 
         x = self.j
         for ind_m, m in enumerate(self.m):

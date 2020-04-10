@@ -78,7 +78,12 @@ class StructureFunction:
             self.intercept[ind_q] = intercept
 
     def get_H(self):
-        return self.zeta[self.q == 2] or None
+        H = self.zeta[self.q == 2]
+
+        if len(H) > 0:
+            return H[0]
+
+        return None
 
     def plot(self, figlabel_structure=None, figlabel_scaling=None):
         """
