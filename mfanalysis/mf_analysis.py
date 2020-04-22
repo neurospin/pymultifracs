@@ -3,9 +3,11 @@ from collections import namedtuple
 from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
-from .wavelet import wavelet_analysis, _check_formalism
+from .wavelet import wavelet_analysis
+from .estimation import estimate_hmin
 
-MFractalData = namedtuple('MFractalData', 'structure cumulants spectrum')
+MFractalData = namedtuple('MFractalData', 'dwt lwt')
+MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum')
 
 
 def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
@@ -15,16 +17,11 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
 
     Parameters
     ----------
-
-
     """
 
-    formalism = _check_formalism(p_exp)
-
-    # h_min, _ = estimate_hmin(wt_coefs, j1, j2_eff, weighted)
+    estimate_hmin(wt_coefs, j1, j2_eff, weighted)
 
     parameters = {
-        'mrq': wt_coefs if formalism == 'wcmf' else wt_leaders,
         'q': q,
         'n_cumul': n_cumul,
         'j1': j1,
@@ -32,11 +29,35 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
         'wtype': weighted,
     }
 
-    structure = StructureFunction(**parameters)
-    cumulants = Cumulants(**parameters)
-    spectrum = MultifractalSpectrum(**parameters)
+    param_dwt = {
+        'mrq': wt_coefs,
+        **parameters
+    }
 
-    return MFractalData(structure, cumulants, spectrum)
+    dwt_struct = StructureFunction(**param_dwt)
+    dwt_cumul = Cumulants(**param_dwt)
+    dwt_spec = MultifractalSpectrum(**param_dwt)
+
+    dwt = MFractalVar(dwt_struct, dwt_cumul, dwt_spec)
+
+    if p_exp is not None:
+
+        param_lwt = {
+            'mrq': wt_leaders,
+            **parameters
+        }
+
+        lwt_struct = StructureFunction(**param_lwt)
+        lwt_cumul = Cumulants(**param_lwt)
+        lwt_spec = MultifractalSpectrum(**param_lwt)
+
+        lwt = MFractalVar(lwt_struct, lwt_cumul, lwt_spec)
+
+    else:
+
+        lwt = None
+
+    return MFractalData(dwt, lwt)
 
 
 def mf_analysis_full(signal, j1=1, j2=10, normalization=1, gamint=0.0,
@@ -51,13 +72,13 @@ def mf_analysis_full(signal, j1=1, j2=10, normalization=1, gamint=0.0,
                                     normalization=normalization,
                                     weighted=weighted)
 
-    structure, cumulants, spectrum = mf_analysis(wt_transform.wt_coefs,
-                                                 wt_transform.wt_leaders,
-                                                 wt_transform.j2_eff,
-                                                 p_exp=p_exp,
-                                                 j1=j1,
-                                                 weighted=weighted,
-                                                 n_cumul=n_cumul,
-                                                 q=q)
+    mf_data = mf_analysis(wt_transform.wt_coefs,
+                          wt_transform.wt_leaders,
+                          wt_transform.j2_eff,
+                          p_exp=p_exp,
+                          j1=j1,
+                          weighted=weighted,
+                          n_cumul=n_cumul,
+                          q=q)
 
-    return structure, cumulants, spectrum
+    return mf_data

@@ -3,7 +3,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from .fractal_analysis import plot_fractal, estimate_beta, FractalValues
+from .fractal_analysis import estimate_beta, FractalValues
 from .psd import log_plot, wavelet_estimation, welch_estimation, PSD
 from .wavelet import wavelet_analysis, WaveletTransform
 from .mf_analysis import mf_analysis, MFractalData
@@ -191,7 +191,8 @@ class Signal:
         return self._wavelet_analysis(new_param)
 
     def psd_difference(self, other, log=None):
-        # the log argument is a pair of functions with the second one being the inverse of the first
+        # the log argument is a pair of functions with the second one being
+        # the inverse of the first
 
         common_support, idx_self, idx_other = np.intersect1d(
             self.wt_psd.freq, other.wt_psd.freq,
@@ -209,7 +210,7 @@ class Signal:
 
             psd = log[1](psd)
 
-        return Signal(None, self.fs, self.log, self.wt_psd_param, 
+        return Signal(None, self.fs, self.log, self.wt_psd_param,
                       PSD(common_support, psd))
 
     def _check_wt_transform(self):
