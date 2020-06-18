@@ -7,6 +7,7 @@ from scipy.signal import convolve
 
 from .structurefunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
+from .utils import smart_power
 
 
 def _check_formalism(p_exp):
@@ -64,7 +65,8 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
 
 def decomposition_level(length, wt_name):
     """
-    Checks the maximum scale which can be used to decompose a signal of given length
+    Checks the maximum scale which can be used to decompose a signal
+    of given length
 
     Parameters
     ----------
@@ -170,7 +172,7 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
     detail = np.abs(detail)
 
     if formalism == 'p-leader':
-        detail = np.power(2., scale)*np.power(detail, p_exp)
+        detail = np.power(2., scale)*smart_power(detail, p_exp)
 
     sans_voisin = _find_sans_voisin(scale, detail, sans_voisin, formalism)
 
@@ -181,7 +183,7 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
 
     if formalism == 'p-leader':
         leaders = leaders.sum(axis=0)
-        leaders = np.power(np.power(2., -scale)*leaders, 1/p_exp)
+        leaders = smart_power(np.power(2., -scale)*leaders, 1/p_exp)
     else:
         leaders = leaders.max(axis=0)
 
@@ -219,14 +221,17 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
             -np.inf means wavelet leader
             -int value means p-leader
 
-    wt_name: str
-        name of the wavelet function to use, as defined in the pywavelet package
+    wt_name: str 
+        name of the wavelet function to use, as defined in the pywavelet
+        package
 
     j1: int
-        lower bound of the scale range on which to estimate eta_p in p-leader correction
+        lower bound of the scale range on which to estimate eta_p in
+        p-leader correction
 
     j2: int
-        upper bound of the scale range for which wavelet coefficients will be conputed
+        upper bound of the scale range for which wavelet coefficients
+        will be conputed
 
     gamint: float
         fractional integration coefficient
@@ -288,7 +293,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
             wt_leaders.add_values(leaders[finite_idx_wl], scale)
 
     # "effective" j2, used in linear regression
-    j2_eff = min(max_level, j2) if j2 is not None else max_level
+    j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
 
     if formalism == 'p-leader':
         wt_leaders = _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,

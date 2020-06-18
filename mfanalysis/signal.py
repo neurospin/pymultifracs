@@ -69,7 +69,8 @@ class Signal:
         name of the log function to use on the PSD
 
     wt_psd_moments: int | None
-        number of vanishing moments of the Daubechies wavelet in the wavelet PSD estimation
+        number of vanishing moments of the Daubechies wavelet in the wavelet
+            PSD estimation
 
     wt_psd: PSD | None
         stores the output of the wavelet PSD

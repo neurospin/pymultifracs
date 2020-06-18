@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import Utils
+from .utils import Utils, smart_power
 
 
 class StructureFunction:
@@ -47,11 +47,12 @@ class StructureFunction:
 
         values = np.zeros((len(self.q), len(self.j)))
 
-        for ind_q, q in enumerate(self.q):
-            for ind_j, j in enumerate(self.j):
-                c_j = mrq.values[j]
-                s_j_q = np.mean(np.abs(c_j)**q)
-                values[ind_q, ind_j] = s_j_q
+        for ind_j, j in enumerate(self.j):
+            c_j = mrq.values[j]
+            s_j = np.zeros(values.shape[0])
+            for ind_q, q in enumerate(self.q):
+                s_j[ind_q] = np.mean(smart_power(np.abs(c_j), q))
+            values[:, ind_j] = s_j
 
         self.logvalues = np.log2(values)
 
@@ -81,7 +82,7 @@ class StructureFunction:
         H = self.zeta[self.q == 2]
 
         if len(H) > 0:
-            return H[0]
+            return H[0] / 2
 
         return None
 

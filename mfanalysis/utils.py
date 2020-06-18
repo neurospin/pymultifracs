@@ -4,6 +4,36 @@ from __future__ import unicode_literals
 import numpy as np
 
 
+def smart_power(array, exponent):
+
+    # import warnings
+    # warnings.filterwarnings("error")
+
+    if exponent == 1:
+        return array
+
+    elif exponent == 2:
+        return array * array
+        # return np.square(array)
+
+    elif exponent == 0.5:
+        return np.sqrt(array)
+
+    elif exponent in [-1, 0]:
+        return array ** exponent
+
+    elif isinstance(exponent, int) and exponent > 0 and exponent <= 10:
+
+        array_out = np.ones(array.shape)
+
+        for _ in range(exponent):
+            array_out *= array
+
+        return array_out
+
+    return np.power(array, exponent)
+
+
 class Utils:
     def __init__(self):
         pass

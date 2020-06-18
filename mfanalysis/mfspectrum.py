@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import Utils
+from .utils import Utils, smart_power
 
 WaveletParameters = namedtuple('WaveletParameters', 'j1 j2 wtype')
 
@@ -54,13 +54,18 @@ class MultifractalSpectrum:
             nj = mrq.nj[j]
             mrq_values_j = np.abs(mrq.values[j])
 
-            for ind_q, qq in enumerate(self.q):
-                temp = np.power(mrq_values_j, qq)  # vector of size nj
+            # for ind_q, qq in enumerate(self.q):
+            #     temp = smart_power(mrq_values_j, qq)  # vector of size nj
 
-                R_q_j = temp/temp.sum()
+            #     R_q_j = temp/temp.sum()
 
-                V[ind_j, ind_q] = (R_q_j*np.log2(mrq_values_j)).sum()
-                U[ind_j, ind_q] = np.log2(nj) + (R_q_j*np.log2(R_q_j)).sum()
+            #     V[ind_j, ind_q] = (R_q_j*np.log2(mrq_values_j)).sum()
+            #     U[ind_j, ind_q] = np.log2(nj) + (R_q_j*np.log2(R_q_j)).sum()
+
+            temp = np.stack([smart_power(mrq_values_j, q) for q in self.q])
+            R_j = temp / temp.sum(axis=1)[:, None]
+            V[ind_j, :] = (R_j * np.log2(mrq_values_j)).sum(axis=1)
+            U[ind_j, :] = np.log2(nj) + (R_j * np.log2(R_j)).sum(axis=1)
 
         self.U = U
         self.V = V

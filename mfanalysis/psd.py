@@ -63,7 +63,8 @@ log_function = {'log2': np.log2,
 
 def _log_psd(freq, psd, log):
     """
-    Compute the logged values of a PSD and its frequency support similarly to the MATLAB toolbox
+    Compute the logged values of a PSD and its frequency support similarly to
+    the MATLAB toolbox
     """
 
     # Avoid computing log(0)
@@ -79,10 +80,12 @@ def _log_psd(freq, psd, log):
     return freq, psd
 
 
-def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], log='log2',
-             lowpass_freq=np.inf, xticks=None, title='Power Spectral Density', ax=None, show=False):
+def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
+             log='log2', lowpass_freq=np.inf, xticks=None,
+             title='Power Spectral Density', ax=None, show=False):
     """
-    Perform a log-log plot over a list of paired frequency range and PSD, with optional legend and fitted slope
+    Perform a log-log plot over a list of paired frequency range and PSD, with
+    optional legend and fitted slope
 
     Parameters
     ----------
@@ -91,7 +94,7 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
 
     psd_list: list
         list of PSDs to plot
-    
+
     legend: list | None
         list of labels to assign to the PSDs
 
@@ -99,7 +102,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
         colors to assign to the plotted PSDs
 
     slope: [(freq, psd)] | []
-        list of 2-tuples containing the frequency support and PSD representation of a slope to plot
+        list of 2-tuples containing the frequency support and PSD
+        representation of a slope to plot
         TODO: replace (freq, psd) with (beta, log_C)
 
     log: str
@@ -119,7 +123,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[], l
     if fmt is None:
         fmt = ['-'] * len(freq_list)
 
-    for i, (freq, psd, f, col) in enumerate(zip(freq_list, psd_list, fmt, color)):
+    for i, (freq, psd, f, col) in enumerate(zip(freq_list, psd_list, fmt,
+                                                color)):
 
         indx = tuple([freq < lowpass_freq])
         freq, psd = freq[indx], psd[indx]
