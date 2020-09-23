@@ -29,7 +29,8 @@ def _estimate_eta_p(wt_coefs, p_exp, j1, j2_eff, weighted):
     wavelet_structure = StructureFunction(wt_coefs,
                                           np.array([p_exp]),
                                           j1, j2_eff,
-                                          weighted)
+                                          weighted,
+                                          stat_fun='mean')
 
     return wavelet_structure.zeta[0]
 
@@ -259,7 +260,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     approx = signal
 
-    # TODO replace with while loop to remove break statements
     for scale in range(1, max_level + 1):
 
         detail, approx = filtering(approx, high_filter, low_filter)

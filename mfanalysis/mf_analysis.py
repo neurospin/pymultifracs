@@ -11,7 +11,7 @@ MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum hmin')
 
 
 def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
-                n_cumul, q):
+                n_cumul, q, stat_fun):
     """
     Perform multifractal analysis
 
@@ -25,6 +25,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
         'j1': j1,
         'j2': j2_eff,
         'wtype': weighted,
+        'stat_fun': stat_fun
     }
 
     param_dwt = {
@@ -63,7 +64,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
 
 
 def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
-                        n_cumul, q):
+                        n_cumul, q, stat_fun):
 
     parameters = {
         'q': q,
@@ -71,6 +72,7 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
         'j1': j1,
         'j2': j2_eff,
         'wtype': weighted,
+        'stat_fun': stat_fun
     }
 
     dwt_struct = StructureFunction(mrq=wt_coefs, **parameters)
@@ -84,7 +86,7 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
 
 def mf_analysis_full(signal, j1=1, j2=10, normalization=1, gamint=0.0,
                      weighted=True, wt_name='db3', p_exp=None, q=None,
-                     n_cumul=3, minimal=False):
+                     n_cumul=3, minimal=False, stat_fun='mean'):
 
     if q is None:
         q = [2]
@@ -103,6 +105,7 @@ def mf_analysis_full(signal, j1=1, j2=10, normalization=1, gamint=0.0,
                   j1=j1,
                   weighted=weighted,
                   n_cumul=n_cumul,
-                  q=q)
+                  q=q,
+                  stat_fun=stat_fun)
 
     return mf_data

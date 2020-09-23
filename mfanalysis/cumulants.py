@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import binom as binomial_coefficient
+from scipy.stats import trim_mean, median_abs_deviation
 
-from .utils import Utils
+from .utils import Utils, smart_power
 
 
 class Cumulants:
@@ -47,6 +48,10 @@ class Cumulants:
         self.values = np.zeros((len(self.m), len(self.j)))
         self.log_cumulants = []
         self.var_log_cumulants = []
+        self.mead_values = np.zeros((2, len(self.j)))
+        self.mead_log_cumulants = []
+        self.trim_values = np.zeros((len(self.m), len(self.j)))
+        self.trim_log_cumulants = []
         self.utils = Utils()  # used for linear regression
         self._compute(mrq)
         self._compute_log_cumulants()
@@ -62,18 +67,40 @@ class Cumulants:
 
             for ind_m, m in enumerate(self.m):
 
-                moments[ind_m, ind_j] = np.mean(log_T_X_j**m)
+                moments[ind_m, ind_j] = np.mean(smart_power(log_T_X_j, m))
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
                 else:
                     aux = 0
 
                     for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += binomial_coefficient(m-1, n-1) * \
-                                    self.values[ind_n, ind_j] * \
-                                    moments[ind_m-ind_n-1, ind_j]
+                        aux += (binomial_coefficient(m-1, n-1)
+                                * self.values[ind_n, ind_j]
+                                * moments[ind_m-ind_n-1, ind_j])
 
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+
+            for ind_m, m in enumerate(self.m):
+
+                moments[ind_m, ind_j] = trim_mean(smart_power(log_T_X_j, m),
+                                                  0.05)
+                if m == 1:
+                    self.trim_values[ind_m, ind_j] = moments[ind_m, ind_j]
+                else:
+                    aux = 0
+
+                    for ind_n, n in enumerate(np.arange(1, m)):
+                        aux += (binomial_coefficient(m-1, n-1)
+                                * self.trim_values[ind_n, ind_j]
+                                * moments[ind_m-ind_n-1, ind_j])
+
+                    self.trim_values[ind_m, ind_j] = \
+                        moments[ind_m, ind_j] - aux
+
+            self.mead_values[0, ind_j] = \
+                np.median(log_T_X_j) * np.log2(np.exp(1))
+            self.mead_values[1, ind_j] = \
+                (median_abs_deviation(log_T_X_j) ** 2) * np.log2(np.exp(1))
 
     def _compute_log_cumulants(self):
         """
@@ -85,6 +112,9 @@ class Cumulants:
         self.slope = np.zeros(len(self.m))
         self.intercept = np.zeros(len(self.m))
 
+        self.trim_log_cumulants = np.zeros(len(self.m))
+        self.mead_log_cumulants = np.zeros(2)
+
         log2_e = np.log2(np.exp(1))
         x = np.arange(self.j1, self.j2+1)
 
@@ -95,6 +125,7 @@ class Cumulants:
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1
+
         for ind_m, m in enumerate(self.m):
             y = self.values[ind_m, ind_j1:ind_j2+1]
             slope, intercept, var_slope = \
@@ -103,6 +134,22 @@ class Cumulants:
             self.var_log_cumulants[ind_m] = (log2_e**2)*var_slope
             self.slope[ind_m] = slope
             self.intercept[ind_m] = intercept
+
+        for ind_m, m in enumerate(self.m):
+            y = self.trim_values[ind_m, ind_j1:ind_j2+1]
+            slope, intercept, var_slope = \
+                self.utils.linear_regression(x, y, nj, return_variance=True)
+            self.trim_log_cumulants[ind_m] = slope*log2_e
+
+        y = self.mead_values[0, ind_j1:ind_j2+1]
+        slope, intercept, var_slope = \
+            self.utils.linear_regression(x, y, nj, return_variance=True)
+        self.mead_log_cumulants[0] = slope
+
+        y = self.mead_values[1, ind_j1:ind_j2+1]
+        slope, intercept, var_slope = \
+            self.utils.linear_regression(x, y, nj, return_variance=True)
+        self.mead_log_cumulants[1] = slope
 
     def sum(self, cumulants):
         """
@@ -186,19 +233,19 @@ class Cumulants:
             nj.append(self.nj[j])
         return nj
 
-    def plot(self, fignum=None):
+    def plot(self, fignum=1, nrow=3, filename=None):
         """
         Plots the cumulants.
         Args:
             fignum(int):  figure number
             plt        :  pointer to matplotlib.pyplot
         """
-        if fignum is None:
-            fignum = 1
+
+        nrow = min(nrow, len(self.m))
 
         if len(self.m) > 1:
-            plot_dim_1 = 3
-            plot_dim_2 = int(np.ceil(len(self.m) / 3.0))
+            plot_dim_1 = nrow
+            plot_dim_2 = int(np.ceil(len(self.m) / nrow))
 
         else:
             plot_dim_1 = 1
@@ -215,12 +262,12 @@ class Cumulants:
         for ind_m, m in enumerate(self.m):
             y = self.values[ind_m, :]
 
-            ax = axes[ind_m % 3][ind_m // 3]
+            ax = axes[ind_m % nrow][ind_m // nrow]
             ax.plot(x, y, 'r--.')
             ax.set_xlabel('j')
             ax.set_ylabel('m = ' + str(m))
-            ax.grid()
-            plt.draw()
+            # ax.grid()
+            # plt.draw()
 
             if len(self.log_cumulants) > 0:
                 # plot regression line
@@ -238,3 +285,9 @@ class Cumulants:
                         linestyle='-', linewidth=2, label=legend)
                 ax.legend()
                 plt.draw()
+
+        for j in range(ind_m + 1, len(axes.flat)):
+            fig.delaxes(axes[j % nrow][j // nrow])
+
+        if filename is not None:
+            plt.savefig(filename)

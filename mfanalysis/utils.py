@@ -34,6 +34,13 @@ def smart_power(array, exponent):
     return np.power(array, exponent)
 
 
+stat2fun = {
+    'mean': np.mean,
+    'median': np.median,
+    'min': np.nanmin,
+    'max': np.nanmax}
+
+
 class Utils:
     def __init__(self):
         pass

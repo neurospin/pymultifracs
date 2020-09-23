@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import Utils, smart_power
+from .utils import Utils, smart_power, stat2fun
 
 
 class StructureFunction:
@@ -30,7 +30,7 @@ class StructureFunction:
                                  with q = self.q[ind_q]  and j = self.j[ind_j]
 
     """
-    def __init__(self, mrq, q, j1, j2, wtype, **kwargs):
+    def __init__(self, mrq, q, j1, j2, wtype, stat_fun, **kwargs):
         self.mrq_name = mrq.name
         self.q = q
         self.j1 = j1
@@ -40,18 +40,23 @@ class StructureFunction:
         self.logvalues = np.zeros((len(self.q), len(self.j)))
         self.zeta = []
         self.utils = Utils()  # used for linear regression
-        self._compute(mrq)
+        self._compute(mrq, stat_fun)
         self._compute_zeta(mrq)
 
-    def _compute(self, mrq):
+    def _compute(self, mrq, stat_fun):
 
         values = np.zeros((len(self.q), len(self.j)))
 
+        fun = stat2fun[stat_fun]
+
         for ind_j, j in enumerate(self.j):
+
             c_j = mrq.values[j]
             s_j = np.zeros(values.shape[0])
+
             for ind_q, q in enumerate(self.q):
                 s_j[ind_q] = np.mean(smart_power(np.abs(c_j), q))
+
             values[:, ind_j] = s_j
 
         self.logvalues = np.log2(values)
@@ -86,7 +91,16 @@ class StructureFunction:
 
         return None
 
-    def plot(self, figlabel_structure=None, figlabel_scaling=None):
+    def get_intercept(self):
+        intercept = self.intercept[self.q == 2]
+
+        if len(intercept) > 0:
+            return intercept[0]
+
+        return None
+
+    def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
+             ignore_q0=True):
         """
         Plots the structure functions.
         Args:
@@ -94,15 +108,12 @@ class StructureFunction:
                           plot the scaling function
         """
 
-        if figlabel_structure is None:
-            figlabel_structure = 'Structure Functions'
+        nrow = min(nrow, len(self.q))
+        nq = len(self.q) + (-1 if 0.0 in self.q and ignore_q0 else 0)
 
-        if figlabel_scaling is None:
-            figlabel_scaling = 'Scaling Function'
-
-        if len(self.q) > 1:
-            plot_dim_1 = 4
-            plot_dim_2 = int(np.ceil(len(self.q) / 4.0))
+        if nq > 1:
+            plot_dim_1 = nrow
+            plot_dim_2 = int(np.ceil(nq / nrow))
 
         else:
             plot_dim_1 = 1
@@ -110,7 +121,7 @@ class StructureFunction:
 
         fig, axes = plt.subplots(plot_dim_1,
                                  plot_dim_2,
-                                 num=figlabel_structure,
+                                 num=figlabel,
                                  squeeze=False,
                                  figsize=(30, 10))
 
@@ -119,14 +130,18 @@ class StructureFunction:
 
         x = self.j
         for ind_q, q in enumerate(self.q):
+
+            if q == 0.0 and ignore_q0:
+                continue
+
             y = self.logvalues[ind_q, :]
 
-            ax = axes[ind_q % 4][ind_q // 4]
+            ax = axes[ind_q % nrow][ind_q // nrow]
             ax.plot(x, y, 'r--.')
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
-            ax.grid()
-            plt.draw()
+            # ax.grid()
+            # plt.draw()
 
             if len(self.zeta) > 0:
                 # plot regression line
@@ -142,12 +157,26 @@ class StructureFunction:
                         linestyle='-', linewidth=2, label=legend)
                 ax.legend()
 
-        if len(self.q) > 1:
-            plt.figure(figlabel_scaling)
-            plt.plot(self.q, self.zeta, 'k--.')
-            plt.xlabel('q')
-            plt.ylabel(r'$\zeta(q)$')
-            plt.suptitle(self.mrq_name + ' - scaling function')
-            plt.grid()
+        for j in range(ind_q + 1, len(axes.flat)):
+            fig.delaxes(axes[j % nrow][j // nrow])
+        plt.draw()
+
+        if filename is not None:
+            plt.savefig(filename)
+
+    def plot_scaling(self, figlabel='Scaling Function', filename=None):
+
+        assert len(self.q) > 1, ("This plot is only possible if more than 1 q",
+                                 " value is used")
+
+        plt.figure(figlabel)
+        plt.plot(self.q, self.zeta, 'k--.')
+        plt.xlabel('q')
+        plt.ylabel(r'$\zeta(q)$')
+        plt.suptitle(self.mrq_name + ' - scaling function')
+        # plt.grid()
 
         plt.draw()
+
+        if filename is not None:
+            plt.savefig(filename)

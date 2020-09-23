@@ -95,22 +95,23 @@ class MultifractalSpectrum:
         self.Dq = Dq
         self.hq = hq
 
-    def plot(self, figlabel=None):
+    def plot(self, figlabel='Multifractal Spectrum', filename=None):
         """
         Plot the multifractal spectrum
 
         figlabel: figure number or name
         """
-        if figlabel is None:
-            figlabel = 'Multifractal Spectrum'
-
         plt.figure(figlabel)
         plt.plot(self.hq, self.Dq, 'ko-')
-        plt.grid()
+        # plt.grid()
         plt.xlabel('h(q)')
         plt.ylabel('D(q)')
         plt.suptitle(self.mrq_name + ' - multifractal spectrum')
         plt.draw()
+
+        if filename is not None:
+            plt.savefig(filename)
+
 
     def get_nj_interv(self, j1, j2):
         """
