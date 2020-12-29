@@ -12,6 +12,8 @@ python_code/mfanalysis/dist/
 *.egg-info
 *.egg
 
+*__pycache__/
+
 build/
 dist/
 
@@ -26,3 +28,5 @@ examples/src/
 examples/*.txt*
 
 mfanalysis/todo.txt
+
+# example_data/
