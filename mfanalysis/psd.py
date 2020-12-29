@@ -70,7 +70,6 @@ def _log_psd(freq, psd, log):
     # Avoid computing log(0)
     if np.any(freq == 0):
         support = [freq != 0.0][0]
-        # from IPython.core.debugger import Pdb; Pdb().set_trace()
         freq, psd = freq[support], psd[support]
 
     # Compute the logged values of the frequency and psd
@@ -82,7 +81,8 @@ def _log_psd(freq, psd, log):
 
 def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
              log='log2', lowpass_freq=np.inf, xticks=None,
-             title='Power Spectral Density', ax=None, show=False):
+             title='Power Spectral Density', ax=None, show=False,
+             plot_kwargs={}, linewidth=None):
     """
     Perform a log-log plot over a list of paired frequency range and PSD, with
     optional legend and fitted slope
@@ -113,32 +113,41 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
     ax = plt.gca() if ax is None else ax
 
     ax.set_xlabel(f'{log} f')
-    ax.set_ylabel(f'{log} S(f)')
+    ax.set_ylabel(f'{log} S_2(f)')
     ax.set_title(title)
 
     if color is None:
         cmap = plt.get_cmap("tab10")
         color = [cmap(i % 10) for i in range(len(freq_list))]
 
+    if linewidth is None:
+        linewidth = [1.5] * len(freq_list)
+
     if fmt is None:
         fmt = ['-'] * len(freq_list)
 
-    for i, (freq, psd, f, col) in enumerate(zip(freq_list, psd_list, fmt,
-                                                color)):
+    for i, (freq, psd, f, col, lw) in enumerate(zip(freq_list, psd_list, fmt,
+                                                    color, linewidth)):
 
         indx = tuple([freq < lowpass_freq])
         freq, psd = freq[indx], psd[indx]
         log_freq, psd = _log_psd(freq, psd, log)  # Log frequency and psd
 
-        ax.plot(log_freq, psd, f, c=col)
+        ax.plot(log_freq, psd, f, c=col, lw=lw, **plot_kwargs)
 
-        if xticks is not None and i == xticks:
+        if xticks is not None and i == len(freq_list) - 1:
             ax.set_xticks(log_freq)
-            ax.set_xticklabels([f'{fr:.2f}' for fr in freq])
+            ax.set_xticklabels([f'{fr:.2f}' if fr < 1 else f'{fr:.1f}'
+                                for fr in freq])
             # plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
 
-    for tup in slope:
-        ax.plot(*tup, color='black')
+    if color is None:
+        c_gen = (f'C{i}' for i in range(len(freq_list)))
+    else:
+        c_gen = color
+
+    for tup, c in zip(slope, c_gen):
+        ax.plot(*tup, color=c, dashes=[6, 2], lw=2)
 
     if legend is not None:
         ax.legend(legend)
