@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pymultifracs.psd.plot_psd &#8212; PyMultiFracs 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-code-pro.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-sans-pro.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pymultifracs.psd.wavelet_estimation" href="pymultifracs.psd.wavelet_estimation.html" />
+    <link rel="prev" title="pymultifracs.wavelet.WaveletTransform" href="pymultifracs.wavelet.WaveletTransform.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.11.0.min.js "></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-3.3.7/js/bootstrap.min.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js "></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          PyMultiFracs</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../install.html">Install</a></li>
+                <li><a href="../examples.html">Examples</a></li>
+                <li><a href="../reference.html">API</a></li>
+                <li><a href="../theory.html">Theory</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="section" id="pymultifracs-psd-plot-psd">
+<h1>pymultifracs.psd.plot_psd<a class="headerlink" href="#pymultifracs-psd-plot-psd" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="pymultifracs.psd.plot_psd">
+<code class="sig-prename descclassname">pymultifracs.psd.</code><code class="sig-name descname">plot_psd</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">signal</span></em>, <em class="sig-param"><span class="n">fs</span></em>, <em class="sig-param"><span class="n">n_fft</span><span class="o">=</span><span class="default_value">4096</span></em>, <em class="sig-param"><span class="n">seg_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">n_moments</span><span class="o">=</span><span class="default_value">2</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">'log2'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.psd.plot_psd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the superposition of Fourier-based Welch estimation and Wavelet-based
+estimation of PSD on a log-log graphic.</p>
+<p>Based on the <cite>wavelet_fourier_spectrum</cite> function of the MATLAB toolbox
+mf_bs_toolbox-v0.2 <a class="reference internal" href="#r989f30ff76c4-1" id="id1">[1]</a></p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>signal</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (n_samples,)</span></dt><dd><p>Time series of sampled values</p>
+</dd>
+<dt><strong>fs</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">float</span></code></a></span></dt><dd><p>Sampling frequency of <code class="docutils literal notranslate"><span class="pre">signal</span></code></p>
+</dd>
+<dt><strong>n_fft</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">optional</span></code></span></dt><dd><p>Length of the FFT desired.
+If <cite>seg_size</cite> is greater, <code class="docutils literal notranslate"><span class="pre">n_fft</span> <span class="pre">=</span> <span class="pre">seg_size</span></code>.</p>
+</dd>
+<dt><strong>seg_size</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a> | <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">None</span></code></a></span></dt><dd><p>Length of Welch segments.
+Defaults to None, which sets it equal to <code class="docutils literal notranslate"><span class="pre">n_fft</span></code></p>
+</dd>
+<dt><strong>n_moments</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Number of vanishing moments of the Daubechies wavelet used in the
+Wavelet decomposition.</p>
+</dd>
+<dt><strong>log</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">str</span></code></a></span></dt><dd><p>Log function to use on the frequency and power axes</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">References</p>
+<dl class="citation">
+<dt class="label" id="r989f30ff76c4-1"><span class="brackets"><a class="fn-backref" href="#id1">1</a></span></dt>
+<dd><p><a class="reference external" href="http://www.ens-lyon.fr/PHYSIQUE/Equipe3/Multifractal/dat/mf_bs_tool-v0.2.zip">http://www.ens-lyon.fr/PHYSIQUE/Equipe3/Multifractal/dat/mf_bs_tool-v0.2.zip</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<div style='clear:both'></div></div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2020, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Installing pymultifracs &#8212; PyMultiFracs 1.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/style.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-source-code-pro.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-source-sans-pro.css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="_static/js/jquery-1.11.0.min.js "></script>
+<script type="text/javascript" src="_static/js/jquery-fix.js "></script>
+<script type="text/javascript" src="_static/bootstrap-3.3.7/js/bootstrap.min.js "></script>
+<script type="text/javascript" src="_static/bootstrap-sphinx.js "></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="index.html">
+          PyMultiFracs</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="#">Install</a></li>
+                <li><a href="examples.html">Examples</a></li>
+                <li><a href="reference.html">API</a></li>
+                <li><a href="theory.html">Theory</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="section" id="installing-pymultifracs">
+<h1>Installing pymultifracs<a class="headerlink" href="#installing-pymultifracs" title="Permalink to this headline">¶</a></h1>
+<p>There are two ways to install this package: either by using a package manager to install the package only, which will make
+the code only usable as an import,
+or by cloning the repository first, and then installing the package which will make it editable</p>
+<div class="section" id="installing-the-package-only">
+<h2>Installing the package only<a class="headerlink" href="#installing-the-package-only" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="using-conda">
+<h3>Using conda<a class="headerlink" href="#using-conda" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="creating-a-new-environment-recommended">
+<h4>Creating a new environment (recommended)<a class="headerlink" href="#creating-a-new-environment-recommended" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+conda env create -f env.yml
+</pre></div>
+</div>
+</div>
+<div class="section" id="installing-into-a-pre-existing-environment">
+<h4>Installing into a pre-existing environment<a class="headerlink" href="#installing-into-a-pre-existing-environment" title="Permalink to this headline">¶</a></h4>
+<p>Note that this package requires a recent version of python (&gt;=3.7)</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+conda env update -f env.yml
+</pre></div>
+</div>
+</div>
+</div>
+<hr class="docutils" />
+<div class="section" id="using-pip">
+<h3>Using pip<a class="headerlink" href="#using-pip" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>pip install git+https://github.com/MerlinDumeur/mfanalysis.git@master
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="cloning-the-whole-repository-including-examples">
+<h2>Cloning the whole repository (including examples)<a class="headerlink" href="#cloning-the-whole-repository-including-examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>Using conda<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Using conda, the simplest way to proceed is to use the <code class="code docutils literal notranslate"><span class="pre">meta.yml</span></code> file to create or update
+an environment, and then install the editable local version of pymultifracs on top.</p>
+<div class="section" id="id2">
+<h4>Creating a new environment (recommended)<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+conda env create -f pymultifracs/meta.yml
+pip install -e pymultifracs
+</pre></div>
+</div>
+</div>
+<div class="section" id="id3">
+<h4>Installing into a pre-existing environment<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>Note that this package requires a recent version of python (&gt;=3.7)</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+conda env update -f pymultifracs/meta.yml
+pip install -e pymultifracs
+</pre></div>
+</div>
+</div>
+</div>
+<hr class="docutils" />
+<div class="section" id="id4">
+<h3>Using pip<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+pip install -e pymultifracs
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2020, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
