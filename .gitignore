@@ -6,7 +6,7 @@
 *.pyc
 
 # Setuptools distribution folder.
-python_code/mfanalysis/dist/
+python_code/pymultifracs/dist/
 
 # Python egg metadata, regenerated from source files by setuptools.
 *.egg-info
@@ -16,6 +16,9 @@ python_code/mfanalysis/dist/
 
 build/
 dist/
+docs/
+doc/_build/
+doc/_autosummary/
 
 .ipynb_checkpoints/
 .vscode
@@ -27,6 +30,6 @@ dist/
 examples/src/
 examples/*.txt*
 
-mfanalysis/todo.txt
+pymultifracs/todo.txt
 
 # example_data/

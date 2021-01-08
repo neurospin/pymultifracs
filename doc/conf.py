@@ -33,8 +33,10 @@ release = '1.0'
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
               'sphinx.ext.intersphinx',
+            #   'sphinx.ext.linkcode',
               'numpydoc',
               'sphinx_autodoc_typehints',
+            #   'sphinx_gallery.notebook',
               'sphinx_bootstrap_theme',
               'nbsphinx',
               'sphinx.ext.mathjax']
@@ -70,7 +72,7 @@ html_theme_options = {
     'bootstrap_version': "3",  # default
     # 'navbar_site_name': '',
     'navbar_links': [
-        ("Install", "installation"),
+        ("Install", "install"),
         # ("Tutorials", "auto_tutorials/index"),
         ("Examples", "examples"),
         # ("Glossary", "glossary"),
@@ -91,6 +93,13 @@ html_copy_source = False
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 html_show_sphinx = False
+
+def setup(app):
+    app.add_stylesheet("style.css")  # also can be a full URL
+    app.add_stylesheet("font-awesome.css")
+    app.add_stylesheet("font-source-code-pro.css")
+    app.add_stylesheet("font-source-sans-pro.css")
+
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),

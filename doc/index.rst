@@ -10,7 +10,9 @@ Welcome to PyMultiFracs's documentation!
    :maxdepth: 1
    :caption: Overview:
 
+   install
    reference
+   theory
 
 
 .. Indices and tables

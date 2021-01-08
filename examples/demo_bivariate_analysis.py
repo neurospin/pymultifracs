@@ -3,9 +3,9 @@ This script shows how to use the MFA class to perform a bivariate multifractal a
 """
 
 #-------------------------------------------------------------------------------
-# Import mfanalysis package
+# Import pymultifracs package
 #-------------------------------------------------------------------------------
-import mfanalysis as mf
+import pymultifracs as mf
 
 #-------------------------------------------------------------------------------
 # Other imports
@@ -87,7 +87,7 @@ mfa.verbose = 1
 
 # regression type (0: ordinary least squares,
 #                  1: weighted least squares, weights = nj)
-mfa.wtype = 0
+mfa.wtype = False
 
 #-------------------------------------------------------------------------------
 # Analyze data and get results

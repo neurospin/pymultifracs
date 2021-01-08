@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 # Import packages
 import numpy as np
-import mfanalysis
+import pymultifracs
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 
@@ -34,7 +34,7 @@ def main():
     # Initialize MFA object
     #---------------------------------------------------------------------------
     q = np.arange(-8, 9, 1)
-    mfa = mfanalysis.MFA(
+    mfa = pymultifracs.MFA(
         p = 0.5,
         q = q,
         j1 = 1,
