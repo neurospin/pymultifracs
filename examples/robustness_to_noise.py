@@ -8,7 +8,7 @@ aiming to see for which values of sigma the log-cumulants of Y_t are
 sufficiently close to the log-cumulants of X_t.
 """
 
-import mfanalysis as mf
+import pymultifracs as mf
 import os
 import numpy as np
 from scipy.io import loadmat
@@ -60,7 +60,7 @@ mfa.j2 = 8
 mfa.n_cumul = 3
 mfa.gamint = 1.0  # !!!!!!!!!!!!!!!!!!!!!!!!
 mfa.verbose = 1
-mfa.wtype = 0
+mfa.wtype = False
 
 mfa.q = [2]#np.arange(-8, 9)
 

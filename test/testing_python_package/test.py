@@ -12,12 +12,12 @@ mfa.structure.zeta[i], for i = 0, ..., len_q - 1
 """
 
 # Import packages
-import sys, os
+import os
 from os.path import dirname, abspath
 import numpy as np
 import json
 import csv
-import mfanalysis
+import pymultifracs
 from scipy.io import loadmat
 
 
@@ -102,7 +102,7 @@ for test_filename in test_data_files_full:
     output_filename = out_filenames[test_filename]
 
     # Run mf_analysis and save results
-    mfa = mfanalysis.MFA(verbose = 0)
+    mfa = pymultifracs.MFA(verbose = 0)
     with open(output_filename, 'a') as csvfile:
         writer = csv.writer(csvfile, lineterminator='\n')
         for test_index in params: # test_index is a string, e.g. '123', and starts from '1'

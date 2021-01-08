@@ -9,9 +9,9 @@ NOTE:
 """
 
 #-------------------------------------------------------------------------------
-# Import mfanalysis package
+# Import pymultifracs package
 #-------------------------------------------------------------------------------
-import mfanalysis as mf
+import pymultifracs as mf
 
 #-------------------------------------------------------------------------------
 # Other imports
@@ -88,7 +88,7 @@ mfa.verbose = 1
 
 # regression type (0: ordinary least squares,
 #                  1: weighted least squares, weights = nj)
-mfa.wtype = 0
+mfa.wtype = False
 
 #-------------------------------------------------------------------------------
 # Analyze data and get results
@@ -96,7 +96,7 @@ mfa.wtype = 0
 mfa.analyze(data)
 
 # get cumulants
-# See mfanalysis/cumulants.py for more attributes/methods
+# See pymultifracs/cumulants.py for more attributes/methods
 cp  = mfa.cumulants.log_cumulants
 print("c1 = ", cp[0])
 print("c2 = ", cp[1])
@@ -106,14 +106,14 @@ print("c3 = ", cp[2])
 # wavelet coefficients and wavelet leaders
 # - wt_coeffs[j] = wavelet coefficients at scale j
 # - leaders[j]   = wavelet (p-) leaders at scale j
-# See mfanalysis/multiresquantity.py for more attributes/methods
+# See pymultifracs/multiresquantity.py for more attributes/methods
 wt_coeffs = mfa.wavelet_coeffs.values
 leaders   = mfa.wavelet_leaders.values
 
 # structure function
 # - structure_vals[ind_q, ind_j] = values of S(j, q),
 #     with q = structure.q[ind_q] and j = structure.j[ind_j]
-# See mfanalysis/structurefunction.py for more attributes/methods
+# See pymultifracs/structurefunction.py for more attributes/methods
 structure      = mfa.structure
 structure_vals = mfa.structure.values
 
