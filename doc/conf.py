@@ -36,7 +36,7 @@ extensions = ['sphinx.ext.autodoc',
             #   'sphinx.ext.linkcode',
               'numpydoc',
               'sphinx_autodoc_typehints',
-              'sphinx_gallery.notebool'
+            #   'sphinx_gallery.notebook',
               'sphinx_bootstrap_theme',
               'nbsphinx',
               'sphinx.ext.mathjax']
