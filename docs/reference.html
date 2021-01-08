@@ -7,15 +7,22 @@
     <title>API Reference &#8212; PyMultiFracs 1.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/style.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-source-code-pro.css" />
+    <link rel="stylesheet" type="text/css" href="_static/font-source-sans-pro.css" />
     <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
     <script src="_static/language_data.js"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Welcome to PyMultiFracs’s documentation!" href="index.html" />
+    <link rel="next" title="pymultifracs.mfa.mf_analysis" href="_autosummary/pymultifracs.mfa.mf_analysis.html" />
+    <link rel="prev" title="Installing pymultifracs" href="install.html" />
 <meta charset='utf-8'>
 <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
@@ -44,7 +51,7 @@
         <div class="collapse navbar-collapse nav-collapse">
           <ul class="nav navbar-nav">
             
-                <li><a href="installation.html">Install</a></li>
+                <li><a href="install.html">Install</a></li>
                 <li><a href="examples.html">Examples</a></li>
                 <li><a href="#">API</a></li>
                 <li><a href="theory.html">Theory</a></li>
@@ -83,13 +90,122 @@
 <h1>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="multifractal-analysis">
 <h2>Multifractal Analysis<a class="headerlink" href="#multifractal-analysis" title="Permalink to this headline">¶</a></h2>
-<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">megfractal.mf_analysis</span></code>:</p>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">pymultifracs.mfa</span></code>:</p>
 <table class="longtable docutils align-default">
 <colgroup>
 <col style="width: 10%" />
 <col style="width: 90%" />
 </colgroup>
 <tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfa.mf_analysis.html#pymultifracs.mfa.mf_analysis" title="pymultifracs.mfa.mf_analysis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mf_analysis</span></code></a>(wt_coefs, wt_leaders, j2_eff, …)</p></td>
+<td><p>Perform multifractal analysis, given wavelet coefficients.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfa.mf_analysis_full.html#pymultifracs.mfa.mf_analysis_full" title="pymultifracs.mfa.mf_analysis_full"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mf_analysis_full</span></code></a>(signal, j1, j2[, …])</p></td>
+<td><p>Perform multifractal analysis on a signal.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfa.minimal_mf_analysis.html#pymultifracs.mfa.minimal_mf_analysis" title="pymultifracs.mfa.minimal_mf_analysis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">minimal_mf_analysis</span></code></a>(wt_coefs, wt_leaders, …)</p></td>
+<td><p>Perform multifractal analysis, returning only what is needed for H and M estimation.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Classes gathering the output of multifractal analysis</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfa.MFractalData.html#pymultifracs.mfa.MFractalData" title="pymultifracs.mfa.MFractalData"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MFractalData</span></code></a>(dwt, lwt)</p></td>
+<td><p>Aggregates wavelet coef-based and wavelet-leader based outputs of mfa</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfa.MFractalVar.html#pymultifracs.mfa.MFractalVar" title="pymultifracs.mfa.MFractalVar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MFractalVar</span></code></a>(structure, cumulants, spectrum, hmin)</p></td>
+<td><p>Aggregates the output of multifractal analysis</p></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="dataclasses">
+<h3>Dataclasses<a class="headerlink" href="#dataclasses" title="Permalink to this headline">¶</a></h3>
+<p>Used to compute and store intermediary results</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.multiresquantity.MultiResolutionQuantity.html#pymultifracs.multiresquantity.MultiResolutionQuantity" title="pymultifracs.multiresquantity.MultiResolutionQuantity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">multiresquantity.MultiResolutionQuantity</span></code></a>([…])</p></td>
+<td><p>Handles multi-resolution quantities in multifractal analysis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.cumulants.Cumulants.html#pymultifracs.cumulants.Cumulants" title="pymultifracs.cumulants.Cumulants"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cumulants.Cumulants</span></code></a>(mrq, n_cumul, j1, j2, wtype)</p></td>
+<td><p>Computes and analyzes cumulants</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.structurefunction.StructureFunction.html#pymultifracs.structurefunction.StructureFunction" title="pymultifracs.structurefunction.StructureFunction"><code class="xref py py-obj docutils literal notranslate"><span class="pre">structurefunction.StructureFunction</span></code></a>(mrq, q, …)</p></td>
+<td><p>Computes and analyzes structure functions</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.mfspectrum.MultifractalSpectrum.html#pymultifracs.mfspectrum.MultifractalSpectrum" title="pymultifracs.mfspectrum.MultifractalSpectrum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mfspectrum.MultifractalSpectrum</span></code></a>(mrq, j1, j2, …)</p></td>
+<td><p>Estimates the Multifractal Spectrum</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="wavelet-analysis">
+<h2>Wavelet Analysis<a class="headerlink" href="#wavelet-analysis" title="Permalink to this headline">¶</a></h2>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">pymultifracs.wavelet</span></code>:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.wavelet.decomposition_level.html#pymultifracs.wavelet.decomposition_level" title="pymultifracs.wavelet.decomposition_level"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decomposition_level</span></code></a>(length, wt_name)</p></td>
+<td><p>Checks the maximum scale which can be used to decompose a signal of given length</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.wavelet.wavelet_analysis.html#pymultifracs.wavelet.wavelet_analysis" title="pymultifracs.wavelet.wavelet_analysis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wavelet_analysis</span></code></a>(signal[, p_exp, wt_name, …])</p></td>
+<td><p>Compute wavelet coefficient and wavelet leaders.</p></td>
+</tr>
+</tbody>
+</table>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.wavelet.WaveletTransform.html#pymultifracs.wavelet.WaveletTransform" title="pymultifracs.wavelet.WaveletTransform"><code class="xref py py-obj docutils literal notranslate"><span class="pre">WaveletTransform</span></code></a>(wt_coefs, wt_leaders, j2_eff)</p></td>
+<td><p>Aggregates the output of wavelet analysis</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="computing-and-plotting-psds">
+<h2>Computing and Plotting PSDs<a class="headerlink" href="#computing-and-plotting-psds" title="Permalink to this headline">¶</a></h2>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">pymultifracs.psd</span></code>:</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.psd.plot_psd.html#pymultifracs.psd.plot_psd" title="pymultifracs.psd.plot_psd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_psd</span></code></a>(signal, fs[, n_fft, seg_size, …])</p></td>
+<td><p>Plot the superposition of Fourier-based Welch estimation and Wavelet-based estimation of PSD on a log-log graphic.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/pymultifracs.psd.wavelet_estimation.html#pymultifracs.psd.wavelet_estimation" title="pymultifracs.psd.wavelet_estimation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">wavelet_estimation</span></code></a>(signal, fs, n_moments[, j2])</p></td>
+<td><p>PSD estimation based on Wavelet coefficients</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.psd.welch_estimation.html#pymultifracs.psd.welch_estimation" title="pymultifracs.psd.welch_estimation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">welch_estimation</span></code></a>(signal, fs[, n_fft, seg_size])</p></td>
+<td><p>Wrapper for <a class="reference external" href="https://scipy.github.io/devdocs/generated/scipy.signal.welch.html#scipy.signal.welch" title="(in SciPy v1.7.0.dev0+d293adb)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scipy.signal.welch</span></code></a></p></td>
+</tr>
+</tbody>
+</table>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/pymultifracs.psd.PSD.html#pymultifracs.psd.PSD" title="pymultifracs.psd.PSD"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PSD</span></code></a>(freq, psd)</p></td>
+<td><p>Aggregates power spectral density information</p></td>
+</tr>
 </tbody>
 </table>
 </div>
