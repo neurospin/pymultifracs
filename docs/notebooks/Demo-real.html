@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analyzing a real signal &#8212; PyMultiFracs 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-code-pro.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-sans-pro.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.11.0.min.js "></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-3.3.7/js/bootstrap.min.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js "></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          PyMultiFracs</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../install.html">Install</a></li>
+                <li><a href="../examples.html">Examples</a></li>
+                <li><a href="../reference.html">API</a></li>
+                <li><a href="../theory.html">Theory</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+</style>
+<div class="section" id="Analyzing-a-real-signal">
+<h1>Analyzing a real signal<a class="headerlink" href="#Analyzing-a-real-signal" title="Permalink to this headline">¶</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">pymultifracs</span></code> package allows us to perform fractal and multifractal analysis of signals</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="o">%</span><span class="k">matplotlib</span> inline
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">&quot;darkgrid&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">figure_folder</span> <span class="o">=</span> <span class="s1">&#39;figures/real/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="Load-a-real-signal">
+<h2>Load a real signal<a class="headerlink" href="#Load-a-real-signal" title="Permalink to this headline">¶</a></h2>
+<p>Let’s load a signal from a real, preprocessed MEG recording</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">mne.io</span> <span class="kn">import</span> <span class="n">read_raw_fif</span>
+<span class="kn">import</span> <span class="nn">json</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;/neurospin/meg/meg_tmp/ScaledTime_Dragana_2019/MEG/ag170045/ag170045_timings.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">timings</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="s1">&#39;Run03&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">timings</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;t1&#39;: [9.9965, 26.8285],
+ &#39;p1&#39;: [31.004, 103.358],
+ &#39;r1&#39;: [107.502, 180.485],
+ &#39;t2&#39;: [511.075, 530.711],
+ &#39;p2&#39;: [534.2965, 625.778],
+ &#39;r2&#39;: [633.2015, 725.8595],
+ &#39;t3&#39;: [185.6395, 215.2975],
+ &#39;p3&#39;: [219.78, 360.981],
+ &#39;r3&#39;: [363.9905, 506.7765]}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[93]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">Raw</span> <span class="o">=</span> <span class="n">read_raw_fif</span><span class="p">(</span><span class="s1">&#39;/neurospin/meg/meg_tmp/ScaledTime_Dragana_2019/MEG/ag170045/ag170045_ScaledTime_Run03_filtered_ica-r_sss_raw.fif&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Opening raw data file /neurospin/meg/meg_tmp/ScaledTime_Dragana_2019/MEG/ag170045/ag170045_ScaledTime_Run03_filtered_ica-r_sss_raw.fif...
+    Range : 21000 ... 1484999 =     10.500 ...   742.500 secs
+Ready.
+Current compensation grade : 0
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">Raw</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span><span class="o">*</span><span class="n">timings</span><span class="p">[</span><span class="s1">&#39;r1&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Raw | ag170045_ScaledTime_Run03_filtered_ica-r_sss_raw.fif, 340 x 145967 (73.0 s), ~7.8 MB, data not loaded&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">Raw</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Reading 0 ... 145966  =      0.000 ...    72.983 secs...
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Raw | ag170045_ScaledTime_Run03_filtered_ica-r_sss_raw.fif, 340 x 145967 (73.0 s), ~386.4 MB, data loaded&gt;
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[96]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">X</span> <span class="o">=</span> <span class="n">Raw</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[97]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">Raw</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;ch_names&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[97]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;MEG0113&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[98]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;signal&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;t&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;signal.png&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_17_0.png" src="../_images/notebooks_Demo-real_17_0.png" />
+</div>
+</div>
+</div>
+<div class="section" id="Second-order-analysis">
+<h2>Second order analysis<a class="headerlink" href="#Second-order-analysis" title="Permalink to this headline">¶</a></h2>
+<p>Second order analysis is done with the <code class="docutils literal notranslate"><span class="pre">psd</span></code> module</p>
+<p>The sampling frequency <code class="docutils literal notranslate"><span class="pre">fs</span></code> is necessary in order to correctly label the frequency axis</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[99]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pymultifracs.psd</span> <span class="k">as</span> <span class="nn">psd</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[100]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fs</span> <span class="o">=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[101]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">psd</span><span class="o">.</span><span class="n">plot_psd</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_22_0.png" src="../_images/notebooks_Demo-real_22_0.png" />
+</div>
+</div>
+<p>The Fourier-based PSD estimation is done using the Welch estimator.</p>
+<p>The arguments relative the Fourier-based estimation are: * <code class="docutils literal notranslate"><span class="pre">n_fft</span></code>: length of the FFT used * <code class="docutils literal notranslate"><span class="pre">seg_size</span></code>: size of the segment used in the Welch estimation</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[102]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">psd</span><span class="o">.</span><span class="n">plot_psd</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_24_0.png" src="../_images/notebooks_Demo-real_24_0.png" />
+</div>
+</div>
+<p>The Wavelet-based estimation is done using wavelet analysis based on the Daubechies wavelet.</p>
+<p>The number of vanishing moments can be controlled using the <code class="docutils literal notranslate"><span class="pre">n_moments</span></code> argument</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[103]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">psd</span><span class="o">.</span><span class="n">plot_psd</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;PSD_compare.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_26_0.png" src="../_images/notebooks_Demo-real_26_0.png" />
+</div>
+</div>
+<p>The wavelet-based estimation of the PSD is obtained via the <code class="docutils literal notranslate"><span class="pre">wavelet_estimation</span></code> function</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[104]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">PSD</span> <span class="o">=</span> <span class="n">psd</span><span class="o">.</span><span class="n">wavelet_estimation</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The output is an instance of the <code class="docutils literal notranslate"><span class="pre">PSD</span></code> namedtuple, with two fields: <code class="docutils literal notranslate"><span class="pre">freq</span></code> which contains the frequency support of the PSD estimation, and <code class="docutils literal notranslate"><span class="pre">psd</span></code> which contains the actual power estimates</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">PSD</span><span class="o">.</span><span class="n">freq</span><span class="p">,</span> <span class="n">PSD</span><span class="o">.</span><span class="n">psd</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(array([3.75000000e-01, 1.87500000e-01, 9.37500000e-02, 4.68750000e-02,
+        2.34375000e-02, 1.17187500e-02, 5.85937500e-03, 2.92968750e-03,
+        1.46484375e-03, 7.32421875e-04, 3.66210938e-04, 1.83105469e-04,
+        9.15527344e-05, 4.57763672e-05]),
+ array([1.92916141e-24, 1.30156612e-23, 1.89410192e-23, 2.23855047e-23,
+        2.83343674e-23, 4.72721948e-23, 6.68381439e-23, 1.06432063e-22,
+        1.92087021e-22, 3.87675569e-22, 1.16002223e-21, 3.00220387e-21,
+        3.93314912e-21, 1.11484360e-20]))
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Estimating-beta">
+<h2>Estimating beta<a class="headerlink" href="#Estimating-beta" title="Permalink to this headline">¶</a></h2>
+<p>Our model for the power density spectrum is as follows:</p>
+<div class="math notranslate nohighlight">
+\[\Gamma(\nu) = C \left| \nu \right| ^ {\beta}\]</div>
+<p>Using the log-log plot we can then easily estimate <span class="math notranslate nohighlight">\(beta\)</span> by performing a linear regression over the wavelet PSD estimate</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pymultifracs.fractal_analysis</span> <span class="k">as</span> <span class="nn">fa</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fa</span><span class="o">.</span><span class="n">plot_fractal</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">freq_band</span><span class="o">=</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">),</span> <span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;PSD_slope.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_34_0.png" src="../_images/notebooks_Demo-real_34_0.png" />
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">freq_band</span></code> parameter controls the frequency support for the <span class="math notranslate nohighlight">\(\beta\)</span> estimation</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">log</span></code> parameter allows us to control the log function used, which changes the axes values but not the plotted curves. Available values are contained in the <code class="docutils literal notranslate"><span class="pre">psd.log_function</span></code> dictionary</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="p">[</span><span class="o">*</span><span class="n">psd</span><span class="o">.</span><span class="n">log_function</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[&#39;log2&#39;, &#39;log&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fa</span><span class="o">.</span><span class="n">plot_fractal</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">freq_band</span><span class="o">=</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">),</span> <span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;PSD_slope_log10.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_37_0.png" src="../_images/notebooks_Demo-real_37_0.png" />
+</div>
+</div>
+<p>The estimates of <span class="math notranslate nohighlight">\(\beta\)</span> and <span class="math notranslate nohighlight">\(\log(C)\)</span> can be directly obtained from the signal using the <code class="docutils literal notranslate"><span class="pre">fractal_analysis</span></code> function</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[110]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fractal</span> <span class="o">=</span> <span class="n">fa</span><span class="o">.</span><span class="n">fractal_analysis</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">n_moments</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">freq_band</span><span class="o">=</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<p>The output is an instance of the FractalValues namedtuple, which contains 3 fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">beta</span></code>: the estimated 1/f slope</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">log_C</span></code>: the logged value of the 1/f intercept</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">freq</span></code>: the frequency support for the estimation</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fractal</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+FractalValues(beta=-0.6598799082903396, log_C=-78.37749062191811, freq=array([[-1.4150375],
+       [-2.4150375],
+       [-3.4150375],
+       [-4.4150375],
+       [-5.4150375],
+       [-6.4150375],
+       [-7.4150375],
+       [-8.4150375],
+       [-9.4150375]]))
+</pre></div></div>
+</div>
+</div>
+<div class="section" id="Wavelet-Transform">
+<h2>Wavelet Transform<a class="headerlink" href="#Wavelet-Transform" title="Permalink to this headline">¶</a></h2>
+<p>Wavelet transform is performed in the package using the <code class="docutils literal notranslate"><span class="pre">wavelet</span></code> submodule</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pymultifracs.wavelet</span> <span class="kn">import</span> <span class="n">wavelet_analysis</span>
+</pre></div>
+</div>
+</div>
+<p>TODO: detail the wavelet transform</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">WT</span> <span class="o">=</span> <span class="n">wavelet_analysis</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The output is a namedtuple with 3 fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">wt_leaders</span></code>: The wavelet leaders if computed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wt_coefs</span></code>: Wavelet coefficients</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">j2_eff</span></code>: Maximum scale that the coefficients were effectively computed for</p></li>
+</ul>
+</div>
+<div class="section" id="Multifractal-Analysis">
+<h2>Multifractal Analysis<a class="headerlink" href="#Multifractal-Analysis" title="Permalink to this headline">¶</a></h2>
+<p>Multifractal analysis is done using the <code class="docutils literal notranslate"><span class="pre">mf_analysis</span></code> submodule</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pymultifracs.mf_analysis</span> <span class="k">as</span> <span class="nn">mf</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</pre></div>
+</div>
+</div>
+<p>Basic parameters are:</p>
+<p><code class="docutils literal notranslate"><span class="pre">j1</span></code> and <code class="docutils literal notranslate"><span class="pre">j2</span></code>, which indicate respectively the minimum and the maximum scale to consider when fitting wavelet coefficients</p>
+<p><code class="docutils literal notranslate"><span class="pre">q</span></code> The values of q for which the wavelet coefficients will be estimated</p>
+<p><code class="docutils literal notranslate"><span class="pre">n_cumul</span></code> The maximum order of the cumulants to compute</p>
+<p>The p_exponent parameters <code class="docutils literal notranslate"><span class="pre">p_exp</span></code> controls how wavelet leaders are used: if set to an int, it will use wavelet p-leaders, or if set to <code class="docutils literal notranslate"><span class="pre">np.inf</span></code>, it will use the wavelet leaders.</p>
+<p>The output of the <code class="docutils literal notranslate"><span class="pre">mf_analysis_full</span></code> function contains two variables, <code class="docutils literal notranslate"><span class="pre">dwt</span></code> and <code class="docutils literal notranslate"><span class="pre">lwt</span></code>. The former contains the multifractal variables computed using the wavelet coefs, while the latter uses the wavelet leaders.</p>
+<p>By default the <code class="docutils literal notranslate"><span class="pre">p_exp</span></code> parameter is set to <code class="docutils literal notranslate"><span class="pre">None</span></code>, which means the wavelet coefs only are used, and so the <code class="docutils literal notranslate"><span class="pre">lwt</span></code> variable returned is set to <code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">dwt</span><span class="p">,</span> <span class="n">lwt</span> <span class="o">=</span> <span class="n">mf</span><span class="o">.</span><span class="n">mf_analysis_full</span><span class="p">(</span><span class="n">X</span><span class="p">,</span>
+    <span class="n">j1</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">j2</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="n">q</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">),</span>
+    <span class="n">n_cumul</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">gamint</span><span class="o">=</span><span class="mf">1.0</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="nb">print</span><span class="p">(</span><span class="n">lwt</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+None
+</pre></div></div>
+</div>
+<p><strong>Unpacking dwt</strong></p>
+<p>The variable dwt contains three fields: the structure functions, cumulants, multifractal spectrum, and hmin estimate. They can be unpacked all at once, or called one by one</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[118]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="p">,</span> <span class="n">cumul</span><span class="p">,</span> <span class="n">mfs</span><span class="p">,</span> <span class="n">hmin</span> <span class="o">=</span> <span class="n">dwt</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[119]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span> <span class="o">=</span> <span class="n">dwt</span><span class="o">.</span><span class="n">structure</span>
+<span class="n">cumul</span> <span class="o">=</span> <span class="n">dwt</span><span class="o">.</span><span class="n">cumulants</span>
+<span class="n">mfs</span> <span class="o">=</span> <span class="n">dwt</span><span class="o">.</span><span class="n">spectrum</span>
+<span class="n">hmin</span> <span class="o">=</span> <span class="n">dwt</span><span class="o">.</span><span class="n">hmin</span>
+</pre></div>
+</div>
+</div>
+<p><strong>structure functions</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[120]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="o">.</span><span class="n">j</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[120]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14])
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[121]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="o">.</span><span class="n">q</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[121]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([-2, -1,  0,  1,  2])
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[122]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="o">.</span><span class="n">mrq_name</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[122]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;wavelet_coeffs&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[123]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nrow</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;structure_functions.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_63_0.png" src="../_images/notebooks_Demo-real_63_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[124]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">sf</span><span class="o">.</span><span class="n">plot_scaling</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;scaling_function.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_64_0.png" src="../_images/notebooks_Demo-real_64_0.png" />
+</div>
+</div>
+<p><strong>cumulants</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[125]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">cumul</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nrow</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;cumulants.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_66_0.png" src="../_images/notebooks_Demo-real_66_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[126]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">cumul</span><span class="o">.</span><span class="n">log_cumulants</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[126]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([0.71924121, 0.0011129 ])
+</pre></div></div>
+</div>
+<p><strong>multifractal spectrum</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[127]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">mfs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;multif_spec.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_69_0.png" src="../_images/notebooks_Demo-real_69_0.png" />
+</div>
+</div>
+<p><strong>Using p-leaders</strong></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[128]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">dwt</span><span class="p">,</span> <span class="n">lwt</span> <span class="o">=</span> <span class="n">mf</span><span class="o">.</span><span class="n">mf_analysis_full</span><span class="p">(</span><span class="n">X</span><span class="p">,</span>
+    <span class="n">j1</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">j2</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="n">q</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">),</span>
+    <span class="n">n_cumul</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">p_exp</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">gamint</span><span class="o">=</span><span class="mf">1.0</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">lwt</span></code> variable shares the same structure as <code class="docutils literal notranslate"><span class="pre">dwt</span></code></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[129]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_sf</span><span class="p">,</span> <span class="n">lwt_cumul</span><span class="p">,</span> <span class="n">lwt_mfs</span><span class="p">,</span> <span class="n">hmin</span> <span class="o">=</span> <span class="n">lwt</span>
+</pre></div>
+</div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">lwt_sf</span></code>, <code class="docutils literal notranslate"><span class="pre">lwt_cumul</span></code>, <code class="docutils literal notranslate"><span class="pre">lwt_mfs</span></code> variables defined here share the same structure as the <code class="docutils literal notranslate"><span class="pre">sf</span></code>, <code class="docutils literal notranslate"><span class="pre">cumul</span></code>, and <code class="docutils literal notranslate"><span class="pre">mfs</span></code> variables defined previously</p>
+<p><strong>structure functions</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[130]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_sf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nrow</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;lwt_structure_functions.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_76_0.png" src="../_images/notebooks_Demo-real_76_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[130]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_77_0.png" src="../_images/notebooks_Demo-real_77_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[131]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_sf</span><span class="o">.</span><span class="n">plot_scaling</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;lwt_scaling_function.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_78_0.png" src="../_images/notebooks_Demo-real_78_0.png" />
+</div>
+</div>
+<p><strong>cumulants</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[132]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_cumul</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">nrow</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;lwt_cumulants.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_80_0.png" src="../_images/notebooks_Demo-real_80_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[132]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt</span><span class="o">.</span><span class="n">cumulants</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_81_0.png" src="../_images/notebooks_Demo-real_81_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[133]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_cumul</span><span class="o">.</span><span class="n">log_cumulants</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[133]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([ 0.80665049, -0.04891695])
+</pre></div></div>
+</div>
+<p><strong>multifractal spectrum</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[134]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt_mfs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">figure_folder</span> <span class="o">+</span> <span class="s1">&#39;lwt_multif_spec.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_84_0.png" src="../_images/notebooks_Demo-real_84_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[134]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">lwt</span><span class="o">.</span><span class="n">spectrum</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_85_0.png" src="../_images/notebooks_Demo-real_85_0.png" />
+</div>
+</div>
+</div>
+<div class="section" id="Object-oriented-approach">
+<h2>Object oriented approach<a class="headerlink" href="#Object-oriented-approach" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">Signal</span></code> dataclass offers an approach where the signal data and any intermediary results and parameters are kept in an instance</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[59]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pymultifracs.signal</span> <span class="k">as</span> <span class="nn">sig</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[60]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span> <span class="o">=</span> <span class="n">sig</span><span class="o">.</span><span class="n">Signal</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[61]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">plot_psd</span><span class="p">(</span><span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_90_0.png" src="../_images/notebooks_Demo-real_90_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[62]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">plot_fractal</span><span class="p">(</span><span class="n">n_fft</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_Demo-real_91_0.png" src="../_images/notebooks_Demo-real_91_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[63]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">fractal_analysis</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[63]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+FractalValues(beta=-2.5496376933101113, log_C=-13.854354677177184, freq=array([[-0.98082925],
+       [-1.67397643],
+       [-2.36712361],
+       [-3.06027079],
+       [-3.75341798],
+       [-4.44656516]]))
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[64]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">wt_psd</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[64]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+PSD(freq=array([0.375     , 0.1875    , 0.09375   , 0.046875  , 0.0234375 ,
+       0.01171875, 0.00585938, 0.00292969, 0.00146484]), psd=array([1.29075263e-05, 6.39677720e-05, 3.89915716e-04, 2.20122653e-03,
+       1.41902167e-02, 8.42382823e-02, 5.01985149e-01, 3.61909171e+00,
+       2.74098852e+01]))
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[65]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">welch_psd</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[65]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+PSD(freq=array([0.        , 0.00097656, 0.00195312, 0.00292969, 0.00390625,
+       0.00488281, 0.00585938, 0.00683594, 0.0078125 , 0.00878906,
+       0.00976562, 0.01074219, 0.01171875, 0.01269531, 0.01367188,
+       0.01464844, 0.015625  , 0.01660156, 0.01757812, 0.01855469,
+       0.01953125, 0.02050781, 0.02148438, 0.02246094, 0.0234375 ,
+       0.02441406, 0.02539062, 0.02636719, 0.02734375, 0.02832031,
+       0.02929688, 0.03027344, 0.03125   , 0.03222656, 0.03320312,
+       0.03417969, 0.03515625, 0.03613281, 0.03710938, 0.03808594,
+       0.0390625 , 0.04003906, 0.04101562, 0.04199219, 0.04296875,
+       0.04394531, 0.04492188, 0.04589844, 0.046875  , 0.04785156,
+       0.04882812, 0.04980469, 0.05078125, 0.05175781, 0.05273438,
+       0.05371094, 0.0546875 , 0.05566406, 0.05664062, 0.05761719,
+       0.05859375, 0.05957031, 0.06054688, 0.06152344, 0.0625    ,
+       0.06347656, 0.06445312, 0.06542969, 0.06640625, 0.06738281,
+       0.06835938, 0.06933594, 0.0703125 , 0.07128906, 0.07226562,
+       0.07324219, 0.07421875, 0.07519531, 0.07617188, 0.07714844,
+       0.078125  , 0.07910156, 0.08007812, 0.08105469, 0.08203125,
+       0.08300781, 0.08398438, 0.08496094, 0.0859375 , 0.08691406,
+       0.08789062, 0.08886719, 0.08984375, 0.09082031, 0.09179688,
+       0.09277344, 0.09375   , 0.09472656, 0.09570312, 0.09667969,
+       0.09765625, 0.09863281, 0.09960938, 0.10058594, 0.1015625 ,
+       0.10253906, 0.10351562, 0.10449219, 0.10546875, 0.10644531,
+       0.10742188, 0.10839844, 0.109375  , 0.11035156, 0.11132812,
+       0.11230469, 0.11328125, 0.11425781, 0.11523438, 0.11621094,
+       0.1171875 , 0.11816406, 0.11914062, 0.12011719, 0.12109375,
+       0.12207031, 0.12304688, 0.12402344, 0.125     , 0.12597656,
+       0.12695312, 0.12792969, 0.12890625, 0.12988281, 0.13085938,
+       0.13183594, 0.1328125 , 0.13378906, 0.13476562, 0.13574219,
+       0.13671875, 0.13769531, 0.13867188, 0.13964844, 0.140625  ,
+       0.14160156, 0.14257812, 0.14355469, 0.14453125, 0.14550781,
+       0.14648438, 0.14746094, 0.1484375 , 0.14941406, 0.15039062,
+       0.15136719, 0.15234375, 0.15332031, 0.15429688, 0.15527344,
+       0.15625   , 0.15722656, 0.15820312, 0.15917969, 0.16015625,
+       0.16113281, 0.16210938, 0.16308594, 0.1640625 , 0.16503906,
+       0.16601562, 0.16699219, 0.16796875, 0.16894531, 0.16992188,
+       0.17089844, 0.171875  , 0.17285156, 0.17382812, 0.17480469,
+       0.17578125, 0.17675781, 0.17773438, 0.17871094, 0.1796875 ,
+       0.18066406, 0.18164062, 0.18261719, 0.18359375, 0.18457031,
+       0.18554688, 0.18652344, 0.1875    , 0.18847656, 0.18945312,
+       0.19042969, 0.19140625, 0.19238281, 0.19335938, 0.19433594,
+       0.1953125 , 0.19628906, 0.19726562, 0.19824219, 0.19921875,
+       0.20019531, 0.20117188, 0.20214844, 0.203125  , 0.20410156,
+       0.20507812, 0.20605469, 0.20703125, 0.20800781, 0.20898438,
+       0.20996094, 0.2109375 , 0.21191406, 0.21289062, 0.21386719,
+       0.21484375, 0.21582031, 0.21679688, 0.21777344, 0.21875   ,
+       0.21972656, 0.22070312, 0.22167969, 0.22265625, 0.22363281,
+       0.22460938, 0.22558594, 0.2265625 , 0.22753906, 0.22851562,
+       0.22949219, 0.23046875, 0.23144531, 0.23242188, 0.23339844,
+       0.234375  , 0.23535156, 0.23632812, 0.23730469, 0.23828125,
+       0.23925781, 0.24023438, 0.24121094, 0.2421875 , 0.24316406,
+       0.24414062, 0.24511719, 0.24609375, 0.24707031, 0.24804688,
+       0.24902344, 0.25      , 0.25097656, 0.25195312, 0.25292969,
+       0.25390625, 0.25488281, 0.25585938, 0.25683594, 0.2578125 ,
+       0.25878906, 0.25976562, 0.26074219, 0.26171875, 0.26269531,
+       0.26367188, 0.26464844, 0.265625  , 0.26660156, 0.26757812,
+       0.26855469, 0.26953125, 0.27050781, 0.27148438, 0.27246094,
+       0.2734375 , 0.27441406, 0.27539062, 0.27636719, 0.27734375,
+       0.27832031, 0.27929688, 0.28027344, 0.28125   , 0.28222656,
+       0.28320312, 0.28417969, 0.28515625, 0.28613281, 0.28710938,
+       0.28808594, 0.2890625 , 0.29003906, 0.29101562, 0.29199219,
+       0.29296875, 0.29394531, 0.29492188, 0.29589844, 0.296875  ,
+       0.29785156, 0.29882812, 0.29980469, 0.30078125, 0.30175781,
+       0.30273438, 0.30371094, 0.3046875 , 0.30566406, 0.30664062,
+       0.30761719, 0.30859375, 0.30957031, 0.31054688, 0.31152344,
+       0.3125    , 0.31347656, 0.31445312, 0.31542969, 0.31640625,
+       0.31738281, 0.31835938, 0.31933594, 0.3203125 , 0.32128906,
+       0.32226562, 0.32324219, 0.32421875, 0.32519531, 0.32617188,
+       0.32714844, 0.328125  , 0.32910156, 0.33007812, 0.33105469,
+       0.33203125, 0.33300781, 0.33398438, 0.33496094, 0.3359375 ,
+       0.33691406, 0.33789062, 0.33886719, 0.33984375, 0.34082031,
+       0.34179688, 0.34277344, 0.34375   , 0.34472656, 0.34570312,
+       0.34667969, 0.34765625, 0.34863281, 0.34960938, 0.35058594,
+       0.3515625 , 0.35253906, 0.35351562, 0.35449219, 0.35546875,
+       0.35644531, 0.35742188, 0.35839844, 0.359375  , 0.36035156,
+       0.36132812, 0.36230469, 0.36328125, 0.36425781, 0.36523438,
+       0.36621094, 0.3671875 , 0.36816406, 0.36914062, 0.37011719,
+       0.37109375, 0.37207031, 0.37304688, 0.37402344, 0.375     ,
+       0.37597656, 0.37695312, 0.37792969, 0.37890625, 0.37988281,
+       0.38085938, 0.38183594, 0.3828125 , 0.38378906, 0.38476562,
+       0.38574219, 0.38671875, 0.38769531, 0.38867188, 0.38964844,
+       0.390625  , 0.39160156, 0.39257812, 0.39355469, 0.39453125,
+       0.39550781, 0.39648438, 0.39746094, 0.3984375 , 0.39941406,
+       0.40039062, 0.40136719, 0.40234375, 0.40332031, 0.40429688,
+       0.40527344, 0.40625   , 0.40722656, 0.40820312, 0.40917969,
+       0.41015625, 0.41113281, 0.41210938, 0.41308594, 0.4140625 ,
+       0.41503906, 0.41601562, 0.41699219, 0.41796875, 0.41894531,
+       0.41992188, 0.42089844, 0.421875  , 0.42285156, 0.42382812,
+       0.42480469, 0.42578125, 0.42675781, 0.42773438, 0.42871094,
+       0.4296875 , 0.43066406, 0.43164062, 0.43261719, 0.43359375,
+       0.43457031, 0.43554688, 0.43652344, 0.4375    , 0.43847656,
+       0.43945312, 0.44042969, 0.44140625, 0.44238281, 0.44335938,
+       0.44433594, 0.4453125 , 0.44628906, 0.44726562, 0.44824219,
+       0.44921875, 0.45019531, 0.45117188, 0.45214844, 0.453125  ,
+       0.45410156, 0.45507812, 0.45605469, 0.45703125, 0.45800781,
+       0.45898438, 0.45996094, 0.4609375 , 0.46191406, 0.46289062,
+       0.46386719, 0.46484375, 0.46582031, 0.46679688, 0.46777344,
+       0.46875   , 0.46972656, 0.47070312, 0.47167969, 0.47265625,
+       0.47363281, 0.47460938, 0.47558594, 0.4765625 , 0.47753906,
+       0.47851562, 0.47949219, 0.48046875, 0.48144531, 0.48242188,
+       0.48339844, 0.484375  , 0.48535156, 0.48632812, 0.48730469,
+       0.48828125, 0.48925781, 0.49023438, 0.49121094, 0.4921875 ,
+       0.49316406, 0.49414062, 0.49511719, 0.49609375, 0.49707031,
+       0.49804688, 0.49902344, 0.5       ]), psd=array([6.89398979e+03, 2.73721346e+03, 1.31154267e+01, 2.06947499e+00,
+       7.59285987e-01, 7.17684967e-01, 3.72615384e-01, 3.51780495e-01,
+       3.43981845e-01, 6.39110685e-02, 2.09730344e-01, 1.11870546e-01,
+       5.57763306e-02, 5.42171256e-02, 4.84292144e-02, 3.23006872e-02,
+       5.35199035e-02, 2.53593985e-02, 1.70039665e-02, 4.06397216e-02,
+       1.45803549e-02, 3.68063897e-02, 2.38296039e-02, 2.33815136e-02,
+       5.58234322e-03, 1.24337813e-02, 8.76152339e-03, 7.90398399e-03,
+       4.40946874e-03, 7.94871596e-03, 7.73422666e-03, 5.82428961e-03,
+       9.37573015e-03, 3.75538067e-03, 8.08039150e-03, 5.09585363e-03,
+       4.38150118e-03, 5.34823252e-03, 5.96702415e-03, 2.94563083e-03,
+       5.73949940e-03, 1.86156065e-03, 6.38114203e-03, 2.48580935e-03,
+       2.61904422e-03, 2.84113000e-03, 6.37833549e-03, 2.99677402e-03,
+       2.25699501e-03, 1.68966640e-03, 4.37508146e-03, 1.59479455e-03,
+       1.40374214e-03, 3.34659253e-03, 1.25687439e-03, 1.69158470e-03,
+       2.20329404e-03, 1.43467850e-03, 1.42099546e-03, 2.82901274e-03,
+       4.72339632e-04, 2.76267887e-03, 9.25618877e-04, 1.68408634e-03,
+       1.97086681e-03, 1.84637312e-03, 1.28175047e-03, 8.51056456e-04,
+       1.31930537e-03, 8.54421110e-04, 1.87257027e-03, 1.04689974e-03,
+       1.09814496e-03, 1.21216060e-03, 3.24724979e-04, 1.54261646e-03,
+       7.77432277e-04, 1.36797944e-03, 1.09790339e-03, 8.71036317e-04,
+       1.23321505e-03, 8.79718776e-04, 8.96200136e-04, 7.31674593e-04,
+       9.29333275e-04, 8.53870210e-04, 5.04156038e-04, 7.17918450e-04,
+       7.96918447e-04, 4.54032669e-04, 7.89124809e-04, 6.32747126e-04,
+       5.99570418e-04, 4.21612168e-04, 4.62265469e-04, 7.33682752e-04,
+       2.16459721e-04, 5.01190976e-04, 6.39411325e-04, 4.31289615e-04,
+       4.87240192e-04, 5.51190777e-04, 4.20783807e-04, 4.77204117e-04,
+       4.92759967e-04, 4.43490285e-04, 2.38109498e-04, 4.76989476e-04,
+       3.26991626e-04, 4.54560407e-04, 4.11734568e-04, 5.61909749e-04,
+       2.00348919e-04, 5.83109439e-04, 4.63617657e-04, 4.43943661e-04,
+       2.55655855e-04, 3.86489240e-04, 5.55688000e-04, 3.93898596e-04,
+       5.35150628e-04, 2.71322573e-04, 2.26163357e-04, 3.10597384e-04,
+       5.60184872e-04, 2.49201099e-04, 2.61432001e-04, 3.01709354e-04,
+       3.50207403e-04, 1.72711259e-04, 3.98188792e-04, 2.64385931e-04,
+       2.28911531e-04, 2.85458080e-04, 4.59026217e-04, 1.95586818e-04,
+       1.47707749e-04, 3.07313847e-04, 3.13017113e-04, 1.72029358e-04,
+       1.44045691e-04, 2.82764788e-04, 1.47392295e-04, 3.26963080e-04,
+       1.86643133e-04, 3.29696978e-04, 1.18653124e-04, 2.72403803e-04,
+       2.31710194e-04, 1.71184747e-04, 2.31879905e-04, 3.08965820e-04,
+       1.12545006e-04, 2.29742836e-04, 1.83599477e-04, 3.02013721e-04,
+       2.07987310e-04, 1.96778999e-04, 1.52195741e-04, 2.48503636e-04,
+       1.99301353e-04, 1.08750075e-04, 1.66958258e-04, 2.07609990e-04,
+       1.71832298e-04, 2.56901117e-04, 1.83370223e-04, 1.21780732e-04,
+       1.69935833e-04, 1.36513678e-04, 1.42326994e-04, 1.79676475e-04,
+       2.09928950e-04, 1.61942145e-04, 1.69520927e-04, 1.23479406e-04,
+       1.47921004e-04, 1.87520052e-04, 7.14123337e-05, 1.68012473e-04,
+       1.25455586e-04, 1.27129335e-04, 1.32896047e-04, 1.45057807e-04,
+       1.01227742e-04, 1.27535597e-04, 1.41158287e-04, 9.33727553e-05,
+       1.20303862e-04, 1.01376007e-04, 8.47134651e-05, 1.48681870e-04,
+       1.18300717e-04, 1.26058537e-04, 1.38145830e-04, 6.36793213e-05,
+       1.44813831e-04, 9.13804236e-05, 2.02585750e-04, 1.23325284e-04,
+       7.27999482e-05, 1.32156839e-04, 8.85490467e-05, 1.45509023e-04,
+       4.68003027e-05, 1.41681911e-04, 5.08647470e-05, 1.15530440e-04,
+       1.51184138e-04, 1.20880766e-04, 7.79184740e-05, 1.63781462e-04,
+       7.72895666e-05, 1.33031145e-04, 1.04143204e-04, 9.56055320e-05,
+       6.16889918e-05, 7.94744818e-05, 1.38284709e-04, 8.66719142e-05,
+       1.13326954e-04, 1.17163112e-04, 1.19311527e-04, 8.36409710e-05,
+       8.63021986e-05, 9.47213888e-05, 5.68866002e-05, 1.08643700e-04,
+       1.06063162e-04, 7.77092193e-05, 1.50196110e-04, 4.63989484e-05,
+       1.13336903e-04, 7.45381213e-05, 4.63290249e-05, 8.24057733e-05,
+       6.07986881e-05, 8.39346012e-05, 9.46348461e-05, 1.19290606e-04,
+       3.64885894e-05, 1.28956872e-04, 7.50360044e-05, 7.43744383e-05,
+       1.01281782e-04, 6.53145512e-05, 1.19608419e-04, 5.74995965e-05,
+       6.49669366e-05, 5.38294521e-05, 1.51460306e-04, 4.32634148e-05,
+       6.16191304e-05, 6.02950100e-05, 1.09647433e-04, 4.52698628e-05,
+       8.46293410e-05, 6.94773282e-05, 8.42642725e-05, 8.41998479e-05,
+       5.72309134e-05, 9.16885369e-05, 5.97111914e-05, 6.31892721e-05,
+       6.68600167e-05, 6.03293561e-05, 8.05500347e-05, 4.65509674e-05,
+       8.50314539e-05, 9.35985655e-05, 8.37833979e-05, 6.45844892e-05,
+       5.91671096e-05, 5.33100608e-05, 6.33852588e-05, 6.84437984e-05,
+       5.87493372e-05, 6.94623844e-05, 3.36883006e-05, 5.74617583e-05,
+       8.48170742e-05, 7.60615754e-05, 5.76249050e-05, 6.56569172e-05,
+       3.88339222e-05, 5.61511185e-05, 6.45437618e-05, 5.84063812e-05,
+       3.79394953e-05, 6.22842467e-05, 6.17650669e-05, 5.26664405e-05,
+       4.19454388e-05, 5.99216362e-05, 5.78761970e-05, 5.13441118e-05,
+       8.33485625e-05, 3.48786245e-05, 9.38925855e-05, 6.61908207e-05,
+       4.07103407e-05, 7.44255043e-05, 4.12016002e-05, 6.58876102e-05,
+       6.80996602e-05, 4.67530297e-05, 5.18193123e-05, 6.90321143e-05,
+       3.52512406e-05, 4.84835992e-05, 5.81899735e-05, 5.50989685e-05,
+       4.98220584e-05, 5.16468276e-05, 3.92478538e-05, 5.59463326e-05,
+       6.50072042e-05, 5.27981830e-05, 4.81158642e-05, 6.15231337e-05,
+       4.56518001e-05, 5.00597133e-05, 4.78457464e-05, 3.87478473e-05,
+       5.77650289e-05, 5.70669153e-05, 3.05561320e-05, 6.33466522e-05,
+       3.27657638e-05, 5.63509738e-05, 5.99312257e-05, 4.28927306e-05,
+       5.69505607e-05, 4.45509709e-05, 3.01622886e-05, 4.92748589e-05,
+       4.50475204e-05, 4.07496764e-05, 4.23858385e-05, 4.87290655e-05,
+       6.74888063e-05, 3.86025531e-05, 4.67379129e-05, 3.34256984e-05,
+       4.49329966e-05, 5.37610047e-05, 2.57411063e-05, 3.38249298e-05,
+       5.18499736e-05, 3.51931426e-05, 4.53397658e-05, 4.06148204e-05,
+       3.16924677e-05, 4.26259094e-05, 4.90582613e-05, 3.45191858e-05,
+       4.72909853e-05, 4.00529065e-05, 5.01690720e-05, 4.48739145e-05,
+       3.79972474e-05, 5.23081585e-05, 2.85379277e-05, 4.67936309e-05,
+       3.20313039e-05, 4.77106023e-05, 2.22919003e-05, 5.73569151e-05,
+       3.74877170e-05, 3.99633853e-05, 3.30100980e-05, 4.20533199e-05,
+       3.87111014e-05, 3.79539345e-05, 3.85512184e-05, 4.27673871e-05,
+       3.65189894e-05, 3.61988585e-05, 3.95640893e-05, 3.26022844e-05,
+       5.76043762e-05, 2.67163908e-05, 4.42966612e-05, 3.79871542e-05,
+       3.48619502e-05, 3.51020233e-05, 4.33007219e-05, 3.50457933e-05,
+       2.69914774e-05, 3.29279297e-05, 4.45435831e-05, 2.85543271e-05,
+       6.04091565e-05, 2.98737837e-05, 3.07424456e-05, 5.04241935e-05,
+       1.62631090e-05, 4.70561863e-05, 3.05313653e-05, 4.97992897e-05,
+       2.43342273e-05, 4.36279875e-05, 3.92479010e-05, 3.51390230e-05,
+       3.75045911e-05, 4.22020589e-05, 2.37007504e-05, 4.97776336e-05,
+       5.17338639e-05, 3.75306769e-05, 2.57671290e-05, 3.12585099e-05,
+       6.92403475e-05, 3.74484179e-05, 1.46767169e-05, 4.94969361e-05,
+       3.35993885e-05, 3.42173320e-05, 4.32765946e-05, 3.54529916e-05,
+       2.27657259e-05, 3.70678435e-05, 4.04090721e-05, 2.97062184e-05,
+       5.04630989e-05, 3.56798296e-05, 3.30332483e-05, 3.82224668e-05,
+       3.64927057e-05, 3.15075611e-05, 4.62944045e-05, 2.36411622e-05,
+       4.25972023e-05, 2.24001172e-05, 4.20335566e-05, 2.05380371e-05,
+       5.60798270e-05, 2.39651146e-05, 4.56155009e-05, 2.77548096e-05,
+       3.57599290e-05, 3.57914086e-05, 4.02693065e-05, 3.97858457e-05,
+       3.67161449e-05, 3.39503794e-05, 5.04612153e-05, 1.99604547e-05,
+       3.07560225e-05, 3.29926852e-05, 3.81155054e-05, 3.82339677e-05,
+       1.46301137e-05, 3.83872219e-05, 3.58406836e-05, 2.91853154e-05,
+       2.61447399e-05, 2.49213391e-05, 5.44389144e-05, 2.88503470e-05,
+       1.75399122e-05, 4.36485589e-05, 2.09620333e-05, 4.18889822e-05,
+       2.28325663e-05, 4.76119763e-05, 1.28354351e-05, 3.23462257e-05,
+       3.83822238e-05, 3.29725347e-05, 3.34430876e-05, 2.37204805e-05,
+       6.42012456e-05, 2.38539099e-05, 4.01842852e-05, 3.10999726e-05,
+       2.79147174e-05, 3.73735943e-05, 4.48240692e-05, 2.57068483e-05,
+       3.10582086e-05, 3.93489890e-05, 2.45328180e-05, 5.22778744e-05,
+       1.72057083e-05, 4.01644452e-05, 3.21687508e-05, 3.32787926e-05,
+       2.87996752e-05, 3.42449630e-05, 1.85507167e-05, 5.06807457e-05,
+       2.37133413e-05, 3.95489114e-05, 2.33479210e-05, 3.23080436e-05,
+       3.41296322e-05, 2.64163574e-05, 4.28979224e-05, 2.60816933e-05,
+       4.08959138e-05, 2.87335239e-05, 3.48506593e-05, 3.64527906e-05,
+       1.89666526e-05, 3.44899697e-05, 3.85949130e-05, 3.17579339e-05,
+       2.15551345e-05, 2.96519726e-05, 4.47146713e-05, 3.65039889e-05,
+       9.69901208e-06]))
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[66]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">S</span><span class="o">.</span><span class="n">fractal</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[66]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+FractalValues(beta=-2.5496376933101113, log_C=-13.854354677177184, freq=array([[-0.98082925],
+       [-1.67397643],
+       [-2.36712361],
+       [-3.06027079],
+       [-3.75341798],
+       [-4.44656516]]))
+</pre></div></div>
+</div>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {}, "version_major": 2, "version_minor": 0}
+</script></div>
+</div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2020, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

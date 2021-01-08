@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pymultifracs.cumulants.Cumulants &#8212; PyMultiFracs 1.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/bootstrap-sphinx.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-code-pro.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/font-source-sans-pro.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pymultifracs.structurefunction.StructureFunction" href="pymultifracs.structurefunction.StructureFunction.html" />
+    <link rel="prev" title="pymultifracs.multiresquantity.MultiResolutionQuantity" href="pymultifracs.multiresquantity.MultiResolutionQuantity.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script type="text/javascript" src="../_static/js/jquery-1.11.0.min.js "></script>
+<script type="text/javascript" src="../_static/js/jquery-fix.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-3.3.7/js/bootstrap.min.js "></script>
+<script type="text/javascript" src="../_static/bootstrap-sphinx.js "></script>
+
+  </head><body>
+
+  <div id="navbar" class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../index.html">
+          PyMultiFracs</a>
+        <span class="navbar-text navbar-version pull-left"><b></b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            
+                <li><a href="../install.html">Install</a></li>
+                <li><a href="../examples.html">Examples</a></li>
+                <li><a href="../reference.html">API</a></li>
+                <li><a href="../theory.html">Theory</a></li>
+            
+            
+              
+              
+            
+            
+            
+            
+            
+              <li class="hidden-sm"></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="../search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="body col-md-12 content" role="main">
+      
+  <div class="section" id="pymultifracs-cumulants-cumulants">
+<h1>pymultifracs.cumulants.Cumulants<a class="headerlink" href="#pymultifracs-cumulants-cumulants" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="pymultifracs.cumulants.Cumulants">
+<em class="property">class </em><code class="sig-prename descclassname">pymultifracs.cumulants.</code><code class="sig-name descname">Cumulants</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mrq</span></em>, <em class="sig-param"><span class="n">n_cumul</span></em>, <em class="sig-param"><span class="n">j1</span></em>, <em class="sig-param"><span class="n">j2</span></em>, <em class="sig-param"><span class="n">wtype</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes and analyzes cumulants</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>mrq</strong><span class="classifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultiResolutionQuantity</span></code></span></dt><dd><p>Multi resolution quantity to analyze.</p>
+</dd>
+<dt><strong>n_cumul</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Number of cumulants to compute.</p>
+</dd>
+<dt><strong>j1</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Lower-bound of the scale support for the linear regressions.</p>
+</dd>
+<dt><strong>j2</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Upper-bound of the scale support for the linear regressions.</p>
+</dd>
+<dt><strong>wtype: bool</strong></dt><dd><p>Whether to used weighted linear regressions.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Attributes</dt>
+<dd class="field-even"><dl>
+<dt><strong>formalism</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">str</span></code></a></span></dt><dd><p>Formalism used. Can be any of ‘wavelet coefs’, ‘wavelet leaders’,
+or ‘wavelet p-leaders’.</p>
+</dd>
+<dt><strong>nj</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">dict</span></code></a></span></dt><dd><p>Number of coefficients at scale j.</p>
+</dd>
+<dt><strong>values</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">n_cumulants</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">n_scales</span></code>)</span></dt><dd><p><span class="math notranslate nohighlight">\(C_m(j)\)</span>.</p>
+</dd>
+<dt><strong>n_cumul</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Number of computed cumulants.</p>
+</dd>
+<dt><strong>j1</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Lower-bound of the scale support for the linear regressions.</p>
+</dd>
+<dt><strong>j2</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">int</span></code></a></span></dt><dd><p>Upper-bound of the scale support for the linear regressions.</p>
+</dd>
+<dt><strong>wtype</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bltin-boolean-values" title="(in Python v3.9)"><span class="xref std std-ref">bool</span></a></span></dt><dd><p>Whether weighted regression was performed.</p>
+</dd>
+<dt><strong>m</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (n_cumulants,)</span></dt><dd><p>List of the m values (cumulants), in order presented in the value
+arrays.</p>
+</dd>
+<dt><strong>j</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (n_scales,)</span></dt><dd><p>List of the j values (scales), in order presented in the value arrays.</p>
+</dd>
+<dt><strong>log_cumulants</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (n_cumulants,)</span></dt><dd><p><span class="math notranslate nohighlight">\((c_m)_m\)</span>, slopes of the curves <span class="math notranslate nohighlight">\(j \times C_m(j)\)</span>.</p>
+</dd>
+<dt><strong>var_log_cumulants</strong><span class="classifier"><a class="reference external" href="https://numpy.org/devdocs/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21.dev0)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ndarray</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code> (n_cumulants,)</span></dt><dd><p>Estimates of the log-cumulants</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>var_log_cumulants
+was not debugged</p>
+</div>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_values</span></code>(coeffs, j)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#pymultifracs.cumulants.Cumulants.from_dict" title="pymultifracs.cumulants.Cumulants.from_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code></a>(d)</p></td>
+<td><p>Method to instanciate a dataclass by passing a dictionary with extra keywords</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#pymultifracs.cumulants.Cumulants.get_nj" title="pymultifracs.cumulants.Cumulants.get_nj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_nj</span></code></a>()</p></td>
+<td><p>Returns nj as a list</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#pymultifracs.cumulants.Cumulants.get_nj_interv" title="pymultifracs.cumulants.Cumulants.get_nj_interv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_nj_interv</span></code></a>(j1, j2)</p></td>
+<td><p>Returns nj as a list, for j in [j1,j2]</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#pymultifracs.cumulants.Cumulants.plot" title="pymultifracs.cumulants.Cumulants.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([fignum, nrow, filename])</p></td>
+<td><p>Plots the cumulants.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#pymultifracs.cumulants.Cumulants.sum" title="pymultifracs.cumulants.Cumulants.sum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sum</span></code></a>(cumulants)</p></td>
+<td><p>Computes the sum of two cumulants C_m^a(j) and C_m^b(j) weighted by nj:</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt id="pymultifracs.cumulants.Cumulants.from_dict">
+<em class="property">classmethod </em><code class="sig-name descname">from_dict</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants.from_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to instanciate a dataclass by passing a dictionary with
+extra keywords</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>d</strong><span class="classifier"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><code class="docutils literal notranslate"><span class="pre">dict</span></code></a></span></dt><dd><p>Dictionary containing at least all the parameters required by
+__init__, but can also contain other parameters, which will be
+ignored</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultiResolutionQuantityBase</span></code></dt><dd><p>Properly initialized multi resolution quantity</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Normally, dataclasses can only be instantiated by only
+specifiying parameters expected by the automatically
+generated __init__ method.
+Using this method instead allows us to discard extraneous
+parameters, similarly to introducing a **kwargs parameter.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pymultifracs.cumulants.Cumulants.get_nj">
+<code class="sig-name descname">get_nj</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants.get_nj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns nj as a list</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pymultifracs.cumulants.Cumulants.get_nj_interv">
+<code class="sig-name descname">get_nj_interv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">j1</span></em>, <em class="sig-param"><span class="n">j2</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants.get_nj_interv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns nj as a list, for j in [j1,j2]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pymultifracs.cumulants.Cumulants.plot">
+<code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fignum</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">nrow</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">filename</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the cumulants.
+Args:
+fignum(int):  figure number
+plt        :  pointer to matplotlib.pyplot</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pymultifracs.cumulants.Cumulants.sum">
+<code class="sig-name descname">sum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cumulants</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pymultifracs.cumulants.Cumulants.sum" title="Permalink to this definition">¶</a></dt>
+<dd><dl>
+<dt>Computes the sum of two cumulants C_m^a(j) and C_m^b(j) weighted by nj:</dt><dd><blockquote>
+<div><p>C_m^{a+b}(j) = [n_a(j)*C_m^a(j) + n_b(j)*C_m^b(j)]/(n_a(j) + n_b(j))</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Usage:</dt><dd><dl class="simple">
+<dt>cumulants_a.sum(cumulants_b),</dt><dd><p>and the result is stored in cumulants_a</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>Important:</dt><dd><ul class="simple">
+<li><p>n_cumul, wtype, j1 and j2 must be the same in both objects</p></li>
+<li><p>the attribute cumulants_a.mrq is set to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2020, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
