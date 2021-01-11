@@ -2,7 +2,7 @@
 This code tests features in development.
 """
 
-import mfanalysis as mf
+import pymultifracs as mf
 import os
 import numpy as np
 from scipy.io import loadmat
@@ -66,7 +66,7 @@ mfa.q = np.arange(-2, 3)
 mfa.n_cumul = 2
 mfa.gamint = 0
 mfa.verbose = 2
-mfa.wtype = 0
+mfa.wtype = False
 
 #-------------------------------------------------------------------------------
 # Test

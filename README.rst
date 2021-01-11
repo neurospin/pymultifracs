@@ -10,42 +10,88 @@ Implemented features:
 * Estimation of the multifractal spectrum.
 
 
-The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) Matlab toolbox written by Herwig Wendt (https://www.irit.fr/~Herwig.Wendt/software.html) and on the documents provided in his website (his PhD thesis in particular, which can be found at https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf).
+The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) Matlab toolbox written by Herwig Wendt
+(https://www.irit.fr/~Herwig.Wendt/software.html) and on the documents provided in his website (his PhD thesis in particular, which can be found at
+https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf).
 
 
 For a brief introduction to multifractal analysis, see the file THEORY.ipynb
 
+There are two ways to install this package: either by using a package manager to install the package only, which will make
+the code only usable as an import,
+or by cloning the repository first, and then installing the package which will make it editable
 
-Installation
-============
+Installing the package only
+===========================
 
+Using conda
+-----------
+
+Creating a new environment (recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: shell
 
-    git clone https://github.com/neurospin/mfanalysis.git
-    cd mfanalysis
-    python setup.py install
+    wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+    conda env create -f env.yml
+
+Installing into a pre-existing environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Note that this package requires a recent version of python (>=3.7)
+
+.. code:: shell
+
+    wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+    conda env update -f env.yml
+
+----
+
+Using pip
+---------
+
+.. code:: shell
+    
+    pip install git+https://github.com/MerlinDumeur/mfanalysis.git@master
 
 
-How to use the package
-============
+Cloning the whole repository (including examples)
+=================================================
 
-See scripts in /examples, mainly /examples/demo_pleaders.py 
+Using conda
+-----------
 
-The data used for the examples were taken from the example data of the PLBMF Matlab toolbox (https://www.irit.fr/~Herwig.Wendt/software.html, MF_BS_tool_webrelease/demo/WLBMF_example_data).
+Using conda, the simplest way to proceed is to use the :code:`meta.yml` file to create or update
+an environment, and then install the editable local version of pymultifracs on top.
 
+Creating a new environment (recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Testing
-============
+.. code:: shell
 
-The scripts in /test allow us to compare the outputs of this package and the PLBMF Matlab toolbox (https://www.irit.fr/~Herwig.Wendt/software.html). 
+    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    conda env create -f pymultifracs/meta.yml
+    pip install -e pymultifracs
 
-How to perform a test:
+Installing into a pre-existing environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Run define_testing_parameters.py to define a range of parameters to be tested and generate params.json.
+Note that this package requires a recent version of python (>=3.7)
 
-2. Put .mat files in folder /test_data containing signals to be tested (each file must have a 'data' variable representing a 1d signal).
+.. code:: shell
 
-3. Run /test/testing_python_package/test.py to generate python outputs and run  /test/testing_matlab_toolbox/test.m to generate matlab outputs.
+    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    conda env update -f pymultifracs/meta.yml
+    pip install -e pymultifracs
 
-4. Done! Output csv files are stored in /test_outputs. The script compare_outputs.py can be used to compare these output files.
+----
+
+Using pip
+---------
+
+.. code:: shell
+
+    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    pip install -e pymultifracs
+
+See the examples/ folder, mainly examples/Demo.ipynb and examples/Maquette.ipynb
