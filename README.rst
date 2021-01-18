@@ -32,7 +32,7 @@ Creating a new environment (recommended)
 
 .. code:: shell
 
-    wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+    wget https://raw.githubusercontent.com/neurospin/pymultifracs/master/env.yml
     conda env create -f env.yml
 
 Installing into a pre-existing environment
@@ -42,7 +42,7 @@ Note that this package requires a recent version of python (>=3.7)
 
 .. code:: shell
 
-    wget https://raw.githubusercontent.com/MerlinDumeur/mfanalysis/master/env.yml
+    wget https://raw.githubusercontent.com/neurospin/pymultifracs/master/env.yml
     conda env update -f env.yml
 
 ----
@@ -51,8 +51,8 @@ Using pip
 ---------
 
 .. code:: shell
-    
-    pip install git+https://github.com/MerlinDumeur/mfanalysis.git@master
+
+    pip install git+https://github.com/neurospin/pymultifracs.git@master
 
 
 Cloning the whole repository (including examples)
@@ -69,7 +69,7 @@ Creating a new environment (recommended)
 
 .. code:: shell
 
-    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    git clone https://github.com/neurospin/pymultifracs.git@master
     conda env create -f pymultifracs/meta.yml
     pip install -e pymultifracs
 
@@ -80,7 +80,7 @@ Note that this package requires a recent version of python (>=3.7)
 
 .. code:: shell
 
-    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    git clone https://github.com/neurospin/pymultifracs.git@master
     conda env update -f pymultifracs/meta.yml
     pip install -e pymultifracs
 

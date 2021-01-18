@@ -1,3 +1,7 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from collections import namedtuple
 
 from scipy.signal import welch

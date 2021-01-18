@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from collections import namedtuple
 
 from .mfspectrum import MultifractalSpectrum

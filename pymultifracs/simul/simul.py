@@ -1,3 +1,7 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+"""
+
 import numpy as np
 
 

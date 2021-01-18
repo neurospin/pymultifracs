@@ -1,3 +1,7 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from collections import namedtuple
 
 import numpy as np
@@ -57,10 +61,12 @@ def plot_fractal(signal, s_freq, log='log2', freq_band=(0.01, 2), n_moments=2,
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet', f'Slope: {slope.beta:.2f}']
 
-    log_plot(freq, psd, legend, slope=[(slope.freq, psd_slope)], log=log, lowpass_freq=lowpass_freq)
+    log_plot(freq, psd, legend, slope=[(slope.freq, psd_slope)], log=log,
+             lowpass_freq=lowpass_freq)
 
 
-def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2), log='log2'):
+def fractal_analysis(signal, s_freq, n_moments=2, freq_band=(0.01, 2),
+                     log='log2'):
     """
     Perform the estimation of the value of beta and the logged value of C, \
     where beta and log_C are defined in relation with the PSD:
@@ -98,8 +104,8 @@ FractalValues = namedtuple('FractalValues', ['beta',
 
 def estimate_beta(freq, psd, freq_band=(0.01, 2), log='log2'):
     """
-    From the PSD and its frequency support, estimate the C and beta variables, where
-        PSD(f) = C|f|^-beta
+    From the PSD and its frequency support, estimate the C and beta variables,
+        where PSD(f) = C|f|^-beta
 
     Parameters
     ----------

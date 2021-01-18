@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from dataclasses import dataclass, InitVar, field
 
 import numpy as np
@@ -63,7 +68,7 @@ class StructureFunction(MultiResolutionQuantityBase):
 
     def __post_init__(self, mrq):
 
-        self.name = mrq.name
+        self.formalism = mrq.formalism
         self.j = np.array(list(mrq.values))
 
         self._compute(mrq)
@@ -95,7 +100,10 @@ class StructureFunction(MultiResolutionQuantityBase):
         x = np.arange(self.j1, self.j2+1)
 
         if self.wtype:
-            nj = mrq.get_nj_interv(self.j1, self.j2)
+            try:
+                nj = mrq.get_nj_interv(self.j1, self.j2)
+            except Exception:
+                import ipdb; ipdb.set_trace()
         else:
             nj = np.ones(len(x))
 

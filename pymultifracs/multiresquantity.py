@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from dataclasses import dataclass, field
 import inspect
 
@@ -72,13 +77,13 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     ----------
     formalism : str
         Indicates the formalism used to obtain the multi resolution quantity.
-        Can be any of 'wavelet coefs', 'wavelet leaders',
+        Can be any of 'wavelet coef', 'wavelet leader',
         or 'wavelet p-leaders'.
 
     Attributes
     ----------
     formalism : str
-        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
+        Formalism used. Can be any of 'wavelet coef', 'wavelet leader',
         or 'wavelet p-leaders'.
     n_scales : int
         Size of the scale range covered.
@@ -91,7 +96,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
     def __post_init__(self):
 
-        if self.formalism not in ['wavelet coefs', 'wavelet leaders',
-                                  'wavelet p-leaders']:
-            raise ValueError('formalism needs to be one of : "wavelet coefs", '
-                             '"wavelet leaders", "wavelet p-leaders"')
+        if self.formalism not in ['wavelet coef', 'wavelet leader',
+                                  'wavelet p-leader']:
+            raise ValueError('formalism needs to be one of : "wavelet coef", '
+                             '"wavelet leader", "wavelet p-leader"')

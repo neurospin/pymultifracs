@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
@@ -96,8 +101,7 @@ def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):
 
     # plot regression line
     reg_x = [j1, j2_eff]
-    f = lambda x: hmin*x + intercept
-    reg_y = map(f, reg_x)
+    reg_y = map(lambda x: hmin*x + intercept, reg_x)
 
     legend = f'$h_\\mathrm{min}$ = {hmin:.5f}'
     plt.plot(reg_x, reg_y, color='k', linestyle='-', linewidth=2, label=legend)
