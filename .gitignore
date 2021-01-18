@@ -28,7 +28,10 @@ doc/_autosummary/
 *.svg
 
 examples/src/
+examples/figures/
 examples/*.txt*
+
+MF_Synthesis/
 
 pymultifracs/todo.txt
 

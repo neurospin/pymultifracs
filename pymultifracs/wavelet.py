@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 import warnings
 from collections import namedtuple
 
@@ -26,11 +31,11 @@ def _estimate_eta_p(wt_coefs, p_exp, j1, j2_eff, weighted):
     """
     Estimate the value of eta_p
     """
+
     wavelet_structure = StructureFunction(wt_coefs,
                                           np.array([p_exp]),
                                           j1, j2_eff,
-                                          weighted,
-                                          stat_fun='mean')
+                                          weighted)
 
     return wavelet_structure.zeta[0]
 
@@ -289,7 +294,10 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     # Initialize structures 1
     wt_coefs = MultiResolutionQuantity(formalism)
-    wt_leaders = MultiResolutionQuantity(formalism)
+
+    wt_leaders = None
+    if formalism in ['wavelet leader', 'wavelet p-leader']:
+        wt_leaders = MultiResolutionQuantity(formalism)
 
     sans_voisin = None
 
@@ -314,7 +322,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
         wt_coefs.add_values(detail_scale[finite_idx_coef], scale)
 
         # Compute wavelet leaders if needed
-        if formalism in ['wavelet leader', 'wavelet p-leader']:
+        if wt_leaders is not None:
 
             leaders, sans_voisin = _compute_leaders(detail_scale, sans_voisin,
                                                     scale, formalism, p_exp)

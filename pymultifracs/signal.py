@@ -1,3 +1,6 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
 from dataclasses import dataclass
 from collections import namedtuple
 
@@ -6,7 +9,7 @@ import numpy as np
 from .fractal_analysis import estimate_beta, FractalValues
 from .psd import log_plot, wavelet_estimation, welch_estimation, PSD
 from .wavelet import wavelet_analysis, WaveletTransform
-from .mf_analysis import mf_analysis, MFractalData
+from .mfa import mf_analysis, MFractalData
 from .estimation import compute_hurst, estimate_hmin
 
 

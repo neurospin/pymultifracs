@@ -1,3 +1,8 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from dataclasses import dataclass, InitVar, field
 
 import numpy as np
@@ -74,9 +79,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
     U: np.array = field(init=False)
     V: np.array = field(init=False)
 
-    def __post_init__(self, mrq, j1, j2, wtype):
+    def __post_init__(self, mrq):
 
-        self.name = mrq.name
+        self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
 
