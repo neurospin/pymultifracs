@@ -5,6 +5,8 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from collections import namedtuple
 
+import numpy as np
+
 from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
@@ -47,7 +49,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
         :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity` | None
         Wavelet leaders. Set to None if using wavelet coef formalism.
     j2_eff : int
-        Effective maximum scalec
+        Effective maximum scale
     j1 : int
         Minimum scale
     weighted : bool
@@ -62,6 +64,14 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     :class:`~pymultifracs.mf_analysis.MFractalData`
         The output of the multifractal analysis
     """
+
+    # In case no value of q is specified, we still include q=2 in order to be
+    # able to estimate H
+    if q is None:
+        q = [2]
+
+    if isinstance(q, list):
+        q = np.array(q)
 
     parameters = {
         'q': q,
@@ -204,11 +214,6 @@ def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
     mf_analysis
     :obj:`~pymultifracs.wavelet.wavelet_analysis`
     """
-
-    # In case no value of q is specified, we still include q=2 in order to be
-    # able to estimate H
-    if q is None:
-        q = [2]
 
     wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
                                     j1=j1, j2=j2, gamint=gamint,

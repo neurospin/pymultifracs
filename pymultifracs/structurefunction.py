@@ -54,6 +54,8 @@ class StructureFunction(MultiResolutionQuantityBase):
         :math:`\\log_2 S(j, q)`
     zeta : ndarray, shape(n_exponents)
         Scaling function : :math:`\\zeta(q)`
+    H : float | None
+        Estimate of H. Set to None if 2 is not in `q`.
 
     """
     mrq: InitVar[MultiResolutionQuantity]
@@ -65,6 +67,7 @@ class StructureFunction(MultiResolutionQuantityBase):
     values: np.ndarray = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
+    H: np.float = field(init=False)
 
     def __post_init__(self, mrq):
 
@@ -73,6 +76,7 @@ class StructureFunction(MultiResolutionQuantityBase):
 
         self._compute(mrq)
         self._compute_zeta(mrq)
+        self.H = self._get_H()
 
     def _compute(self, mrq):
 
@@ -100,10 +104,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         x = np.arange(self.j1, self.j2+1)
 
         if self.wtype:
-            try:
-                nj = mrq.get_nj_interv(self.j1, self.j2)
-            except Exception:
-                import ipdb; ipdb.set_trace()
+            nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones(len(x))
 
@@ -115,7 +116,7 @@ class StructureFunction(MultiResolutionQuantityBase):
             self.zeta[ind_q] = slope
             self.intercept[ind_q] = intercept
 
-    def get_H(self):
+    def _get_H(self):
         H = self.zeta[self.q == 2]
 
         if len(H) > 0:
