@@ -11,7 +11,7 @@ Multifractal Analysis
 
 .. autosummary::
     :toctree: _autosummary
-    
+
     mf_analysis
     mf_analysis_full
     minimal_mf_analysis
@@ -21,7 +21,7 @@ Classes gathering the output of multifractal analysis
 .. autosummary::
     :toctree: _autosummary
     :template: namedtuple.rst
-    
+
     MFractalData
     MFractalVar
 
@@ -59,6 +59,19 @@ Wavelet Analysis
 
     WaveletTransform
 
+
+Simulation
+----------
+
+.. currentmodule:: pymultifracs.simul
+
+:py:mod:`pymultifracs.simul`:
+
+.. autosummary::
+    :toctree: _autosummary
+
+    mrw
+    fbm
 
 
 Computing and Plotting PSDs

@@ -150,7 +150,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         plt.plot(self.hq, self.Dq, 'ko-')
         # plt.grid()
         plt.xlabel('h(q)')
-        plt.ylabel('D(q)')
+        plt.ylabel('D(h)')
         plt.suptitle(self.formalism + ' - multifractal spectrum')
         plt.draw()
 

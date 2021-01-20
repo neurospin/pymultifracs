@@ -36,3 +36,4 @@ MF_Synthesis/
 pymultifracs/todo.txt
 
 # example_data/
+.pytest_cache/
