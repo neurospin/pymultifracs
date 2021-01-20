@@ -143,13 +143,19 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None):
         """
-        Plot the multifractal spectrum
-        figlabel: figure number or name
+        Plot the multifractal spectrum.
+
+        Parameters
+        ----------
+        figlabel : str
+            Figure title
+        filename : str | None
+            If not None, path used to save the figure
         """
+
         plt.figure(figlabel)
         plt.plot(self.hq, self.Dq, 'ko-')
-        # plt.grid()
-        plt.xlabel('h(q)')
+        plt.xlabel('h')
         plt.ylabel('D(h)')
         plt.suptitle(self.formalism + ' - multifractal spectrum')
         plt.draw()

@@ -96,7 +96,7 @@ def linear_regression(x, y, nj, return_variance=False):
 
 def build_q_log(q_min, q_max, n):
     """
-    Builds a convenient vector of q values for multifractal analysis
+    Build a convenient vector of q values for multifractal analysis
 
     Parameters
     ----------
