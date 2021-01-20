@@ -72,6 +72,42 @@ def mrw(shape, H, lam, L, sigma=1, method='cme', z0=(None, None)):
     return mrw.squeeze() if do_squeeze else mrw
 
 
+def mrw_cumul(shape, c1, c2, L, **kwargs):
+    '''
+    Wrapper for mrw generation from cumulants.
+
+    Parameters
+    ----------
+    shape : int | tuple(int)
+        If scalar, it is the  number of samples. If tuple it is (N, R),
+        the number of samples and realizations, respectively.
+    c1 : float
+        First order cumulant
+    c2 : float
+        Second order cumulant
+    L : float
+        Integral scale
+    kwargs : dict
+        Optional parameters passed to :obj:`mrw`
+
+    Returns
+    -------
+    mrw : ndarray
+        Synthesized mrw realizations. If `shape` is scalar,
+        fbm is ofshape (N,). Otherwise, it is of shape (N, R).
+
+    References
+    ----------
+    .. [1] Bacry, Delour, Muzy, "Multifractal Random Walk", Physical Review E,
+        2001
+    '''
+
+    H = c1 + c2
+    lam = np.sqrt(-c2)
+
+    return mrw(shape, H, lam, L, **kwargs)
+
+
 def skewed_mrw(shape, H, lam, L,  K0=1, alpha=1, sigma=1, dt=1, beta=1,
                do_mirror=False):
     '''

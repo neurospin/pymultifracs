@@ -226,7 +226,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
     signal : ndarray, shape (n_samples,)
         Time series to analyze.
 
-    p_exp : int | np.inf | None
+    p_exp : float | np.inf | None
         Determines the formalism to be used: None means only wavelet coefs
         will be computed, np.inf means wavelet leaders will also be computed,
         and an int sets the value of the p exponent implying a wavelet p-leader

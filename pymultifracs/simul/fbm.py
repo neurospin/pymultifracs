@@ -18,7 +18,7 @@ def fgn(shape, H, sigma=1, dt=None, method='cme', z0=None):
     shape : int | tuple(int)
         If int, number of samples N. If tuple it is (N, R), the number of
         samples and realizations, respectively.
-    H : int
+    H : float
         Hurst exponent.
     sigma : float
         Variance of process.

@@ -135,7 +135,7 @@ for test_filename in test_data_files_full:
             # Get and save results
             cm = mfa.cumulants.log_cumulants
             zeta = mfa.structure.zeta
- 
+
             hq_str   = [str(h) for h in mfa.spectrum.hq]
             Dq_str   = [str(D) for D in mfa.spectrum.Dq]
 

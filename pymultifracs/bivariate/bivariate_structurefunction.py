@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # For zeta(q1, q2) plot
-from mpl_toolkits.mplot3d import axes3d
+# from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 from .utils import Utils
+
 
 class BiStructureFunction:
     """
@@ -17,7 +18,6 @@ class BiStructureFunction:
         mrq_1 (MultiResolutionQuantity):   multiresolution quantity of signal 1
 
         mrq_2 (MultiResolutionQuantity):   multiresolution quantity of signal 2
-
 
         q_1 (numpy.array)             :  list of exponents q1
 

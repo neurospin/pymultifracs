@@ -92,3 +92,33 @@ def linear_regression(x, y, nj, return_variance=False):
         return a, b
     else:
         return a, b, var_a
+
+
+def build_q_log(q_min, q_max, n):
+    """
+    Build a convenient vector of q values for multifractal analysis
+
+    Parameters
+    ----------
+    q_min : float
+        Lower bound of q, needs to be strictly positive
+    q_max : float
+        Upper value of q, needs to be strictly positive
+    n : int
+        Number of logspaced values to include
+
+    Returns
+    -------
+    q : ndarray
+        log-spaced values between `q_min` and `q_max`, along with their
+        opposites, and accompanied by -2, -1, 0, 1, 2.
+    """
+
+    if q_min <= 0 or q_max <= 0:
+        raise ValueError('q_min and q_max must be larger than 0')
+
+    q = np.logspace(np.log10(q_min), np.log10(q_max), n)
+    q = np.array([*q, 0, 1, 2])
+    q = np.unique(np.sort([*q, *(-q)]))
+
+    return q
