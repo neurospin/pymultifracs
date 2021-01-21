@@ -73,20 +73,21 @@ def linear_regression(x, y, nj, return_variance=False):
     (!!!!!!!!!!!!!)
     """
 
-    bj = np.array(nj, dtype=np.float)
-    assert len(bj) == len(x)
+    # bj = np.array(nj, dtype=np.float)
+    assert isinstance(nj, np.ndarray)
+    assert len(nj) == len(x)
 
-    V_0 = np.sum(bj)
-    V_1 = np.sum(bj * x)
-    V_2 = np.sum(bj * (x**2))
+    V_0 = np.sum(nj, axis=0)
+    V_1 = np.sum(nj * x, axis=0)
+    V_2 = np.sum(nj * (x**2), axis=0)
 
-    weights_slope = bj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
-    weights_intercept = bj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)
+    weights_slope = nj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
+    weights_intercept = nj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)
 
-    a = np.sum(weights_slope*y)
-    b = np.sum(weights_intercept*y)
+    a = np.sum(weights_slope*y, axis=0)
+    b = np.sum(weights_intercept*y, axis=0)
 
-    var_a = np.sum((1/bj)*weights_slope*weights_slope)
+    var_a = np.sum((1/nj)*weights_slope*weights_slope, axis=0)
 
     if not return_variance:
         return a, b

@@ -46,16 +46,16 @@ class StructureFunction(MultiResolutionQuantityBase):
         Upper-bound of the scale support for the linear regressions.
     wtype : bool
         Whether weighted regression was performed.
-    q : ndarray, shape (n_exponents,)
+    q : ndarray, shape (n_exponents, n_realisations)
         Exponents for which the structure functions have been computed
-    values : ndarray, shape (n_exponents, n_scales)
+    values : ndarray, shape (n_exponents, n_scales, n_realisations)
         Structure functions : :math:`S(j, q)`
-    logvalues : ndarray, shape (n_exponents, n_scales)
+    logvalues : ndarray, shape (n_exponents, n_scales, n_realisations)
         :math:`\\log_2 S(j, q)`
-    zeta : ndarray, shape(n_exponents)
+    zeta : ndarray, shape(n_exponents, n_realisations)
         Scaling function : :math:`\\zeta(q)`
-    H : float | None
-        Estimate of H. Set to None if 2 is not in `q`.
+    H : ndarray | None
+        Estimates of H. Set to None if 2 is not in `q`.
 
     """
     mrq: InitVar[MultiResolutionQuantity]
@@ -64,10 +64,9 @@ class StructureFunction(MultiResolutionQuantityBase):
     j2: int
     wtype: bool
     j: np.array = field(init=False)
-    values: np.ndarray = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
-    H: np.float = field(init=False)
+    H: np.array = field(init=False)
 
     def __post_init__(self, mrq):
 
@@ -80,17 +79,18 @@ class StructureFunction(MultiResolutionQuantityBase):
 
     def _compute(self, mrq):
 
-        values = np.zeros((len(self.q), len(self.j)))
+        values = np.zeros((len(self.q), len(self.j), mrq.values[1].shape[-1]))
 
         for ind_j, j in enumerate(self.j):
 
+            # import ipdb; ipdb.set_trace()
             c_j = mrq.values[j]
-            s_j = np.zeros(values.shape[0])
+            s_j = np.zeros((values.shape[0], values.shape[-1]))
 
             for ind_q, q in enumerate(self.q):
-                s_j[ind_q] = np.mean(fast_power(np.abs(c_j), q))
+                s_j[ind_q, :] = np.nanmean(fast_power(np.abs(c_j), q), axis=0)
 
-            values[:, ind_j] = s_j
+            values[:, ind_j, :] = s_j
 
         self.logvalues = np.log2(values)
 
@@ -98,15 +98,18 @@ class StructureFunction(MultiResolutionQuantityBase):
         """
         Compute the value of the scale function zeta(q) for all q
         """
-        self.zeta = np.zeros(len(self.q))
-        self.intercept = np.zeros(len(self.q))
+        self.zeta = np.zeros((len(self.q), self.logvalues.shape[-1]))
+        self.intercept = np.zeros((len(self.q), self.logvalues.shape[-1]))
 
-        x = np.arange(self.j1, self.j2+1)
+        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
+                    (1, self.logvalues.shape[-1]))
 
         if self.wtype:
             nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones(len(x))
+
+        nj = np.tile(nj[:, None], (1, self.logvalues.shape[-1]))
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1

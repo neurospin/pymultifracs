@@ -6,6 +6,8 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 from dataclasses import dataclass, field
 import inspect
 
+import numpy as np
+
 
 @dataclass
 class MultiResolutionQuantityBase:
@@ -29,10 +31,11 @@ class MultiResolutionQuantityBase:
         """
         Returns nj as a list, for j in [j1,j2]
         """
-        nj = []
-        for j in range(j1, j2+1):
-            nj.append(self.nj[j])
-        return nj
+        # nj = []
+        # for j in range(j1, j2+1):
+        #     nj.append(self.nj[j])
+        # return nj
+        return np.array([self.nj[j] for j in range(j1, j2+1)])
 
     @classmethod
     def from_dict(cls, d):
@@ -90,7 +93,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     nj : dict
         Contains the number of coefficients at the scale j.
     values : dict
-        Values[j] contains the list of coefficients at the scale j.
+        Values[j] contains the coefficients at the scale j.
     """
     formalism: str
 
