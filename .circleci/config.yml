@@ -3,8 +3,7 @@ version: 2.1
 jobs:
   build-and-test:
     docker:
-      -image: continuumio/miniconda3:latest
-    executor: python/default
+      - image: continuumio/miniconda3
     steps:
       - checkout
       - restore_cache:
