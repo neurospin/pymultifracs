@@ -58,9 +58,9 @@ def test_mfa_mrw(mrw_file):
         if config_list[i]['H'] != 0.01:
             assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()
-                   - (config_list[i]['lam'] ** 2)) < 0.2
+                   + (config_list[i]['lam'] ** 2)) < 0.02
 
         mf_analysis_full(X, j1=3, j2=j2_eff, gamint=gamint, p_exp=2,
                          n_cumul=3)
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()
-                   - (config_list[i]['lam'] ** 2)) < 0.2
+                   + (config_list[i]['lam'] ** 2)) < 0.02
