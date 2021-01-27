@@ -264,7 +264,7 @@ class Cumulants(MultiResolutionQuantityBase):
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
                 legend = r'slope [$\times \log_2(e)]$ = ' + \
-                         f'{slope_log2_e:.5f}'
+                         '%.5f' % (slope_log2_e)
 
                 ax.plot([x0, x1], [y0, y1], color='k',
                         linestyle='-', linewidth=2, label=legend)

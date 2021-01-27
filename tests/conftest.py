@@ -18,7 +18,7 @@ def fbm_file(tmp_path_factory):
 
     for i, config in enumerate(config_list):
 
-        config['shape'] = (config['shape'], 1000)
+        config['shape'] = (config['shape'], 100)
         X = fbm(**config)
         path_list.append(fbm_directory / f'fbm_{i}.npy')
         with open(path_list[-1], 'wb') as f:
@@ -39,8 +39,8 @@ def mrw_file(tmp_path_factory):
 
     for i, config in enumerate(config_list):
 
-        config['shape'] = (8192, 100)
-        config['L'] = 8192
+        config['shape'] = (65536, 100)
+        config['L'] = 65536
         X = mrw(**config)
         path_list.append(mrw_directory / f'mrw_{i}.npy')
         with open(path_list[-1], 'wb') as f:
