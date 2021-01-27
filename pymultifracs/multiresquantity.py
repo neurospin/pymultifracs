@@ -93,10 +93,14 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         or 'wavelet p-leaders'.
     n_scales : int
         Size of the scale range covered.
-    nj : dict
+    nj : dict(ndarray)
         Contains the number of coefficients at the scale j.
-    values : dict
-        Values[j] contains the coefficients at the scale j.
+        Arrays are of the shape (nrep,)
+    values : dict(ndarray)
+        `values[j]` contains the coefficients at the scale j.
+        Arrays are of the shape (nj, nrep)
+    nrep : int
+        Number of realisations
     """
     formalism: str
     gamint: float

@@ -39,9 +39,10 @@ class Cumulants(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    nj : dict
+    nj : dict(ndarray)
         Number of coefficients at scale j.
-    values : ndarray, shape (n_cumulants, n_scales)
+        Arrays are of the shape (nrep,)
+    values : ndarray, shape (n_cumulants, n_scales, nrep)
         :math:`C_m(j)`.
     n_cumul : int
         Number of computed cumulants.
@@ -56,13 +57,15 @@ class Cumulants(MultiResolutionQuantityBase):
         arrays.
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
-    log_cumulants : ndarray, shape (n_cumulants,)
+    log_cumulants : ndarray, shape (n_cumulants, nrep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
-    var_log_cumulants : ndarray, shape (n_cumulants,)
+    var_log_cumulants : ndarray, shape (n_cumulants, nrep)
         Estimates of the log-cumulants
 
         .. warning:: var_log_cumulants
                      was not debugged
+    nrep : int
+        Number of realisations
 
     """
     mrq: InitVar[MultiResolutionQuantity]

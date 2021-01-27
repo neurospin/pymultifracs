@@ -308,7 +308,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     Parameters
     ----------
-    signal : ndarray, shape (n_samples, n_realisations)
+    signal : ndarray, shape (n_samples,) | (n_samples, n_realisations)
         Time series to analyze.
 
     p_exp : float | np.inf | None

@@ -38,8 +38,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    nj : dict
+    nj : dict(ndarray)
         Number of coefficients at scale j.
+        Arrays are of the shape (nrep,)
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
     j1 : int
@@ -50,14 +51,16 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Whether weighted regression was performed.
     q : ndarray, shape(n_exponents,)
         Exponents used construct the multifractal spectrum
-    Dq : ndarray, shape (n_exponents)
+    Dq : ndarray, shape (n_exponents, nrep)
         Fractal dimensions : :math:`D(q)`, y-axis of the multifractal spectrum
-    hq : ndarray, shape (n_exponents)
+    hq : ndarray, shape (n_exponents, nrep)
         Hölder exponents : :math:`h(q)`, x-axis of the multifractal spectrum
-    U : ndarray, shape (n_scales, n_exponents)
+    U : ndarray, shape (n_scales, n_exponents, nrep)
         :math:`U(j, q)`
-    V : ndarray, shape (n_scales, n_exponents)
+    V : ndarray, shape (n_scales, n_exponents, nrep)
         :math:`V(j, q)`
+    nrep : int
+        Number of realisations
 
     References
     ----------

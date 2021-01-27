@@ -36,8 +36,9 @@ class StructureFunction(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    nj : dict
+    nj : dict(ndarray)
         Number of coefficients at scale j.
+        Arrays are of the shape (nrep,)
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
     j1 : int
@@ -46,16 +47,18 @@ class StructureFunction(MultiResolutionQuantityBase):
         Upper-bound of the scale support for the linear regressions.
     wtype : bool
         Whether weighted regression was performed.
-    q : ndarray, shape (n_exponents, n_realisations)
+    q : ndarray, shape (n_exponents,)
         Exponents for which the structure functions have been computed
-    values : ndarray, shape (n_exponents, n_scales, n_realisations)
+    values : ndarray, shape (n_exponents, n_scales, nrep)
         Structure functions : :math:`S(j, q)`
-    logvalues : ndarray, shape (n_exponents, n_scales, n_realisations)
+    logvalues : ndarray, shape (n_exponents, n_scales, nrep)
         :math:`\\log_2 S(j, q)`
-    zeta : ndarray, shape(n_exponents, n_realisations)
+    zeta : ndarray, shape(n_exponents, nrep)
         Scaling function : :math:`\\zeta(q)`
-    H : ndarray | None
+    H : ndarray, shape (nrep,) | None
         Estimates of H. Set to None if 2 is not in `q`.
+    nrep : int
+        Number of realisations
 
     """
     mrq: InitVar[MultiResolutionQuantity]
