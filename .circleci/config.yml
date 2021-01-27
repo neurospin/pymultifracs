@@ -1,19 +1,23 @@
 version: 2.1
 
-orbs:
-  python: circleci/python@0.2.1
-
 jobs:
   build-and-test:
+    docker:
+      -image: continuumio/miniconda3:latest
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
+      - restore_cache:
+        keys:
+        - m2-{{ checksum "meta.yml" }}
       - run:
-          command: ./manage.py test
-          name: Test
+        command: |
+          conda env update -f meta.yml
+        name: install dependencies
+      - save_cache:
+        key: m2-{{ checksum "meta.yml" }}
+        paths:
+        - /home/circleci/.local/lib/
 
 workflows:
   main:
