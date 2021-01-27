@@ -8,16 +8,16 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-        keys:
-        - m2-{{ checksum "meta.yml" }}
+          keys:
+            - m2-{{ checksum "meta.yml" }}
       - run:
-        command: |
-          conda env update -f meta.yml
-        name: install dependencies
+          command: |
+            conda env update -f meta.yml
+          name: install dependencies
       - save_cache:
-        key: m2-{{ checksum "meta.yml" }}
-        paths:
-        - /home/circleci/.local/lib/
+          key: m2-{{ checksum "meta.yml" }}
+          paths:
+            - /home/circleci/.local/lib/
 
 workflows:
   main:
