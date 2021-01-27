@@ -80,17 +80,18 @@ class Cumulants(MultiResolutionQuantityBase):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
+        self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
 
         self.m = np.arange(1, self.n_cumul+1)
-        self.values = np.zeros((len(self.m), len(self.j)))
+        self.values = np.zeros((len(self.m), len(self.j), self.nrep))
 
         self._compute(mrq)
         self._compute_log_cumulants()
 
     def _compute(self, mrq):
 
-        moments = np.zeros((len(self.m), len(self.j)))
+        moments = np.zeros((len(self.m), len(self.j), self.nrep))
 
         for ind_j, j in enumerate(self.j):
 
@@ -99,7 +100,8 @@ class Cumulants(MultiResolutionQuantityBase):
 
             for ind_m, m in enumerate(self.m):
 
-                moments[ind_m, ind_j] = np.mean(fast_power(log_T_X_j, m))
+                moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
+                                                   axis=0)
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
                 else:
@@ -117,18 +119,22 @@ class Cumulants(MultiResolutionQuantityBase):
         Compute the log-cumulants
         (angular coefficients of the curves j->log[C_p(j)])
         """
-        self.log_cumulants = np.zeros(len(self.m))
-        self.var_log_cumulants = np.zeros(len(self.m))
-        self.slope = np.zeros(len(self.m))
-        self.intercept = np.zeros(len(self.m))
+        self.log_cumulants = np.zeros(((len(self.m), self.nrep)))
+        self.var_log_cumulants = np.zeros((len(self.m), self.nrep))
+        self.slope = np.zeros((len(self.m), self.nrep))
+        self.intercept = np.zeros((len(self.m), self.nrep))
 
         log2_e = np.log2(np.exp(1))
-        x = np.arange(self.j1, self.j2+1)
+
+        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
+                    (1, self.nrep))
 
         if self.wtype:
             nj = self.get_nj_interv(self.j1, self.j2)
         else:
-            nj = np.ones(len(x))
+            nj = np.ones((len(x), self.nrep))
+
+        # nj = np.tile(nj[:, None], (1, self.nrep))
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1

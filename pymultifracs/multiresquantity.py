@@ -12,13 +12,16 @@ import numpy as np
 @dataclass
 class MultiResolutionQuantityBase:
     formalism: str = field(init=False, default=None)
+    gamint: float = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
+    nrep: int = field(init=False)
     values: dict = field(init=False, default_factory=dict)
 
     def add_values(self, coeffs, j):
 
         self.values[j] = coeffs
-        self.nj[j] = len(coeffs)
+        self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
+        # self.nj[j] = len(coeffs)
         # self.n_scales += 1
 
     def get_nj(self):
@@ -96,6 +99,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         Values[j] contains the coefficients at the scale j.
     """
     formalism: str
+    gamint: float
 
     def __post_init__(self):
 
@@ -103,3 +107,10 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                                   'wavelet p-leader']:
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
+
+    def __getattr__(self, name):
+        if name == 'nrep':
+            if len(self.values) > 0:
+                return self.values[[*self.values][0]].shape[1]
+
+        return self.__getattribute__(name)

@@ -1,36 +1,36 @@
 [
     {
-        "shape": 2048,
+        "shape": 8192,
         "H": 0.8,
         "sigma": 1
     },
     {
-        "shape": 2048,
-        "H": 1.0,
+        "shape": 8192,
+        "H": 0.99,
         "sigma": 1
     },
     {
-        "shape": 2048,
+        "shape": 8192,
         "H": 0.5,
         "sigma": 1
     },
     {
-        "shape": 2048,
-        "H": 0.0,
+        "shape": 8192,
+        "H": 0.01,
         "sigma": 1
     },
     {
-        "shape": 2048,
+        "shape": 8192,
         "H": 0.3,
         "sigma": 1
     },
     {
-        "shape": 2048,
+        "shape": 8192,
         "H": 0.5,
         "sigma": 2
     },
     {
-        "shape": 2048,
+        "shape": 8192,
         "H": 0.5,
         "sigma": 0.5
     }

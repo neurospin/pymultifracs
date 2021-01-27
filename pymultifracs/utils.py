@@ -5,6 +5,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from __future__ import print_function
 from __future__ import unicode_literals
+import warnings
 
 import numpy as np
 
@@ -45,14 +46,6 @@ stat2fun = {
     'min': np.nanmin,
     'max': np.nanmax}
 
-
-# class Utils:
-#     def __init__(self):
-#         pass
-
-#     # TODO:Replace with sklearn import ?
-
-#     @staticmethod
 
 def linear_regression(x, y, nj, return_variance=False):
     """
@@ -123,3 +116,17 @@ def build_q_log(q_min, q_max, n):
     q = np.unique(np.sort([*q, *(-q)]))
 
     return q
+
+
+def fixednansum(a, **kwargs):
+    mx = np.isnan(a).all(**kwargs)
+    res = np.nansum(a, **kwargs)
+    res[mx] = np.nan
+    return res
+
+
+def fixednanmax(a, **kwargs):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        a = np.nanmax(a, **kwargs)
+    return a

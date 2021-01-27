@@ -71,6 +71,8 @@ class StructureFunction(MultiResolutionQuantityBase):
     def __post_init__(self, mrq):
 
         self.formalism = mrq.formalism
+        self.gamint = mrq.gamint
+        self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
 
         self._compute(mrq)
@@ -79,13 +81,12 @@ class StructureFunction(MultiResolutionQuantityBase):
 
     def _compute(self, mrq):
 
-        values = np.zeros((len(self.q), len(self.j), mrq.values[1].shape[-1]))
+        values = np.zeros((len(self.q), len(self.j), self.nrep))
 
         for ind_j, j in enumerate(self.j):
 
-            # import ipdb; ipdb.set_trace()
             c_j = mrq.values[j]
-            s_j = np.zeros((values.shape[0], values.shape[-1]))
+            s_j = np.zeros((values.shape[0], self.nrep))
 
             for ind_q, q in enumerate(self.q):
                 s_j[ind_q, :] = np.nanmean(fast_power(np.abs(c_j), q), axis=0)
@@ -98,18 +99,16 @@ class StructureFunction(MultiResolutionQuantityBase):
         """
         Compute the value of the scale function zeta(q) for all q
         """
-        self.zeta = np.zeros((len(self.q), self.logvalues.shape[-1]))
-        self.intercept = np.zeros((len(self.q), self.logvalues.shape[-1]))
+        self.zeta = np.zeros((len(self.q), self.nrep))
+        self.intercept = np.zeros((len(self.q), self.nrep))
 
         x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
-                    (1, self.logvalues.shape[-1]))
+                    (1, self.nrep))
 
         if self.wtype:
             nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
-            nj = np.ones(len(x))
-
-        nj = np.tile(nj[:, None], (1, self.logvalues.shape[-1]))
+            nj = np.ones((len(x), self.nrep))
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1
@@ -120,12 +119,7 @@ class StructureFunction(MultiResolutionQuantityBase):
             self.intercept[ind_q] = intercept
 
     def _get_H(self):
-        H = self.zeta[self.q == 2]
-
-        if len(H) > 0:
-            return H[0] / 2
-
-        return None
+        return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]
@@ -139,9 +133,6 @@ class StructureFunction(MultiResolutionQuantityBase):
              ignore_q0=True):
         """
         Plots the structure functions.
-        Args:
-        fignum(int):  figure number; NOTE: fignum+1 can also be used to plot
-        the scaling function
         """
 
         nrow = min(nrow, len(self.q))
@@ -176,8 +167,6 @@ class StructureFunction(MultiResolutionQuantityBase):
             ax.plot(x, y, 'r--.')
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
-            # ax.grid()
-            # plt.draw()
 
             if len(self.zeta) > 0:
                 # plot regression line
@@ -210,7 +199,6 @@ class StructureFunction(MultiResolutionQuantityBase):
         plt.xlabel('q')
         plt.ylabel(r'$\zeta(q)$')
         plt.suptitle(self.formalism + ' - scaling function')
-        # plt.grid()
 
         plt.draw()
 

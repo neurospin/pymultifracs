@@ -33,9 +33,9 @@ def estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn=True,
     y = np.log2(sup_coeffs)
     if weighted:
         nj = wt_coefs.get_nj_interv(j1, j2_eff)
-        nj = np.tile(nj[:, None], (1, sup_coeffs.shape[-1]))
+        # nj = np.tile(nj[:, None], (1, sup_coeffs.shape[-1]))
     else:
-        nj = None
+        nj = np.ones((len(x), sup_coeffs.shape[-1]))
 
     slope, intercept = linear_regression(x, y, nj)
     hmin = slope
