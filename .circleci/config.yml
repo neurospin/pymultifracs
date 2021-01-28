@@ -63,7 +63,7 @@ workflows:
   main:
     jobs:
       - build-and-test
-      - docs
+      - docs:
           filters:
             branches:
               ignore: /^.*/
