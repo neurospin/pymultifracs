@@ -39,8 +39,8 @@ jobs:
       - run:
           command: |
             conda env update -f meta.yml --name base
-            conda install -c -y conda-forge pytest
-            conda install -c -y conda-forge sphinx-autodoc-typehints numpydoc nbsphinx
+            conda install -y -c conda-forge pytest
+            conda install -y -c conda-forge sphinx-autodoc-typehints numpydoc nbsphinx
             pip install sphinx-bootstrap-theme
             conda list
           name: install dependencies
