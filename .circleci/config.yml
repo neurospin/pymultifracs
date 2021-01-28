@@ -41,7 +41,7 @@ jobs:
             conda env update -f meta.yml --name base
             conda install -c conda-forge pytest
             conda install -c conda-forge sphinx-autodoc-typehints numpydoc
-            pip install sphinx-boostrap-theme
+            pip install sphinx-bootstrap-theme
             conda install -c conda-forge nbsphinx
             conda list
           name: install dependencies
