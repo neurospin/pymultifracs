@@ -39,7 +39,7 @@ jobs:
             git config --global user.name CIRCLECI
             branch=$(git symbolic-ref HEAD)
             git checkout gh-pages
-            git merge -X theirs $branch
+            git merge $branch
       - restore_cache:
           keys:
             - docs1-{{ checksum "meta.yml" }}
@@ -62,6 +62,32 @@ jobs:
             cd doc
             make html
             mv doc/html docs/
+      - persist_to_workspace:
+          root: docs/_build
+          paths: html
+
+  docs-deploy:
+    docker:
+      - image: node:8.10.0
+    steps:
+      - checkout
+      - attach-workspace:
+          at: docs/_build
+      - run:
+          name: Disable jekyll builds
+          command: touch docs/_build/html/.nojekyll
+      - run:
+          name: Install and configure dependencies
+          command: |
+            npm install -g --silent gh-pages@2.0.1
+            git config user.email "ci-build@neurospin.net"
+            git config user.name "ci-build"
+      - add_ssh_key:
+          fingerprints:
+            - "32:d2:5b:cc:3c:36:e4:13:2a:1b:5a:3d:ee:05:70:a4"
+      - run:
+          name: Deploy docs to gh-pages branch
+          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist docs/_build/html
 
 workflows:
   main:
