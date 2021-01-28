@@ -39,7 +39,7 @@ jobs:
             git config --global user.name CIRCLECI
             branch=$(git symbolic-ref HEAD)
             git checkout gh-pages
-            git merge $branch
+            git merge -X theirs $branch
       - restore_cache:
           keys:
             - docs1-{{ checksum "meta.yml" }}
