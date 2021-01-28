@@ -15,7 +15,7 @@ jobs:
       - run:
           command: |
             conda env update -f meta.yml --name base
-            conda install -c conda-forge pytest pytest-cov curl
+            conda install -c conda-forge pytest pytest-cov curl make
             conda list
           name: install dependencies
       - save_cache:
