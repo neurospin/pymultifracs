@@ -37,3 +37,5 @@ pymultifracs/todo.txt
 
 # example_data/
 .pytest_cache/
+notebooks/Dev*.ipynb
+.circleci
