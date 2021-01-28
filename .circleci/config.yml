@@ -32,14 +32,6 @@ jobs:
       - image: continuumio/miniconda3
     steps:
       - checkout
-      - run:
-          name: Complete checkout + merge
-          command: |
-            git config --global user.email circleci@circleci
-            git config --global user.name CIRCLECI
-            branch=$(git symbolic-ref HEAD)
-            git checkout gh-pages
-            git merge $branch
       - restore_cache:
           keys:
             - docs1-{{ checksum "meta.yml" }}
@@ -57,11 +49,10 @@ jobs:
           paths:
             - /home/miniconda/
       - run:
-          name: Build doc + move
+          name: Build doc
           command: |
             cd doc
             make html
-            mv doc/html docs/
       - persist_to_workspace:
           root: docs/_build
           paths: html
@@ -99,3 +90,6 @@ workflows:
               only:
                 - master
                 - test
+      - docs-deploy:
+          requires:
+            - docs
