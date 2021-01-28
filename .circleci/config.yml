@@ -27,6 +27,7 @@ jobs:
     docker:
       - image: continuumio/miniconda3
     steps:
+      - checkout
       - run:
           name: Complete checkout + merge
           command: |
