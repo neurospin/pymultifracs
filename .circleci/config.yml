@@ -30,12 +30,9 @@ jobs:
       - run:
           name: Complete checkout + merge
           command: |
-            if ! git remote -v | grep upstream; then
-              git remote add upstream git://github.com/neurospin/pymultifracs.git
-            fi
-            git fetch upstream
+            branch=$(git symbolic-ref HEAD)
             git checkout gh-pages
-            git merge upstream/master
+            git merge $branch
       - restore_cache:
           keys:
             - docs1-{{ checksum "meta.yml" }}

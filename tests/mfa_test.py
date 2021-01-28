@@ -8,13 +8,13 @@ from pymultifracs.mfa import mf_analysis_full
 
 def test_mfa_fbm(fbm_file):
 
+    with open('tests/fbm_config.json', 'rb') as f:
+        config_list = json.load(f)
+
     for i, fname in enumerate(fbm_file):
 
         with open(fname, 'rb') as f:
             X = np.load(f)
-
-        with open('tests/fbm_config.json', 'rb') as f:
-            config_list = json.load(f)
 
         j2 = np.log2(config_list[i]['shape']) - 3
         wt_coefs, _, j2_eff = wavelet_analysis(X, p_exp=None, j2=j2)
@@ -28,7 +28,7 @@ def test_mfa_fbm(fbm_file):
         if config_list[i]['H'] != 0.01:
             assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1,\
                 print(f'{dwt.structure.H.mean()=}, {config_list[i]["H"]=}, '
-                    f'{gamint=}')
+                      f'{gamint=}')
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()) < 0.01
 
         _, lwt = mf_analysis_full(X, j1=3, j2=j2_eff, gamint=gamint, p_exp=2,
@@ -38,13 +38,16 @@ def test_mfa_fbm(fbm_file):
 
 def test_mfa_mrw(mrw_file):
 
+    with open('tests/mrw_config.json', 'rb') as f:
+        config_list = json.load(f)
+
     for i, fname in enumerate(mrw_file):
 
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        with open('tests/mrw_config.json', 'rb') as f:
-            config_list = json.load(f)
+        if config_list[i]['H'] == 0.01:
+            continue
 
         j2 = np.log2(X.shape[0]) - 3
         wt_coefs, _, j2_eff = wavelet_analysis(X, p_exp=None, j2=j2)
@@ -55,12 +58,11 @@ def test_mfa_mrw(mrw_file):
 
         dwt, lwt = mf_analysis_full(X, j1=3, j2=j2_eff, gamint=gamint,
                                     p_exp=np.inf, n_cumul=3)
-        if config_list[i]['H'] != 0.01:
-            assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1
+        assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()
-                   + (config_list[i]['lam'] ** 2)) < 0.02
+                   + (config_list[i]['lam'] ** 2)) < 0.025
 
         mf_analysis_full(X, j1=3, j2=j2_eff, gamint=gamint, p_exp=2,
                          n_cumul=3)
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()
-                   + (config_list[i]['lam'] ** 2)) < 0.02
+                   + (config_list[i]['lam'] ** 2)) < 0.025
