@@ -43,7 +43,7 @@ Note that this package requires a recent version of python (>=3.7)
 .. code:: shell
 
     wget https://raw.githubusercontent.com/neurospin/pymultifracs/master/env.yml
-    conda env update -f env.yml
+    conda env update -f env.yml --name $ENVNAME
 
 ----
 
@@ -81,7 +81,7 @@ Note that this package requires a recent version of python (>=3.7)
 .. code:: shell
 
     git clone https://github.com/neurospin/pymultifracs.git@master
-    conda env update -f pymultifracs/meta.yml
+    conda env update -f pymultifracs/meta.yml --name $ENVNAME
     pip install -e pymultifracs
 
 ----
@@ -91,7 +91,7 @@ Using pip
 
 .. code:: shell
 
-    git clone https://github.com/MerlinDumeur/mfanalysis.git@master
+    git clone https://github.com/neurospin/pymultifracs.git@master
     pip install -e pymultifracs
 
 See the examples/ folder, mainly examples/Demo.ipynb and examples/Maquette.ipynb
