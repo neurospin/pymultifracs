@@ -11,14 +11,61 @@ jobs:
             - m2-{{ checksum "meta.yml" }}
       - run:
           command: |
-            conda env update -f meta.yml
+            conda env update -f meta.yml --name base
+            conda install -c conda-forge pytest
+            conda list
           name: install dependencies
       - save_cache:
           key: m2-{{ checksum "meta.yml" }}
           paths:
-            - /home/circleci/.local/lib/
+            - /home/miniconda/
+      - run:
+          name: test
+          command: |
+            pytest -l
+  docs:
+    docker:
+      - image: continuumio/miniconda3
+    steps:
+      - run:
+          name: Complete checkout + merge
+          command: |
+            if ! git remote -v | grep upstream; then
+              git remote add upstream git://github.com/neurospin/pymultifracs.git
+            fi
+            git fetch upstream
+            git checkout gh-pages
+            git merge upstream/master
+      - restore_cache:
+          keys:
+            - docs1-{{ checksum "meta.yml" }}
+      - run:
+          command: |
+            conda env update -f meta.yml --name base
+            conda install -c conda-forge pytest
+            conda install -c conda-forge sphinx-autodoc-typehints numpydoc
+            pip install sphinx-boostrap-theme
+            conda install -c conda-forge nbsphinx
+            conda list
+          name: install dependencies
+      - save_cache:
+          key: docs1-{{ checksum "meta.yml" }}
+          paths:
+            - /home/miniconda/
+      - run:
+          name: Build doc + move
+          command: |
+            cd doc
+            make html
+            mv doc/html docs/
 
 workflows:
   main:
     jobs:
       - build-and-test
+      - docs
+          filters:
+            branches:
+              ignore: /^.*/
+            tags:
+              only: /^doc.*/
