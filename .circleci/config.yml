@@ -15,7 +15,7 @@ jobs:
       - run:
           command: |
             conda env update -f meta.yml --name base
-            conda install -c conda-forge pytest pytest-cov
+            conda install -c conda-forge pytest pytest-cov curl
             conda list
           name: install dependencies
       - save_cache:
@@ -39,10 +39,9 @@ jobs:
       - run:
           command: |
             conda env update -f meta.yml --name base
-            conda install -c conda-forge pytest
-            conda install -c conda-forge sphinx-autodoc-typehints numpydoc
+            conda install -c -y conda-forge pytest
+            conda install -c -y conda-forge sphinx-autodoc-typehints numpydoc nbsphinx
             pip install sphinx-bootstrap-theme
-            conda install -c conda-forge nbsphinx
             conda list
           name: install dependencies
       - save_cache:
