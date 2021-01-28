@@ -35,9 +35,8 @@ jobs:
       - run:
           name: Complete checkout + merge
           command: |
-            git config --global -l
-            git config --global user.email "$GIT_AUTHOR_EMAIL"
-            git config --global user.name "$GIT_AUTHOR_NAME"
+            git config --global user.email circleci@circleci
+            git config --global user.name CIRCLECI
             branch=$(git symbolic-ref HEAD)
             git checkout gh-pages
             git merge $branch
