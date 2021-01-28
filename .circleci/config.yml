@@ -88,7 +88,6 @@ workflows:
             branches:
               only:
                 - master
-                - test
       - docs-deploy:
           requires:
             - docs
