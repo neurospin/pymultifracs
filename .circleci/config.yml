@@ -27,6 +27,7 @@ jobs:
           command: |
             pytest -l --cov=pymultifracs --cov-report=xml
       - codecov/upload
+
   docs:
     docker:
       - image: continuumio/miniconda3
@@ -62,7 +63,7 @@ jobs:
       - image: node:8.10.0
     steps:
       - checkout
-      - attach-workspace:
+      - attach_workspace:
           at: docs/_build
       - run:
           name: Disable jekyll builds
