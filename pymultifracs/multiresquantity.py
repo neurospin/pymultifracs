@@ -6,17 +6,22 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 from dataclasses import dataclass, field
 import inspect
 
+import numpy as np
+
 
 @dataclass
 class MultiResolutionQuantityBase:
     formalism: str = field(init=False, default=None)
+    gamint: float = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
+    nrep: int = field(init=False)
     values: dict = field(init=False, default_factory=dict)
 
     def add_values(self, coeffs, j):
 
         self.values[j] = coeffs
-        self.nj[j] = len(coeffs)
+        self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
+        # self.nj[j] = len(coeffs)
         # self.n_scales += 1
 
     def get_nj(self):
@@ -29,10 +34,11 @@ class MultiResolutionQuantityBase:
         """
         Returns nj as a list, for j in [j1,j2]
         """
-        nj = []
-        for j in range(j1, j2+1):
-            nj.append(self.nj[j])
-        return nj
+        # nj = []
+        # for j in range(j1, j2+1):
+        #     nj.append(self.nj[j])
+        # return nj
+        return np.array([self.nj[j] for j in range(j1, j2+1)])
 
     @classmethod
     def from_dict(cls, d):
@@ -87,12 +93,17 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         or 'wavelet p-leaders'.
     n_scales : int
         Size of the scale range covered.
-    nj : dict
+    nj : dict(ndarray)
         Contains the number of coefficients at the scale j.
-    values : dict
-        Values[j] contains the list of coefficients at the scale j.
+        Arrays are of the shape (nrep,)
+    values : dict(ndarray)
+        `values[j]` contains the coefficients at the scale j.
+        Arrays are of the shape (nj, nrep)
+    nrep : int
+        Number of realisations
     """
     formalism: str
+    gamint: float
 
     def __post_init__(self):
 
@@ -100,3 +111,10 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                                   'wavelet p-leader']:
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
+
+    def __getattr__(self, name):
+        if name == 'nrep':
+            if len(self.values) > 0:
+                return self.values[[*self.values][0]].shape[1]
+
+        return self.__getattribute__(name)

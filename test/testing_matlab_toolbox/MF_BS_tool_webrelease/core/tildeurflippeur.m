@@ -1,1 +1,0 @@
-%tildeurflippeur.mfunction [a,b]=tildeurflippeur(c,d);ls=max(size(c));k=d:1:ls+d-1;b=-ls+1-d;a=(-1).^(k).*c;a=fliplr(a);

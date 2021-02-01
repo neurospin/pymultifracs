@@ -256,9 +256,13 @@ def wavelet_estimation(signal, fs, n_moments, j2=None):
                                  weighted=False,
                                  p_exp=None)
 
-    psd = [np.square(arr).mean() for arr in transform.wt_coefs.values.values()]
+    # for arr in transform.wt_coefs.values.values():
+
+    psd = [np.nanmean(np.square(arr), axis=0)
+           for arr in transform.wt_coefs.values.values()]
     psd = np.array(psd)
 
+    # import ipdb; ipdb.set_trace()
     # Frequency
     scale = np.arange(len(psd)) + 1
     freq = (3/4 * fs) / (np.power(2, scale))
