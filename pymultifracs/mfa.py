@@ -179,7 +179,7 @@ def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
 
     Parameters
     ----------
-    signal : 1d array-like, shape (n_samples,)
+    signal : ndarray, shape (n_samples,)
         The signal to perform the analysis on.
     j1 : int
         Minimum scale to perform fit on.

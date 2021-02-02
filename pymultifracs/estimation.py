@@ -7,43 +7,10 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import LinearRegression
 
 from .utils import linear_regression
 from .structurefunction import StructureFunction
-
-
-def _estimate_hmin_classic(wavelet_coeffs, j1, j2_eff, weighted, warn=True):
-    """
-    Estimate the value of the uniform regularity exponent hmin using
-    wavelet coefficients.
-    """
-    sup_coeffs = np.zeros(j2_eff - j1 + 1)
-
-    for j in range(j1, j2_eff+1):
-        c_j = np.abs(wavelet_coeffs.values[j])
-        sup_c_j = c_j.max()
-        sup_coeffs[j-j1] = sup_c_j
-
-    log_sup_coeffs = np.log2(sup_coeffs)
-
-    # x, y and weights for linear regression
-    x = np.arange(j1, j2_eff+1)
-    y = log_sup_coeffs
-    if weighted:
-        nj = wavelet_coeffs.get_nj_interv(j1, j2_eff)
-    else:
-        nj = np.ones(len(x))
-
-    # linear regression
-    slope, intercept = linear_regression(x, y, nj)
-    hmin = slope
-
-    # warning
-    if hmin < 0 and warn:
-        warnings.warn(f"h_min = {hmin} < 0. gamint should be increased")
-
-    return slope, intercept
 
 
 def estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn=True,
@@ -52,35 +19,35 @@ def estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn=True,
     Estimate the value of the uniform regularity exponent hmin using
     wavelet coefficients.
     """
-    sup_coeffs = np.zeros(j2_eff - j1 + 1)
+    sup_coeffs = np.zeros((j2_eff - j1 + 1, wt_coefs.values[1].shape[-1]))
 
     for j in range(j1, j2_eff+1):
         c_j = np.abs(wt_coefs.values[j])
-        sup_c_j = c_j.max()
+        sup_c_j = np.nanmax(c_j, axis=0)
         sup_coeffs[j-j1] = sup_c_j
 
     # x, y and weights for linear regression
     x = np.arange(j1, j2_eff+1)
+    x = np.tile(x[:, None], (1, sup_coeffs.shape[-1]))
+
     y = np.log2(sup_coeffs)
     if weighted:
         nj = wt_coefs.get_nj_interv(j1, j2_eff)
+        # nj = np.tile(nj[:, None], (1, sup_coeffs.shape[-1]))
     else:
-        nj = None
+        nj = np.ones((len(x), sup_coeffs.shape[-1]))
 
-    # linear regression
-    x = x.reshape(-1, 1)
-    regressor = LinearRegression()
-    regressor.fit(x, y, nj)
-    hmin = regressor.coef_[0]
+    slope, intercept = linear_regression(x, y, nj)
+    hmin = slope
 
     # warning
-    if hmin < 0 and warn:
+    if 0 in hmin and warn:
         warnings.warn(f"h_min = {hmin} < 0. gamint should be increased")
 
     if return_y:
-        return hmin, regressor.intercept_, y
+        return hmin, intercept, y
 
-    return hmin, regressor.intercept_
+    return hmin, intercept
 
 
 def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):

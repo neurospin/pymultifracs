@@ -1,0 +1,93 @@
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@1.1.3
+
+jobs:
+  build-and-test:
+    docker:
+      - image: continuumio/miniconda3
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - m2-{{ checksum "meta.yml" }}
+      - run:
+          command: |
+            conda env update -f meta.yml --name base
+            conda install -c conda-forge pytest pytest-cov curl
+            conda list
+          name: install dependencies
+      - save_cache:
+          key: m2-{{ checksum "meta.yml" }}
+          paths:
+            - /home/miniconda/
+      - run:
+          name: test
+          command: |
+            pytest -l --cov=pymultifracs --cov-report=xml
+      - codecov/upload
+
+  docs:
+    docker:
+      - image: continuumio/miniconda3
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - docs1-{{ checksum "meta.yml" }}
+      - run:
+          command: |
+            conda env update -f meta.yml --name base
+            conda install -y -c conda-forge pytest make sphinx-autodoc-typehints numpydoc nbsphinx
+            pip install sphinx-bootstrap-theme
+            conda list
+          name: install dependencies
+      - save_cache:
+          key: docs1-{{ checksum "meta.yml" }}
+          paths:
+            - /home/miniconda/
+      - run:
+          name: Build doc
+          command: |
+            cd doc
+            make html
+      - persist_to_workspace:
+          root: doc/_build
+          paths: html
+
+  docs-deploy:
+    docker:
+      - image: node:8.10.0
+    steps:
+      - checkout
+      - attach_workspace:
+          at: doc/_build
+      - run:
+          name: Disable jekyll builds
+          command: touch doc/_build/html/.nojekyll
+      - run:
+          name: Install and configure dependencies
+          command: |
+            npm install -g --silent gh-pages@2.0.1
+            git config user.email "ci-build@neurospin.net"
+            git config user.name "ci-build"
+      - add_ssh_keys:
+          fingerprints:
+            - "32:d2:5b:cc:3c:36:e4:13:2a:1b:5a:3d:ee:05:70:a4"
+      - run:
+          name: Deploy docs to gh-pages branch
+          command: gh-pages --dotfiles --message "[skip ci] Updates" --dist doc/_build/html
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
+      - docs:
+          filters:
+            branches:
+              only:
+                - master
+      - docs-deploy:
+          requires:
+            - docs

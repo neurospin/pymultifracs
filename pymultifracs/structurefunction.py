@@ -36,8 +36,9 @@ class StructureFunction(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    nj : dict
+    nj : dict(ndarray)
         Number of coefficients at scale j.
+        Arrays are of the shape (nrep,)
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
     j1 : int
@@ -48,14 +49,16 @@ class StructureFunction(MultiResolutionQuantityBase):
         Whether weighted regression was performed.
     q : ndarray, shape (n_exponents,)
         Exponents for which the structure functions have been computed
-    values : ndarray, shape (n_exponents, n_scales)
+    values : ndarray, shape (n_exponents, n_scales, nrep)
         Structure functions : :math:`S(j, q)`
-    logvalues : ndarray, shape (n_exponents, n_scales)
+    logvalues : ndarray, shape (n_exponents, n_scales, nrep)
         :math:`\\log_2 S(j, q)`
-    zeta : ndarray, shape(n_exponents)
+    zeta : ndarray, shape(n_exponents, nrep)
         Scaling function : :math:`\\zeta(q)`
-    H : float | None
-        Estimate of H. Set to None if 2 is not in `q`.
+    H : ndarray, shape (nrep,) | None
+        Estimates of H. Set to None if 2 is not in `q`.
+    nrep : int
+        Number of realisations
 
     """
     mrq: InitVar[MultiResolutionQuantity]
@@ -64,14 +67,15 @@ class StructureFunction(MultiResolutionQuantityBase):
     j2: int
     wtype: bool
     j: np.array = field(init=False)
-    values: np.ndarray = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
-    H: np.float = field(init=False)
+    H: np.array = field(init=False)
 
     def __post_init__(self, mrq):
 
         self.formalism = mrq.formalism
+        self.gamint = mrq.gamint
+        self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
 
         self._compute(mrq)
@@ -80,17 +84,17 @@ class StructureFunction(MultiResolutionQuantityBase):
 
     def _compute(self, mrq):
 
-        values = np.zeros((len(self.q), len(self.j)))
+        values = np.zeros((len(self.q), len(self.j), self.nrep))
 
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.values[j]
-            s_j = np.zeros(values.shape[0])
+            s_j = np.zeros((values.shape[0], self.nrep))
 
             for ind_q, q in enumerate(self.q):
-                s_j[ind_q] = np.mean(fast_power(np.abs(c_j), q))
+                s_j[ind_q, :] = np.nanmean(fast_power(np.abs(c_j), q), axis=0)
 
-            values[:, ind_j] = s_j
+            values[:, ind_j, :] = s_j
 
         self.logvalues = np.log2(values)
 
@@ -98,15 +102,16 @@ class StructureFunction(MultiResolutionQuantityBase):
         """
         Compute the value of the scale function zeta(q) for all q
         """
-        self.zeta = np.zeros(len(self.q))
-        self.intercept = np.zeros(len(self.q))
+        self.zeta = np.zeros((len(self.q), self.nrep))
+        self.intercept = np.zeros((len(self.q), self.nrep))
 
-        x = np.arange(self.j1, self.j2+1)
+        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
+                    (1, self.nrep))
 
         if self.wtype:
             nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
-            nj = np.ones(len(x))
+            nj = np.ones((len(x), self.nrep))
 
         ind_j1 = self.j1-1
         ind_j2 = self.j2-1
@@ -117,12 +122,7 @@ class StructureFunction(MultiResolutionQuantityBase):
             self.intercept[ind_q] = intercept
 
     def _get_H(self):
-        H = self.zeta[self.q == 2]
-
-        if len(H) > 0:
-            return H[0] / 2
-
-        return None
+        return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]
@@ -136,9 +136,6 @@ class StructureFunction(MultiResolutionQuantityBase):
              ignore_q0=True):
         """
         Plots the structure functions.
-        Args:
-        fignum(int):  figure number; NOTE: fignum+1 can also be used to plot
-        the scaling function
         """
 
         nrow = min(nrow, len(self.q))
@@ -173,8 +170,6 @@ class StructureFunction(MultiResolutionQuantityBase):
             ax.plot(x, y, 'r--.')
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
-            # ax.grid()
-            # plt.draw()
 
             if len(self.zeta) > 0:
                 # plot regression line
@@ -207,7 +202,6 @@ class StructureFunction(MultiResolutionQuantityBase):
         plt.xlabel('q')
         plt.ylabel(r'$\zeta(q)$')
         plt.suptitle(self.formalism + ' - scaling function')
-        # plt.grid()
 
         plt.draw()
 
