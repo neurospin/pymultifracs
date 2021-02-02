@@ -1,13 +1,31 @@
-from __future__ import print_function
-from __future__ import unicode_literals
+# from __future__ import print_function
+# from __future__ import unicode_literals
+
+from dataclasses import dataclass, field, InitVar
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import binom as binomial_coefficient
+
 from .utils import Utils
+from .bimrq import BiMRQBase
+from .multiresolution import MultiResolutionQuantity
 
 
-class BiCumulants:
+@dataclass
+class BiCumulants(BiMRQBase):
+    mrq1: InitVar[MultiResolutionQuantity]
+    mrq2: InitVar[MultiResolutionQuantity]
+    n_cumul: int
+    j1: int
+    j2: int
+    wtype: bool
+    m1: np.ndarray = field(init=False)
+    m1: np.ndarray = field(init=False)
+
+
+
+class BiCumulants_old:
     """
     This class provides methods for computing and analyzing bivariate
     cumulants, C_{m1, m2}(j)

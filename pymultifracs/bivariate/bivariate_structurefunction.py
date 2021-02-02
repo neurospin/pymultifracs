@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-from .utils import Utils
+# from .utils import Utils
 
 
 class BiStructureFunction:

@@ -13,6 +13,7 @@ from scipy.stats import trim_mean, median_abs_deviation
 from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
+from .viz import plot_multiscale
 
 
 @dataclass
@@ -248,28 +249,38 @@ class Cumulants(MultiResolutionQuantityBase):
             y = self.values[ind_m, :]
 
             ax = axes[ind_m % nrow][ind_m // nrow]
-            ax.plot(x, y, 'r--.')
-            ax.set_xlabel('j')
-            ax.set_ylabel('m = ' + str(m))
-            # ax.grid()
-            # plt.draw()
 
-            if len(self.log_cumulants) > 0:
-                # plot regression line
-                x0 = self.j1
-                x1 = self.j2
-                slope_log2_e = self.log_cumulants[ind_m]
-                slope = self.slope[ind_m]
-                intercept = self.intercept[ind_m]
-                y0 = slope*x0 + intercept
-                y1 = slope*x1 + intercept
-                legend = r'slope [$\times \log_2(e)]$ = ' + \
-                         '%.5f' % (slope_log2_e)
+            if self.nrep == 1:
 
-                ax.plot([x0, x1], [y0, y1], color='k',
-                        linestyle='-', linewidth=2, label=legend)
-                ax.legend()
-                plt.draw()
+                ax.plot(x, y, 'r--.')
+                ax.set_xlabel('j')
+                ax.set_ylabel('m = ' + str(m))
+                # ax.grid()
+                # plt.draw()
+
+                if len(self.log_cumulants) > 0:
+                    # plot regression line
+                    x0 = self.j1
+                    x1 = self.j2
+                    slope_log2_e = self.log_cumulants[ind_m]
+                    slope = self.slope[ind_m]
+                    intercept = self.intercept[ind_m]
+                    y0 = slope*x0 + intercept
+                    y1 = slope*x1 + intercept
+                    legend = r'slope [$\times \log_2(e)]$ = ' + \
+                              '%.5f' % (slope_log2_e)
+
+                    ax.plot([x0, x1], [y0, y1], color='k',
+                            linestyle='-', linewidth=2, label=legend)
+                    ax.legend()
+                    plt.draw()
+
+            else:
+                pass
+
+                # plot_multiscale({(i, 'cm'): self.values[m, j, nrep] for },
+                #                 {'cm': '#00000020', 'cm_avg': '#000000ff'}, ax)
+
 
         for j in range(ind_m + 1, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
