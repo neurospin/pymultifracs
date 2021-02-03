@@ -70,6 +70,7 @@ class StructureFunction(MultiResolutionQuantityBase):
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
     H: np.array = field(init=False)
+    gamint: float = field(init=False)
 
     def __post_init__(self, mrq):
 

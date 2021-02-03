@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field, InitVar
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,10 +8,93 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-# from .utils import Utils
+from ..utils import fast_power, linear_regression
+from ..multiresquantity import MultiResolutionQuantityBase, \
+    MultiResolutionQuantity
 
 
-class BiStructureFunction:
+@dataclass
+class BiStructureFunction(MultiResolutionQuantityBase):
+    mrq1: InitVar[MultiResolutionQuantity]
+    mrq2: InitVar[MultiResolutionQuantity]
+    j1: int
+    j2: int
+    q1: np.ndarray
+    q2: np.ndarray
+    wtype: bool
+    j: np.ndarray = field(init=False)
+    logvalues: np.ndarray = field(init=False)
+    zeta: np.ndarray = field(init=False)
+    intercept: np.ndarray = field(init=False)
+    H: float = field(init=False)
+    gamint: float = field(init=False)
+
+    def __post_init__(self, mrq1, mrq2):
+
+        self.nrep = 1
+
+        assert mrq1.formalism == mrq2.formalism
+        self.formalism = mrq1.formalism
+
+        assert mrq1.gamint == mrq2.gamint
+        self.gamint = mrq1.gamint
+
+        assert mrq1.nj == mrq2.nj
+        self.nj = mrq1.nj
+        self.j = np.array(list(mrq1.values))
+
+        self._compute(mrq1, mrq2)
+        self._compute_zeta()
+        self.H = self._get_H()
+
+    def _compute(self, mrq1, mrq2):
+
+        values = np.zeros((len(self.q1), len(self.q2), len(self.j)))
+
+        for ind_q1, q1 in enumerate(self.q1):
+            for ind_q2, q2 in enumerate(self.q2):
+                for ind_j, j in enumerate(self.j):
+
+                    c_j_1 = np.abs(mrq1.values[j])
+                    c_j_2 = np.abs(mrq2.values[j])
+
+                    # s_j_q1_q2
+                    values[ind_q1, ind_q2, ind_j] = \
+                        np.nanmean(fast_power(c_j_1, q1)
+                                   * fast_power(c_j_2, q2))
+
+        self.logvalues = np.log2(values)
+
+    def _compute_zeta(self):
+        """
+        Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
+        """
+        self.zeta = np.zeros(self.logvalues.shape[:2])
+        self.intercept = np.zeros(self.zeta.shape)
+
+        x = np.arange(self.j1, self.j2+1)[:, None]
+
+        if self.wtype == 1:
+            nj = self.get_nj_interv(self.j1, self.j2)
+        else:
+            nj = np.ones((len(x), 1))
+
+        ind_j1 = self.j1-1
+        ind_j2 = self.j2-1
+
+        for ind_q1, _ in enumerate(self.q1):
+            for ind_q2, _ in enumerate(self.q2):
+
+                y = self.logvalues[ind_q1, ind_q2, ind_j1:ind_j2+1, None]
+                slope, intercept = linear_regression(x, y, nj)
+                self.zeta[ind_q1, ind_q2] = slope
+                self.intercept[ind_q1, ind_q2] = intercept
+
+    def _get_H(self):
+        return (self.zeta[self.q1 == 2, self.q2 == 2][0] / 2) - self.gamint
+
+
+class BiStructureFunction_old:
     """
     This class provides methods for computing and analyzing bivariate struture
     functions S(j, q1, q2)

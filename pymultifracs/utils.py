@@ -25,7 +25,14 @@ def fast_power(array, exponent):
     elif exponent == 0.5:
         return np.sqrt(array)
 
-    elif exponent in [-1, 0]:
+    elif exponent == 0:
+        # np.nan ** 0 = 1.0, adressed here
+        ixd_nan = np.isnan(array)
+        res = array ** exponent
+        res[ixd_nan] = np.nan
+        return res
+
+    elif exponent == -1:
         return array ** exponent
 
     elif isinstance(exponent, int) and exponent > 0 and exponent <= 10:
