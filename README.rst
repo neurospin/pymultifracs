@@ -2,7 +2,7 @@
 
 |Codecov|_ |Binder|_ |CircleCI|_
 
-.. |Codecov| image:: https://codecov.io/gh/neurospin/pymultifracs/branch/main/graph/badge.svg
+.. |Codecov| image:: https://codecov.io/gh/neurospin/pymultifracs/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/neurospin/pymultifracs
 
 .. |Binder| image:: https://mybinder.org/badge_logo.svg
