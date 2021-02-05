@@ -25,8 +25,8 @@ Implemented features:
 * Estimation of the multifractal spectrum.
 
 
-The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) Matlab toolbox written by Herwig Wendt
-(https://www.irit.fr/~Herwig.Wendt/software.html) and on the documents provided in his website (his PhD thesis in particular, which can be found at
+The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) Matlab toolbox written by Patrice Abry, Herwig Wendt and colleagues
+(http://www.ens-lyon.fr/PHYSIQUE/Equipe3/MultiFracs/software.html). For a thorough introduction to multifractal analysis, you may access H. Wendt's PhD thesis available in his webiste at
 https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf).
 
 
