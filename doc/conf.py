@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'PyMultiFracs'
-copyright = '2020, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
+copyright = '2020-2021, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
 author = 'M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
 
 # The full version, including alpha/beta/rc tags
@@ -33,10 +33,10 @@ release = '1.0'
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.autosummary',
               'sphinx.ext.intersphinx',
-            #   'sphinx.ext.linkcode',
+              # 'sphinx.ext.linkcode',
               'numpydoc',
               'sphinx_autodoc_typehints',
-            #   'sphinx_gallery.notebook',
+              # 'sphinx_gallery.notebook',
               'sphinx_bootstrap_theme',
               'nbsphinx',
               'sphinx.ext.mathjax']
@@ -72,7 +72,7 @@ html_theme_options = {
     'bootstrap_version': "3",  # default
     # 'navbar_site_name': '',
     'navbar_links': [
-        ("Install", "install"),
+        # ("Install", "install"),
         # ("Tutorials", "auto_tutorials/index"),
         ("Examples", "examples"),
         # ("Glossary", "glossary"),
@@ -94,6 +94,7 @@ html_copy_source = False
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 html_show_sphinx = False
 
+
 def setup(app):
     app.add_stylesheet("style.css")  # also can be a full URL
     app.add_stylesheet("font-awesome.css")
@@ -112,7 +113,7 @@ intersphinx_mapping = {
     'seaborn': ('https://seaborn.pydata.org/', None),
 }
 
-#numpydoc
+# numpydoc
 
 numpydoc_attributes_as_param_list = True
 numpydoc_xref_param_type = True
@@ -120,7 +121,7 @@ numpydoc_xref_param_type = True
 numpydoc_class_members_toctree = False
 numpydoc_show_class_members = False
 
-#nbsphinx
+# nbsphinx
 
 highlight_language = 'none'
 html_scaled_image_link = False
