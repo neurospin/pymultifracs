@@ -67,7 +67,8 @@ Using pip
 
 .. code:: shell
 
-    pip install git+https://github.com/neurospin/pymultifracs.git@master
+    pip install git+https://github.com/neurospin/pymultifracs
+    
 
 
 Cloning the whole repository (including examples)
@@ -95,7 +96,7 @@ Note that this package requires a recent version of python (>=3.7)
 
 .. code:: shell
 
-    git clone https://github.com/neurospin/pymultifracs.git@master
+    git clone https://github.com/neurospin/pymultifracs
     conda env update -f pymultifracs/meta.yml --name $ENVNAME
     pip install -e pymultifracs
 
@@ -106,7 +107,7 @@ Using pip
 
 .. code:: shell
 
-    git clone https://github.com/neurospin/pymultifracs.git@master
+    git clone https://github.com/neurospin/pymultifracs
     pip install -e pymultifracs
 
 See the examples/ folder, mainly examples/Demo.ipynb and examples/Maquette.ipynb
