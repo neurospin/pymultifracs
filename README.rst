@@ -39,6 +39,16 @@ Installing the package only
 
 .. code:: shell
 
+    wget https://raw.githubusercontent.com/neurospin/pymultifracs/master/env.yml
+    conda env update -f env.yml --name $ENVNAME
+
+----
+
+Using pip
+---------
+
+.. code:: shell
+
     pip install -U https://github.com/neurospin/pymultifracs/archive/master.zip
 
 
