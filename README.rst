@@ -67,8 +67,7 @@ Using pip
 
 .. code:: shell
 
-    pip install git+https://github.com/neurospin/pymultifracs
-    
+    pip install -U https://github.com/neurospin/pymultifracs/archive/master.zip
 
 
 Cloning the whole repository (including examples)

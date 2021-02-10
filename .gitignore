@@ -39,3 +39,4 @@ pymultifracs/todo.txt
 .pytest_cache/
 notebooks/Dev*.ipynb
 .circleci
+coverage.xml
