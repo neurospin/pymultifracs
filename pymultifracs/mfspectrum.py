@@ -30,7 +30,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype : bool
+    weighted : bool
         Whether to used weighted linear regressions.
 
     Attributes
@@ -47,7 +47,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype : bool
+    weighted : bool
         Whether weighted regression was performed.
     q : ndarray, shape(n_exponents,)
         Exponents used construct the multifractal spectrum
@@ -75,7 +75,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
     j: np.array = field(init=False)
     j1: int
     j2: int
-    wtype: bool
+    weighted: bool
     q: np.array
     Dq: np.array = field(init=False)
     hq: np.array = field(init=False)
@@ -125,7 +125,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
                     (1, self.nrep))
 
         # weights
-        if self.wtype:
+        if self.weighted:
             wj = self.get_nj_interv(self.j1, self.j2)
         else:
             wj = np.ones((len(x), self.nrep))
@@ -143,7 +143,8 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         self.Dq = Dq
         self.hq = hq
 
-    def plot(self, figlabel='Multifractal Spectrum', filename=None):
+    def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
+             fmt='ko-', **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
@@ -155,10 +156,13 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
             If not None, path used to save the figure
         """
 
-        plt.figure(figlabel)
-        plt.plot(self.hq, self.Dq, 'ko-')
-        plt.xlabel('h')
-        plt.ylabel('D(h)')
+        # plt.figure(figlabel)
+        ax = plt.gca() if ax is None else ax
+        ax.plot(self.hq, self.Dq, fmt, **plot_kwargs)
+        ax.set_xlabel('h')
+        ax.set_ylabel('D(h)')
+        ax.set_ylim((0, 1.05))
+        ax.set_xlim((0, 1.5))
         plt.suptitle(self.formalism + ' - multifractal spectrum')
         plt.draw()
 

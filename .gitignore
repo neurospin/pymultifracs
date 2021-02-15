@@ -1,4 +1,3 @@
-**/data
 *.m~
 *~
 
@@ -33,6 +32,9 @@ examples/*.txt*
 
 MF_Synthesis/
 
+notebooks/figures/
+notebooks/*.ipynb
+
 pymultifracs/todo.txt
 
 # example_data/
@@ -40,3 +42,4 @@ pymultifracs/todo.txt
 notebooks/Dev*.ipynb
 .circleci
 coverage.xml
+data/

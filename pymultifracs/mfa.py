@@ -78,7 +78,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
         'n_cumul': n_cumul,
         'j1': j1,
         'j2': j2_eff,
-        'wtype': weighted,
+        'weighted': weighted,
     }
 
     param_dwt = {
@@ -155,7 +155,7 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
         'n_cumul': n_cumul,
         'j1': j1,
         'j2': j2_eff,
-        'wtype': weighted,
+        'weighted': weighted,
     }
 
     dwt_struct = StructureFunction(mrq=wt_coefs, **parameters)

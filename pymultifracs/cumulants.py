@@ -13,7 +13,7 @@ from scipy.stats import trim_mean, median_abs_deviation
 from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-from .viz import plot_multiscale
+# from .viz import plot_multiscale
 
 
 @dataclass
@@ -31,7 +31,7 @@ class Cumulants(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype: bool
+    weighted: bool
         Whether to used weighted linear regressions.
 
 
@@ -51,7 +51,7 @@ class Cumulants(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype : bool
+    weighted : bool
         Whether weighted regression was performed.
     m : ndarray, shape (n_cumulants,)
         List of the m values (cumulants), in order presented in the value
@@ -73,7 +73,7 @@ class Cumulants(MultiResolutionQuantityBase):
     n_cumul: int
     j1: int
     j2: int
-    wtype: bool
+    weighted: bool
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
@@ -133,7 +133,7 @@ class Cumulants(MultiResolutionQuantityBase):
         x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
                     (1, self.nrep))
 
-        if self.wtype:
+        if self.weighted:
             nj = self.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones((len(x), self.nrep))
@@ -163,7 +163,7 @@ class Cumulants(MultiResolutionQuantityBase):
             and the result is stored in cumulants_a
 
         Important:
-            * n_cumul, wtype, j1 and j2 must be the same in both objects
+            * n_cumul, weighted, j1 and j2 must be the same in both objects
             * the attribute cumulants_a.mrq is set to None
         """
 
@@ -172,8 +172,8 @@ class Cumulants(MultiResolutionQuantityBase):
             "j1 must be the same for both cumulants"
         assert self.j2 == cumulants.j2, \
             "j2 must be the same for both cumulants"
-        assert self.wtype == cumulants.wtype, \
-            "wtype must be the same for both cumulants"
+        assert self.weighted == cumulants.weighted, \
+            "weighted must be the same for both cumulants"
         assert self.n_cumul == cumulants.n_cumul, \
             "n_cumul must be the same for both cumulants"
 
@@ -242,7 +242,7 @@ class Cumulants(MultiResolutionQuantityBase):
                                  num=fignum,
                                  squeeze=False)
 
-        fig.suptitle(self.formalism + r' - cumulants $\log_2(C_m(j))$')
+        fig.suptitle(self.formalism + r' - cumulants $C_m(j)$')
 
         x = self.j
         for ind_m, m in enumerate(self.m):
@@ -267,8 +267,8 @@ class Cumulants(MultiResolutionQuantityBase):
                     intercept = self.intercept[ind_m]
                     y0 = slope*x0 + intercept
                     y1 = slope*x1 + intercept
-                    legend = r'slope [$\times \log_2(e)]$ = ' + \
-                              '%.5f' % (slope_log2_e)
+                    legend = (r'slope [$\times \log_2(e)]$ = '
+                              '%.5f' % (slope_log2_e))
 
                     ax.plot([x0, x1], [y0, y1], color='k',
                             linestyle='-', linewidth=2, label=legend)
@@ -277,10 +277,8 @@ class Cumulants(MultiResolutionQuantityBase):
 
             else:
                 pass
-
-                # plot_multiscale({(i, 'cm'): self.values[m, j, nrep] for },
-                #                 {'cm': '#00000020', 'cm_avg': '#000000ff'}, ax)
-
+            # plot_multiscale({(i, 'cm'): self.values[m, j, nrep] for },
+            #                 {'cm': '#00000020', 'cm_avg': '#000000ff'}, ax)
 
         for j in range(ind_m + 1, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
@@ -333,7 +331,7 @@ class MeadCumulants(Cumulants):
         log2_e = np.log2(np.exp(1))
         x = np.arange(self.j1, self.j2+1)
 
-        if self.wtype:
+        if self.weighted:
             nj = self.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones(len(x))

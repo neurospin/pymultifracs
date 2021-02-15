@@ -10,6 +10,14 @@ import warnings
 import numpy as np
 
 
+def scale2freq(scale, sfreq):
+    return (3/4) * sfreq * (2 ** -scale)
+
+
+def freq2scale(freq, sfreq):
+    return - 2 - np.log2(freq / (3 * sfreq))
+
+
 def fast_power(array, exponent):
 
     # import warnings

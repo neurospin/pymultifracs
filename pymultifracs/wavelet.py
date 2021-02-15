@@ -129,42 +129,6 @@ def filtering(approx, high_filter, low_filter):
     # apply filters
     # note: 'direct' method MUST be used, since there are elements
     # that are np.inf inside `approx`
-    high = convolve(approx, high_filter, mode='full', method='direct')
-    low = convolve(approx, low_filter, mode='full', method='direct')
-
-    high[np.isnan(high)] = np.inf
-    low[np.isnan(low)] = np.inf
-
-    # index of first good value
-    fp = len(high_filter) - 2
-    # index of last good value
-    lp = nj_temp - 1
-
-    # replace border with Inf
-    high[0:fp] = np.inf
-    high[lp+1:] = np.inf
-    low[0:fp] = np.inf
-    low[lp+1:] = np.inf
-
-    # centering and subsampling
-    detail_idx = np.arange(1, nj_temp + 1, 2)
-    approx_idx = np.arange(-1, nj_temp - 1, 2) + len(high_filter)
-
-    detail = high[detail_idx]
-    approx = low[approx_idx]
-
-    return detail, approx
-
-
-def new_filtering(approx, high_filter, low_filter):
-    """
-    """
-
-    nj_temp = len(approx)
-
-    # apply filters
-    # note: 'direct' method MUST be used, since there are elements
-    # that are np.inf inside `approx`
     high = convolve(approx, high_filter, mode='same', method='direct')
     low = convolve(approx, low_filter, mode='same', method='direct')
 
@@ -268,7 +232,7 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
 
     for scale in range(1, max_level + 1):
 
-        detail, approx = new_filtering(approx, high_filter, low_filter)
+        detail, approx = filtering(approx, high_filter, low_filter)
 
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))
@@ -394,7 +358,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     for scale in range(1, max_level + 1):
 
-        detail, approx = new_filtering(approx, high_filter, low_filter)
+        detail, approx = filtering(approx, high_filter, low_filter)
 
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))
