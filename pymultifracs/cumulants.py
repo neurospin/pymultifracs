@@ -165,6 +165,20 @@ class Cumulants(MultiResolutionQuantityBase):
 
         return self.__getattribute__(name)
 
+    def sum(self, cumulants):
+        """
+        Computes the sum of two cumulants C_m^a(j) and C_m^b(j) weighted by nj:
+          C_m^{a+b}(j) = [n_a(j)*C_m^a(j) + n_b(j)*C_m^b(j)]/(n_a(j) + n_b(j))
+
+        Important:
+            * n_cumul, weighted, j1 and j2 must be the same in both objects
+            * the attribute cumulants_a.mrq is set to None
+
+        TODO Debug this function
+        """
+
+        return
+
     def plot(self, fignum=1, nrow=3, filename=None):
         """
         Plots the cumulants.
@@ -231,101 +245,3 @@ class Cumulants(MultiResolutionQuantityBase):
 
         if filename is not None:
             plt.savefig(filename)
-<<<<<<< HEAD
-=======
-
-
-@dataclass
-class MeadCumulants(Cumulants):
-    m: np.ndarray = field(init=False, default=np.array([1, 2]))
-
-    def __post_init__(self, mrq):
-
-        self.formalism = mrq.formalism
-        self.nj = mrq.nj
-        self.j = np.array(list(mrq.values))
-
-        # Force number of cumulants to 2 as it is all we can compute
-        self.n_cumul = 2
-
-        self.values = np.zeros((len(self.m), len(self.j)))
-
-        self._compute(mrq)
-        self._compute_log_cumulants()
-
-    def _compute(self, mrq):
-
-        for ind_j, j in enumerate(self.j):
-
-            T_X_j = np.abs(mrq.values[j])
-            log_T_X_j = np.log(T_X_j)
-
-            self.values[0, ind_j] = \
-                np.median(log_T_X_j) * np.log2(np.exp(1))
-            self.values[1, ind_j] = \
-                (median_abs_deviation(log_T_X_j) ** 2) * np.log2(np.exp(1))
-
-    def _compute_log_cumulants(self):
-        """
-        Compute the log-cumulants
-        (angular coefficients of the curves j->log[C_p(j)])
-        """
-        self.slope = np.zeros(len(self.m))
-        self.intercept = np.zeros(len(self.m))
-
-        self.log_cumulants = np.zeros(len(self.m))
-        self.var_log_cumulants = np.zeros(len(self.m))
-
-        log2_e = np.log2(np.exp(1))
-        x = np.arange(self.j1, self.j2+1)
-
-        if self.weighted:
-            nj = self.get_nj_interv(self.j1, self.j2)
-        else:
-            nj = np.ones(len(x))
-
-        ind_j1 = self.j1-1
-        ind_j2 = self.j2-1
-
-        for ind_m in range(len(self.m)):
-
-            y = self.values[ind_m, ind_j1:ind_j2+1]
-            # pylint: disable=unbalanced-tuple-unpacking
-            slope, intercept, var_slope = \
-                linear_regression(x, y, nj, return_variance=True)
-            # TODO check if slope*log2_e is what is needed here
-            self.log_cumulants[ind_m] = slope
-            self.var_log_cumulants[ind_m] = (log2_e**2)*var_slope
-            self.slope[ind_m] = slope
-            self.intercept[ind_m] = intercept
-
-
-@dataclass
-class TrimCumulants(Cumulants):
-
-    def _compute(self, mrq):
-
-        moments = np.zeros((len(self.m), len(self.j)))
-
-        for ind_j, j in enumerate(self.j):
-
-            T_X_j = np.abs(mrq.values[j])
-            log_T_X_j = np.log(T_X_j)
-
-            for ind_m, m in enumerate(self.m):
-
-                moments[ind_m, ind_j] = trim_mean(fast_power(log_T_X_j, m),
-                                                  0.05)
-                if m == 1:
-                    self.values[ind_m, ind_j] = moments[ind_m, ind_j]
-                else:
-                    aux = 0
-
-                    for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += (binomial_coefficient(m-1, n-1)
-                                * self.values[ind_n, ind_j]
-                                * moments[ind_m-ind_n-1, ind_j])
-
-                    self.values[ind_m, ind_j] = \
-                        moments[ind_m, ind_j] - aux
->>>>>>> Finished bivariate analysis
