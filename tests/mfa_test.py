@@ -4,7 +4,6 @@ import json
 from pymultifracs.wavelet import wavelet_analysis
 from pymultifracs.estimation import estimate_hmin
 from pymultifracs.mfa import mf_analysis_full
-from pymultifracs.utils import build_q_log
 
 
 def test_mfa_fbm(fbm_file):
@@ -18,7 +17,7 @@ def test_mfa_fbm(fbm_file):
             X = np.load(f)
 
         j2 = np.log2(config_list[i]['shape']) - 3
-        wt_coefs, _, j2_eff = wavelet_analysis(X, p_exp=None, j2=j2)
+        wt_coefs, _, j2_eff, _ = wavelet_analysis(X, p_exp=None, j2=j2)
 
         hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted=True)[0]
         hmin = hmin.min()
@@ -53,7 +52,7 @@ def test_mfa_mrw(mrw_file):
             continue
 
         j2 = np.log2(X.shape[0]) - 3
-        wt_coefs, _, j2_eff = wavelet_analysis(X, p_exp=None, j2=j2)
+        wt_coefs, _, j2_eff, _ = wavelet_analysis(X, p_exp=None, j2=j2)
 
         hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted=True)[0]
         hmin = hmin.min()

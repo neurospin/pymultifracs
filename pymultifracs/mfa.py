@@ -24,7 +24,8 @@ lwt : MFractalVar
     Wavelet leader-based estimates, if applicable (p_exp was not None)
 """
 
-MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum hmin')
+MFractalVar = namedtuple('MFractalVar',
+                         'structure cumulants spectrum hmin')
 """Aggregates the output of multifractal analysis
 
 Attributes

@@ -71,7 +71,7 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
         wt_leaders.values[j] = \
             wt_leaders.values[j]*ZPJCorr[None, :, ind_j]
 
-    return wt_leaders
+    return wt_leaders, eta_p
 
 
 def decomposition_level(length, wt_name):
@@ -210,8 +210,9 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
 
 WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
                                                    'wt_leaders',
-                                                   'j2_eff'])
-"""Aggregates the output of wavelet analysis
+                                                   'j2_eff',
+                                                   'eta_p'])
+r"""Aggregates the output of wavelet analysis
 
 Attributes
 ----------
@@ -221,6 +222,8 @@ wt_leaders : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
     Wavelet leaders, or p-leaders, depending on the value of ``p_exp`` passed
 j2_eff : int
     Maximum scale effectively used during the computation of the coefficients
+eta_p : float
+    Estimated value of :math:`\eta_p`, before applying p-leader correction
 """
 
 
@@ -260,7 +263,8 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
 
     return WaveletTransform(wt_leaders=wt_leaders,
                             wt_coefs=wt_coefs,
-                            j2_eff=j2_eff)
+                            j2_eff=j2_eff,
+                            eta_p=None)
 
 
 def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
@@ -399,9 +403,12 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
     j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
 
     if formalism == 'wavelet p-leader':
-        wt_leaders = _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
-                                      weighted, max_level)
+        wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
+                                             j1, j2_eff, weighted, max_level)
+    else:
+        eta_p = None
 
     return WaveletTransform(wt_leaders=wt_leaders,
                             wt_coefs=wt_coefs,
-                            j2_eff=j2_eff)
+                            j2_eff=j2_eff,
+                            eta_p=eta_p)

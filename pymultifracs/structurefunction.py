@@ -123,7 +123,7 @@ class StructureFunction(MultiResolutionQuantityBase):
             self.intercept[ind_q] = intercept
 
     def _get_H(self):
-        return (self.zeta[self.q == 2][0] / 2)
+        return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]

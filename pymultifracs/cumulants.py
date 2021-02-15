@@ -153,6 +153,19 @@ class Cumulants(MultiResolutionQuantityBase):
             self.slope[ind_m] = slope
             self.intercept[ind_m] = intercept
 
+    def __getattr__(self, name):
+
+        if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
+            return self.log_cumulants[self.m == int(name[1])]
+
+        if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
+            return self.values[self.m == int(name[1])]
+
+        if name == 'M':
+            return -self.c2
+
+        return self.__getattribute__(name)
+
     def sum(self, cumulants):
         """
         Computes the sum of two cumulants C_m^a(j) and C_m^b(j) weighted by nj:
@@ -165,6 +178,8 @@ class Cumulants(MultiResolutionQuantityBase):
         Important:
             * n_cumul, weighted, j1 and j2 must be the same in both objects
             * the attribute cumulants_a.mrq is set to None
+
+        TODO Debug this function
         """
 
         # Verifications
