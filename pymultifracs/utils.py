@@ -18,6 +18,11 @@ def freq2scale(freq, sfreq):
     return - 2 - np.log2(freq / (3 * sfreq))
 
 
+def fband2scale(fband, sfreq):
+    return (int(np.ceil(freq2scale(fband[1], sfreq))),
+            int(np.floor(freq2scale(fband[0], sfreq))))
+
+
 def fast_power(array, exponent):
 
     # import warnings

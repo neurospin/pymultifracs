@@ -29,6 +29,7 @@ doc/_autosummary/
 examples/src/
 examples/figures/
 examples/*.txt*
+examples/Demo-mne.ipynb
 
 MF_Synthesis/
 
