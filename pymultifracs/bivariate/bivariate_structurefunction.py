@@ -27,7 +27,6 @@ class BiStructureFunction(MultiResolutionQuantityBase):
     logvalues: np.ndarray = field(init=False)
     zeta: np.ndarray = field(init=False)
     intercept: np.ndarray = field(init=False)
-    H: float = field(init=False)
     gamint: float = field(init=False)
     coherence: np.ndarray = field(init=False)
 

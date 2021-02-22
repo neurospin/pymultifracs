@@ -5,12 +5,14 @@ from dataclasses import dataclass, field, InitVar
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pyvista as pv
 import seaborn as sns
 from scipy.special import binom as binomial_coefficient
 
 from ..utils import fast_power, linear_regression
 from ..multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
+from ..viz import start_xvfb
 
 
 @dataclass
@@ -22,13 +24,12 @@ class BiCumulants(MultiResolutionQuantityBase):
     j2: int
     weighted: bool
     j: np.array = field(init=False)
-    m1: np.ndarray = field(init=False)
-    m2: np.ndarray = field(init=False)
+    m: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
     slope: np.ndarray = field(init=False)
     intercept: np.ndarray = field(init=False)
-    RHO_mf: np.ndarray = field(init=False)
+    RHO_MF: np.ndarray = field(init=False)
     rho_mf: float = field(init=False)
 
     def __post_init__(self, mrq1, mrq2):
@@ -134,8 +135,11 @@ class BiCumulants(MultiResolutionQuantityBase):
 
     def _compute_rho(self):
 
-        self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.c02 * self.c20)))[0]
-        self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
+        self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))[0]
+        if self.formalism == 'wavelet coef':
+            self.rho_mf = None
+        else:
+            self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
 
     def plot(self):
 
@@ -280,3 +284,39 @@ class BiCumulants(MultiResolutionQuantityBase):
 
         # Add a color bar which maps values to colors.
         fig.colorbar(surf, shrink=0.6, aspect=10)
+
+    def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
+                         use_ipyvtk=False):
+
+        if use_ipyvtk:
+            start_xvfb()
+
+        h, L = self.compute_legendre(resolution=200)
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        hmin = min([*h_x, *h_y])
+        hmax = max([*h_x, *h_y])
+
+        h, L = self.compute_legendre((hmin, hmax), resolution)
+
+        # cmap = cmap or plt.cm.coolwarm  # pylint: disable=no-member
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        L = L[:, L.max(axis=0) >= 0]
+        L = L[L.max(axis=1) >= 0, :]
+
+        X, Y = np.meshgrid(h_x, h_y)
+
+        grid = pv.StructuredGrid(X, Y, L)
+        bounds = [h_x.min(), h_x.max(), h_y.min(), h_y.max(), 0, 1]
+        clipped = grid.clip_box(bounds, invert=False)
+
+        p = pv.Plotter()
+        p.add_mesh(clipped, scalars=clipped.points[:, 2])
+        p.show_grid(xlabel='h1', ylabel='h2', zlabel='L(h1, h2)',
+                    bounds=bounds)
+        p.show(use_ipyvtk=use_ipyvtk)
