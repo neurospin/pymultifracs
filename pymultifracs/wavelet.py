@@ -355,7 +355,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
                                       low_filter, normalization, gamint, j2)
 
     # Initialize structures
-    wt_coefs = MultiResolutionQuantity(formalism, gamint)
+    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint)
     wt_leaders = MultiResolutionQuantity(formalism, gamint)
 
     sans_voisin = None

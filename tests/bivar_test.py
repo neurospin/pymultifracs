@@ -45,6 +45,9 @@ def test_bivariate():
 
         p = param[key]
 
-        assert abs(p['mft'][0] - np.sqrt(-lwt.cumulants.c20)) < 0.01
-        assert abs(p['mft'][1] - np.sqrt(-lwt.cumulants.c02)) < 0.01
-        assert abs(p['mft'][2] - np.sqrt(-lwt.cumulants.rho_mf)) < 0.1
+        assert abs(p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20[0])) < 0.02
+        assert abs(p['mft'][0, 1] - np.sqrt(-lwt.cumulants.c02[0])) < 0.02
+        assert abs(p['mft'][0, 2] - lwt.cumulants.rho_mf[0]) < 0.1
+
+    for key in data:
+        test_key(key)

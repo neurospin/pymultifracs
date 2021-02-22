@@ -133,10 +133,11 @@ class BiCumulants(MultiResolutionQuantityBase):
 
     def _compute_rho(self):
 
-        self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))[0]
         if self.formalism == 'wavelet coef':
+            self.RHO_MF = None
             self.rho_mf = None
         else:
+            self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))[0]
             self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
 
     def plot(self):
