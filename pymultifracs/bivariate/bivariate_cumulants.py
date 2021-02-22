@@ -268,19 +268,6 @@ class BiCumulants(MultiResolutionQuantityBase):
         ax.view_init(elev=45)
 
         # TODO manage to plot the contours or switch to 3D plotting libs
-        # colors_contour = np.zeros(colors.shape)
-        # colors_contour[L >= 0] = 1
-        # colors_contour = ['k' if sum(c) > 0 else 0 for c in colors]
-
-        # ax.contour(X, Y, L+.1, 10, stride=3, linewidths=1, zorder=10,
-        #            extend3d=False, colors=colors_contour)
-
-        # cset = ax.contour(X, Y, L, zdir='x', offset=0,
-        #                   colors='black', levels=10)
-        # cset = ax.contourf(X, Y, L, zdir='y', colors='black',
-        #                    levels=10, offset=1.5)
-
-        # Add a color bar which maps values to colors.
         fig.colorbar(surf, shrink=0.6, aspect=10)
 
     def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
