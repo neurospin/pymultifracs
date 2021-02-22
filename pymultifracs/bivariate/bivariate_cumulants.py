@@ -5,14 +5,12 @@ from dataclasses import dataclass, field, InitVar
 
 import numpy as np
 import matplotlib.pyplot as plt
-import pyvista as pv
 import seaborn as sns
 from scipy.special import binom as binomial_coefficient
 
 from ..utils import fast_power, linear_regression
 from ..multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-from ..viz import start_xvfb
 
 
 @dataclass
@@ -288,7 +286,10 @@ class BiCumulants(MultiResolutionQuantityBase):
     def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
                          use_ipyvtk=False):
 
+        import pyvista as pv
+
         if use_ipyvtk:
+            from ..viz import start_xvfb
             start_xvfb()
 
         h, L = self.compute_legendre(resolution=200)
