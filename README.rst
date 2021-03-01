@@ -51,4 +51,4 @@ Cloning the whole repository (including examples)
     git clone https://github.com/neurospin/pymultifracs
     pip install -e pymultifracs
 
-For examples to get started, look into the `example/` folder
+To get started, look into the `example/` folder

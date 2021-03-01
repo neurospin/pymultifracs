@@ -11,6 +11,8 @@ from .psd import log_plot
 
 def plot_multiscale(results, seg2color, ax=None):
 
+    ax = plt.gca() if ax is None else ax
+
     segs = {*results.index.get_level_values(1).unique()}
     subjects = results.index.get_level_values(0).unique()
     n = len(subjects)
@@ -73,15 +75,16 @@ def plot_multiscale(results, seg2color, ax=None):
 
     log_plot(freqs, mscales, lowpass_freq=50, color=color, linewidth=lw, ax=ax)
 
-    ticks = ax.xticks()[0]
+    ticks = ax.get_xticks()
     labels = [f'{t:g}\n{2 ** t:.2g}' for t in ticks]
 
-    ax.xticks(ticks, labels)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
 
     sns.despine()
 
-    ax.xlabel('log2 f', fontsize=18, c='black')
-    ylim = ax.ylim()
+    ax.set_xlabel('log2 f', fontsize=18, c='black')
+    ylim = ax.get_ylim()
     ax.vlines(x=[results.iloc[0].slope[0][0], results.iloc[0].slope[0][-1]],
               ymin=ylim[0], ymax=ylim[1], linestyles='dashed',
               colors='#0000003f')
