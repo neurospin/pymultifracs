@@ -10,6 +10,19 @@ import warnings
 import numpy as np
 
 
+def scale2freq(scale, sfreq):
+    return (3/4) * sfreq * (2 ** -scale)
+
+
+def freq2scale(freq, sfreq):
+    return - 2 - np.log2(freq / (3 * sfreq))
+
+
+def fband2scale(fband, sfreq):
+    return (int(np.ceil(freq2scale(fband[1], sfreq))),
+            int(np.floor(freq2scale(fband[0], sfreq))))
+
+
 def fast_power(array, exponent):
 
     # import warnings
@@ -25,7 +38,14 @@ def fast_power(array, exponent):
     elif exponent == 0.5:
         return np.sqrt(array)
 
-    elif exponent in [-1, 0]:
+    elif exponent == 0:
+        # np.nan ** 0 = 1.0, adressed here
+        ixd_nan = np.isnan(array)
+        res = array ** exponent
+        res[ixd_nan] = np.nan
+        return res
+
+    elif exponent == -1:
         return array ** exponent
 
     elif isinstance(exponent, int) and exponent > 0 and exponent <= 10:

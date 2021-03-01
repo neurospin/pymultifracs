@@ -28,7 +28,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype: bool
+    weighted: bool
         Whether to used weighted linear regressions.
 
     Attributes
@@ -45,7 +45,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    wtype : bool
+    weighted : bool
         Whether weighted regression was performed.
     q : ndarray, shape (n_exponents,)
         Exponents for which the structure functions have been computed
@@ -65,11 +65,12 @@ class StructureFunction(MultiResolutionQuantityBase):
     q: np.array
     j1: int
     j2: int
-    wtype: bool
+    weighted: bool
     j: np.array = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
     H: np.array = field(init=False)
+    gamint: float = field(init=False)
 
     def __post_init__(self, mrq):
 
@@ -108,7 +109,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
                     (1, self.nrep))
 
-        if self.wtype:
+        if self.weighted:
             nj = mrq.get_nj_interv(self.j1, self.j2)
         else:
             nj = np.ones((len(x), self.nrep))
@@ -133,7 +134,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         return None
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True):
+             ignore_q0=True, figsize=(30, 10)):
         """
         Plots the structure functions.
         """
@@ -153,7 +154,7 @@ class StructureFunction(MultiResolutionQuantityBase):
                                  plot_dim_2,
                                  num=figlabel,
                                  squeeze=False,
-                                 figsize=(30, 10))
+                                 figsize=figsize)
 
         fig.suptitle(self.formalism +
                      r' - structure functions $\log_2(S(j,q))$')

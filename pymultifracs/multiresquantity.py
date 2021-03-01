@@ -15,14 +15,6 @@ class MultiResolutionQuantityBase:
     gamint: float = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
     nrep: int = field(init=False)
-    values: dict = field(init=False, default_factory=dict)
-
-    def add_values(self, coeffs, j):
-
-        self.values[j] = coeffs
-        self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
-        # self.nj[j] = len(coeffs)
-        # self.n_scales += 1
 
     def get_nj(self):
         """
@@ -104,6 +96,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     """
     formalism: str
     gamint: float
+    values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):
 
@@ -111,6 +104,11 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                                   'wavelet p-leader']:
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
+
+    def add_values(self, coeffs, j):
+
+        self.values[j] = coeffs
+        self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
     def __getattr__(self, name):
         if name == 'nrep':

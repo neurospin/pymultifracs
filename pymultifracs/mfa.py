@@ -24,7 +24,8 @@ lwt : MFractalVar
     Wavelet leader-based estimates, if applicable (p_exp was not None)
 """
 
-MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum hmin')
+MFractalVar = namedtuple('MFractalVar',
+                         'structure cumulants spectrum hmin')
 """Aggregates the output of multifractal analysis
 
 Attributes
@@ -78,7 +79,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
         'n_cumul': n_cumul,
         'j1': j1,
         'j2': j2_eff,
-        'wtype': weighted,
+        'weighted': weighted,
     }
 
     param_dwt = {
@@ -118,7 +119,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     return MFractalData(dwt, lwt)
 
 
-def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
+def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
                         n_cumul, q):
     """Perform multifractal analysis, returning only what is needed for H and
     M estimation.
@@ -150,18 +151,21 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, p_exp, j1, weighted,
         are filled are dwt.structure and lwt.cumulants
     """
 
+    if q is None:
+        q = [2]
+
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
         'j1': j1,
         'j2': j2_eff,
-        'wtype': weighted,
+        'weighted': weighted,
     }
 
-    dwt_struct = StructureFunction(mrq=wt_coefs, **parameters)
+    dwt_struct = StructureFunction.from_dict({'mrq': wt_coefs, **parameters})
     dwt = MFractalVar(dwt_struct, None, None, None)
 
-    lwt_cumul = Cumulants(mrq=wt_leaders, **parameters)
+    lwt_cumul = Cumulants.from_dict({'mrq': wt_leaders, **parameters})
     lwt = MFractalVar(None, lwt_cumul, None, None)
 
     return MFractalData(dwt, lwt)
