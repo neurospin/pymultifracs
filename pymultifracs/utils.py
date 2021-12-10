@@ -3,11 +3,10 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals
 import warnings
 
 import numpy as np
+import pywt
 
 
 def scale2freq(scale, sfreq):
@@ -150,3 +149,9 @@ def fixednanmax(a, **kwargs):
         warnings.simplefilter("ignore")
         a = np.nanmax(a, **kwargs)
     return a
+
+
+def get_filter_length(wt_name):
+
+    wt = pywt.Wavelet(wt_name)
+    return len(wt.dec_hi)

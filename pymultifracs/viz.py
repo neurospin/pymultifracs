@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 
 from .psd import log_plot
+from .bootstrap import estimate_confidence_interval_from_bootstrap
 
+import ipdb
 
 def plot_multiscale(results, seg2color, ax=None):
 
@@ -91,8 +93,90 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
+def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
+    """
+    Plots the cumulants.
+    Args:
+    fignum(int):  figure number
+    plt        :  pointer to matplotlib.pyplot
+    """
+
+    nrow = min(nrow, len(cm.m))
+
+    if len(cm.m) > 1:
+        plot_dim_1 = nrow
+        plot_dim_2 = int(np.ceil(len(cm.m) / nrow))
+
+    else:
+        plot_dim_1 = 1
+        plot_dim_2 = 1
+
+    fig, axes = plt.subplots(plot_dim_1,
+                             plot_dim_2,
+                             num=fignum,
+                             squeeze=False)
+
+    fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
+
+    x = cm.j
+
+    for ind_m, m in enumerate(cm.m):
+
+        y = getattr(cm, f'C{m}')
+
+        if cm_boot is not None:
+            CI = getattr(cm_boot, f'CI_C{m}')
+
+            CI -= y[:, None]
+            CI[:, 0] *= -1
+            assert (CI < 0).sum() == 0, ipdb.set_trace()
+            CI = CI.transpose()
+
+        else:
+            CI = None
+
+        ax = axes[ind_m % nrow][ind_m // nrow]
+
+        if cm.nrep == 1:
+
+            ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
+            ax.set_xlabel('j')
+            ax.set_ylabel('m = ' + str(m))
+            # ax.grid()
+            # plt.draw()
+
+            if len(cm.log_cumulants) > 0:
+                # plot regression line
+                x0 = cm.j1
+                x1 = cm.j2
+                slope_log2_e = cm.log_cumulants[ind_m]
+                slope = cm.slope[ind_m]
+                intercept = cm.intercept[ind_m]
+                y0 = slope*x0 + intercept
+                y1 = slope*x1 + intercept
+
+                if cm_boot is not None:
+                    CI = getattr(cm_boot, f"CI_c{m}")
+                    CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
+                else:
+                    CI_legend = ""
+
+                legend = (rf'$c_{m}$ = {slope_log2_e[0]:.3f}' + CI_legend)
+
+                ax.plot([x0, x1], [y0, y1], color='k',
+                        linestyle='-', linewidth=2, label=legend, zorder=0)
+                ax.legend()
+                plt.draw()
+
+    for j in range(ind_m + 1, len(axes.flat)):
+        fig.delaxes(axes[j % nrow][j // nrow])
+
+    if filename is not None:
+        plt.savefig(filename)
+
 # From pyvista, since https://github.com/pyvista/pyvista/issues/1125 is not yet
 # fixed
+
 
 """Start xvfb from Python."""
 

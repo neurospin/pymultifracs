@@ -10,7 +10,7 @@ MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
 
 def bivariate_analysis(WT1, WT2, j1, weighted, n_cumul, q1, q2):
 
-    j2 = min(WT1.j2_eff, WT2.j2_eff)
+    j2 = min(WT1.wt_coefs.j2_eff(), WT2.wt_transform.j2_eff())
 
     parameters = {
         'q1': q1,

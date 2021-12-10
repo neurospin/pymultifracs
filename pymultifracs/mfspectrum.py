@@ -7,6 +7,7 @@ from dataclasses import dataclass, InitVar, field
 
 import numpy as np
 import matplotlib.pyplot as plt
+from sympy import Ci
 
 from .utils import linear_regression, fast_power, fixednansum
 from .multiresquantity import MultiResolutionQuantityBase,\
@@ -144,7 +145,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         self.hq = hq
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
-             fmt='ko-', **plot_kwargs):
+             fmt='ko-', mfs_boot=None, **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
@@ -157,8 +158,39 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         """
 
         # plt.figure(figlabel)
+        import ipdb
         ax = plt.gca() if ax is None else ax
-        ax.plot(self.hq, self.Dq, fmt, **plot_kwargs)
+
+        if mfs_boot is not None:
+
+            CI_Dq = mfs_boot.CI_Dq
+            CI_hq = mfs_boot.CI_hq
+
+            CI_Dq -= self.Dq
+            CI_hq -= self.hq
+
+            CI_Dq[:, 0] *= -1
+            CI_hq[:, 0] *= -1
+
+            CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
+            CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
+
+            assert(CI_Dq < 0).sum() == 0, ipdb.set_trace()
+            assert(CI_hq < 0).sum() == 0, ipdb.set_trace()
+
+            CI_Dq = CI_Dq.transpose()
+            CI_hq = CI_hq.transpose()
+
+        else:
+            CI_Dq, CI_hq = None, None
+
+        # print(CI_Dq.shape)
+        # print(self.Dq.shape)
+        # print(CI_hq.shape)
+        # print(self.hq.shape)
+
+        ax.errorbar(self.hq.squeeze(), self.Dq.squeeze(), CI_Dq, CI_hq,
+                    fmt, **plot_kwargs)
         ax.set_xlabel('h')
         ax.set_ylabel('D(h)')
         ax.set_ylim((0, 1.05))

@@ -4,6 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from collections import namedtuple
+from multiprocessing.sharedctypes import Value
 
 import numpy as np
 
@@ -38,7 +39,7 @@ hmin : float
 """
 
 
-def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
+def mf_analysis(wt_coefs, wt_leaders, j1, weighted,
                 n_cumul, q):
     """Perform multifractal analysis, given wavelet coefficients.
 
@@ -74,11 +75,13 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     if isinstance(q, list):
         q = np.array(q)
 
+    j2 = wt_coefs.j2_eff()
+
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
         'j1': j1,
-        'j2': j2_eff,
+        'j2': j2,
         'weighted': weighted,
     }
 
@@ -92,7 +95,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     dwt_spec = MultifractalSpectrum.from_dict(param_dwt)
 
     # pylint: disable=unbalanced-tuple-unpacking
-    dwt_hmin, _ = estimate_hmin(wt_coefs, j1, j2_eff, weighted)
+    dwt_hmin, _ = estimate_hmin(wt_coefs, j1, j2, weighted)
 
     dwt = MFractalVar(dwt_struct, dwt_cumul, dwt_spec, dwt_hmin)
 
@@ -108,7 +111,7 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
         lwt_spec = MultifractalSpectrum.from_dict(param_lwt)
 
         # pylint: disable=unbalanced-tuple-unpacking
-        lwt_hmin, _ = estimate_hmin(wt_leaders, j1, j2_eff, weighted)
+        lwt_hmin, _ = estimate_hmin(wt_leaders, j1, j2, weighted)
 
         lwt = MFractalVar(lwt_struct, lwt_cumul, lwt_spec, lwt_hmin)
 
@@ -119,8 +122,19 @@ def mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     return MFractalData(dwt, lwt)
 
 
-def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
-                        n_cumul, q):
+def bootstrapped_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q, R,
+                             wt_name):
+
+    coef_boot = wt_coefs.bootstrap(R, wt_name)
+    leader_boot = wt_leaders.bootstrap(R, wt_name)
+
+    j2_eff = min(wt_coefs.j2_eff(), len(coef_boot.values))
+
+    dwt_boot, lwt_boot = mf_analysis(coef_boot, leader_boot, j1, j2_eff,
+                                     weighted, n_cumul, q)
+
+
+def minimal_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q):
     """Perform multifractal analysis, returning only what is needed for H and
     M estimation.
 
@@ -154,11 +168,14 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j2_eff, j1, weighted,
     if q is None:
         q = [2]
 
+    if isinstance(q, list):
+        q = np.array(q)
+
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
         'j1': j1,
-        'j2': j2_eff,
+        'j2': wt_coefs.j2_eff(),
         'weighted': weighted,
     }
 
@@ -228,7 +245,7 @@ def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
 
     mf_data = fun(wt_transform.wt_coefs,
                   wt_transform.wt_leaders,
-                  wt_transform.j2_eff,
+                  wt_transform.wt_coefs.j2_eff(),
                   j1=j1,
                   weighted=weighted,
                   n_cumul=n_cumul,

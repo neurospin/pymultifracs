@@ -4,6 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
+import struct
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,6 +13,7 @@ from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
+import ipdb
 
 @dataclass
 class StructureFunction(MultiResolutionQuantityBase):
@@ -125,6 +127,12 @@ class StructureFunction(MultiResolutionQuantityBase):
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
+    def S_q(self, q):
+        return self.logvalues[self.q == q].squeeze()
+
+    def s_q(self, q):
+        return self.zeta[self.q == q].squeeze()
+
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]
 
@@ -133,8 +141,16 @@ class StructureFunction(MultiResolutionQuantityBase):
 
         return None
 
+    def __getattr__(self, name):
+
+        if name == 'S2':
+            return self.logvalues[self.q == 2].squeeze()
+
+        if (super_attr := super().__getattr__(name)) is not None:
+            return super_attr
+
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True, figsize=(30, 10)):
+             ignore_q0=True, figsize=None, struct_boot=None):
         """
         Plots the structure functions.
         """
@@ -160,17 +176,32 @@ class StructureFunction(MultiResolutionQuantityBase):
                      r' - structure functions $\log_2(S(j,q))$')
 
         x = self.j
+        counter = 0
+
         for ind_q, q in enumerate(self.q):
 
             if q == 0.0 and ignore_q0:
                 continue
 
-            y = self.logvalues[ind_q, :]
+            y = self.S_q(q)
 
-            ax = axes[ind_q % nrow][ind_q // nrow]
-            ax.plot(x, y, 'r--.')
+            if struct_boot is not None:
+                CI = struct_boot.CI_S_q(q)
+
+                CI -= y[:, None]
+                CI[:, 0] *= -1
+                assert (CI < 0).sum() == 0, ipdb.set_trace()
+                CI = CI.transpose()
+
+            else:
+                CI = None
+
+            ax = axes[counter % nrow][counter // nrow]
+            ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
+
+            counter += 1
 
             if len(self.zeta) > 0:
                 # plot regression line
@@ -180,13 +211,20 @@ class StructureFunction(MultiResolutionQuantityBase):
                 intercept = self.intercept[ind_q]
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
-                legend = 'slope = '+'%.5f' % (slope)
+
+                if struct_boot is not None:
+                    CI = struct_boot.CI_s_q(q)
+                    CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
+                else:
+                    CI_legend = ""
+
+                legend = rf'$s_{{{q:.2f}}}$ = {slope[0]:.3f}' + CI_legend
 
                 ax.plot([x0, x1], [y0, y1], color='k',
-                        linestyle='-', linewidth=2, label=legend)
+                        linestyle='-', linewidth=2, label=legend, zorder=0)
                 ax.legend()
 
-        for j in range(ind_q + 1, len(axes.flat)):
+        for j in range(counter, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
         plt.draw()
 

@@ -12,7 +12,7 @@ from scipy.signal import convolve
 
 from .structurefunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
-from .utils import fast_power, fixednansum, fixednanmax
+from .utils import fast_power, fixednansum, fixednanmax, get_filter_length
 
 
 def _check_formalism(p_exp):
@@ -92,8 +92,7 @@ def decomposition_level(length, wt_name):
         The maximum scale
     """
 
-    wt = pywt.Wavelet(wt_name)
-    filter_len = len(wt.dec_hi)
+    filter_len = get_filter_length(wt_name)
 
     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
     max_level = min(int(np.floor(np.log2(length))), max_level)
@@ -109,13 +108,12 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
     length = len(signal)
     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
     max_level = min(int(np.floor(np.log2(length))), max_level)
+    max_level = min(j2, max_level)
 
     # Warning if j2 is greater than max_level
     if j2 is not None and j2 > max_level and warn is not False:
         warnings.warn("Value of j2 is higher than the maximum allowed level. "
                       f"Max level and j2 set to {max_level}", UserWarning)
-
-    # max_level = min(max_level, self.j2)
 
     return max_level
 
@@ -269,7 +267,6 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
 
 def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                      gamint=0.0, normalization=1, weighted=True):
-    # TODO make function for coef only, use it when p_exp is None
     """
     Compute wavelet coefficient and wavelet leaders.
 

@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import binom as binomial_coefficient
 
+from pymultifracs.viz import plot_cumulants
+
 from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
@@ -95,16 +97,23 @@ class Cumulants(MultiResolutionQuantityBase):
     def _compute(self, mrq):
 
         moments = np.zeros((len(self.m), len(self.j), self.nrep))
+        aux = np.zeros_like(moments)
 
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.values[j])
+
             log_T_X_j = np.log(T_X_j)
+
+            # dropping infinite coefs
+            # log_T_X_j = log_T_X_j[~np.isinf(log_T_X_j)]
+            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
             for ind_m, m in enumerate(self.m):
 
                 moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
                                                    axis=0)
+
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
                 else:
@@ -139,7 +148,7 @@ class Cumulants(MultiResolutionQuantityBase):
 
         # nj = np.tile(nj[:, None], (1, self.nrep))
 
-        ind_j1 = self.j1-1
+        ind_j1 = self.j1-   1
         ind_j2 = self.j2-1
 
         for ind_m, _ in enumerate(self.m):
@@ -155,93 +164,18 @@ class Cumulants(MultiResolutionQuantityBase):
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
-            return self.log_cumulants[self.m == int(name[1])]
+            return self.log_cumulants[self.m == int(name[1])].squeeze()
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
-            return self.values[self.m == int(name[1])]
+            return self.values[self.m == int(name[1])].squeeze()
 
         if name == 'M':
             return -self.c2
 
+        if (super_attr := super().__getattr__(name)) is not None:
+            return super_attr
+
         return self.__getattribute__(name)
 
-    def sum(self, cumulants):
-        """
-        Computes the sum of two cumulants C_m^a(j) and C_m^b(j) weighted by nj:
-          C_m^{a+b}(j) = [n_a(j)*C_m^a(j) + n_b(j)*C_m^b(j)]/(n_a(j) + n_b(j))
-
-        Important:
-            * n_cumul, weighted, j1 and j2 must be the same in both objects
-            * the attribute cumulants_a.mrq is set to None
-
-        TODO Debug this function
-        """
-
-        return
-
-    def plot(self, fignum=1, nrow=3, filename=None):
-        """
-        Plots the cumulants.
-        Args:
-        fignum(int):  figure number
-        plt        :  pointer to matplotlib.pyplot
-        """
-
-        nrow = min(nrow, len(self.m))
-
-        if len(self.m) > 1:
-            plot_dim_1 = nrow
-            plot_dim_2 = int(np.ceil(len(self.m) / nrow))
-
-        else:
-            plot_dim_1 = 1
-            plot_dim_2 = 1
-
-        fig, axes = plt.subplots(plot_dim_1,
-                                 plot_dim_2,
-                                 num=fignum,
-                                 squeeze=False)
-
-        fig.suptitle(self.formalism + r' - cumulants $C_m(j)$')
-
-        x = self.j
-        for ind_m, m in enumerate(self.m):
-            y = self.values[ind_m, :]
-
-            ax = axes[ind_m % nrow][ind_m // nrow]
-
-            if self.nrep == 1:
-
-                ax.plot(x, y, 'r--.')
-                ax.set_xlabel('j')
-                ax.set_ylabel('m = ' + str(m))
-                # ax.grid()
-                # plt.draw()
-
-                if len(self.log_cumulants) > 0:
-                    # plot regression line
-                    x0 = self.j1
-                    x1 = self.j2
-                    slope_log2_e = self.log_cumulants[ind_m]
-                    slope = self.slope[ind_m]
-                    intercept = self.intercept[ind_m]
-                    y0 = slope*x0 + intercept
-                    y1 = slope*x1 + intercept
-                    legend = (r'slope [$\times \log_2(e)]$ = '
-                              '%.5f' % (slope_log2_e))
-
-                    ax.plot([x0, x1], [y0, y1], color='k',
-                            linestyle='-', linewidth=2, label=legend)
-                    ax.legend()
-                    plt.draw()
-
-            else:
-                pass
-            # plot_multiscale({(i, 'cm'): self.values[m, j, nrep] for },
-            #                 {'cm': '#00000020', 'cm_avg': '#000000ff'}, ax)
-
-        for j in range(ind_m + 1, len(axes.flat)):
-            fig.delaxes(axes[j % nrow][j // nrow])
-
-        if filename is not None:
-            plt.savefig(filename)
+    def plot(self, fignum=1, nrow=3, filename=None, cm_boot=None):
+        plot_cumulants(self, fignum, nrow, filename, cm_boot)

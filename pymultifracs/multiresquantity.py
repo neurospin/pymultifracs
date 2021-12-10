@@ -8,6 +8,10 @@ import inspect
 
 import numpy as np
 
+from .utils import get_filter_length
+from .bootstrap import bootstrap, circular_leader_bootstrap, max_scale_bootstrap, \
+    get_confidence_interval
+
 
 @dataclass
 class MultiResolutionQuantityBase:
@@ -62,6 +66,41 @@ class MultiResolutionQuantityBase:
             if k in inspect.signature(cls).parameters
         })
 
+    def bootstrap(self, R, wt_name):
+
+        if self.formalism == 'wavelet coef':
+
+            print("Using coef bootstrapping technique")
+            return bootstrap(self, R, wt_name)
+
+        elif 'leader' in self.formalism:
+
+            print("Using leader bootstrapping technique")
+
+            block_length = get_filter_length(wt_name)
+            max_scale = max_scale_bootstrap(self, block_length)
+
+            if max_scale < self.j2_eff():
+                raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
+                                 f'inferior to the j2={self.j2_eff()} chosen '
+                                 'when computing wavelet leaders.')
+
+            return circular_leader_bootstrap(self, max_scale, block_length, R)
+
+    def j2_eff(self):
+        return len(self.nj)
+
+    def __getattr__(self, name):
+
+        if name[:3] == 'CI_':
+            if self.nrep < 2:
+                raise ValueError(
+                    f'nrep={self.nrep} too small to build confidence intervals'
+                    )
+
+            return get_confidence_interval(self, name[3:])
+
+        return None
 
 @dataclass
 class MultiResolutionQuantity(MultiResolutionQuantityBase):
@@ -96,7 +135,8 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     """
     formalism: str
     gamint: float
-    values: dict = field(init=False, default_factory=dict)
+    values: dict = field(default_factory=dict)
+    nj: dict = field(default_factory=dict)
 
     def __post_init__(self):
 
