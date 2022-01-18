@@ -267,7 +267,7 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
                             eta_p=None)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
+def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                      gamint=0.0, normalization=1, weighted=True):
     # TODO make function for coef only, use it when p_exp is None
     """
@@ -294,9 +294,10 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
         Lower bound of the scale range on which to estimate :math:`\\eta_p` in
         p-leader correction.
 
-    j2 : int
+    j2 : int | None
         Upper bound of the scale range for which wavelet coefficients
-        will be conputed.
+        will be computed. If None, it will automatically be set to the
+        highest value possible.
 
     gamint : float
         Fractional integration coefficient :math:`\\gamma_{\\textrm{int}}`
