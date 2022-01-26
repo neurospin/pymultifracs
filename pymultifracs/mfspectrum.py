@@ -158,25 +158,24 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         """
 
         # plt.figure(figlabel)
-        import ipdb
         ax = plt.gca() if ax is None else ax
 
         if mfs_boot is not None:
 
-            CI_Dq = mfs_boot.CI_Dq
-            CI_hq = mfs_boot.CI_hq
+            CI_Dq = mfs_boot.CIE_Dq(self)
+            CI_hq = mfs_boot.CIE_hq(self)
 
             CI_Dq -= self.Dq
             CI_hq -= self.hq
 
-            CI_Dq[:, 0] *= -1
-            CI_hq[:, 0] *= -1
+            CI_Dq[:, 1] *= -1
+            CI_hq[:, 1] *= -1
 
             CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
             CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
 
-            assert(CI_Dq < 0).sum() == 0, ipdb.set_trace()
-            assert(CI_hq < 0).sum() == 0, ipdb.set_trace()
+            assert(CI_Dq < 0).sum() == 0
+            assert(CI_hq < 0).sum() == 0
 
             CI_Dq = CI_Dq.transpose()
             CI_hq = CI_hq.transpose()
@@ -189,7 +188,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         # print(CI_hq.shape)
         # print(self.hq.shape)
 
-        ax.errorbar(self.hq.squeeze(), self.Dq.squeeze(), CI_Dq, CI_hq,
+        ax.errorbar(self.hq[:, 0], self.Dq[:, 0], CI_Dq, CI_hq,
                     fmt, **plot_kwargs)
         ax.set_xlabel('h')
         ax.set_ylabel('D(h)')

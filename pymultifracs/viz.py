@@ -7,9 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .psd import log_plot
-from .bootstrap import estimate_confidence_interval_from_bootstrap
 
-import ipdb
 
 def plot_multiscale(results, seg2color, ax=None):
 
@@ -125,11 +123,11 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
         y = getattr(cm, f'C{m}')
 
         if cm_boot is not None:
-            CI = getattr(cm_boot, f'CI_C{m}')
+            CI = getattr(cm_boot, f'CIE_C{m}')(cm)
 
-            CI -= y[:, None]
-            CI[:, 0] *= -1
-            assert (CI < 0).sum() == 0, ipdb.set_trace()
+            CI -= y
+            CI[:, 1] *= -1
+            assert (CI < 0).sum() == 0
             CI = CI.transpose()
 
         else:
@@ -139,7 +137,7 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
 
         if cm.nrep == 1:
 
-            ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
+            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
             ax.set_xlabel('j')
             ax.set_ylabel('m = ' + str(m))
             # ax.grid()
@@ -156,7 +154,7 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
                 y1 = slope*x1 + intercept
 
                 if cm_boot is not None:
-                    CI = getattr(cm_boot, f"CI_c{m}")
+                    CI = getattr(cm_boot, f"CIE_c{m}")(cm)
                     CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
                 else:
                     CI_legend = ""

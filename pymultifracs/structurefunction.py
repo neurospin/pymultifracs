@@ -13,7 +13,6 @@ from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
-import ipdb
 
 @dataclass
 class StructureFunction(MultiResolutionQuantityBase):
@@ -128,10 +127,10 @@ class StructureFunction(MultiResolutionQuantityBase):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
     def S_q(self, q):
-        return self.logvalues[self.q == q].squeeze()
+        return self.logvalues[self.q == q][0]
 
     def s_q(self, q):
-        return self.zeta[self.q == q].squeeze()
+        return self.zeta[self.q == q][0]
 
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]
@@ -154,6 +153,10 @@ class StructureFunction(MultiResolutionQuantityBase):
         """
         Plots the structure functions.
         """
+
+        if self.nrep > 1:
+            raise ValueError('Cannot plot structure functions for more than '
+                             '1 repetition at a time')
 
         nrow = min(nrow, len(self.q))
         nq = len(self.q) + (-1 if 0.0 in self.q and ignore_q0 else 0)
@@ -186,18 +189,18 @@ class StructureFunction(MultiResolutionQuantityBase):
             y = self.S_q(q)
 
             if struct_boot is not None:
-                CI = struct_boot.CI_S_q(q)
+                CI = struct_boot.CIE_S_q(self)(q)
 
-                CI -= y[:, None]
-                CI[:, 0] *= -1
-                assert (CI < 0).sum() == 0, ipdb.set_trace()
+                CI -= y
+                CI[:, 1] *= -1
+                assert (CI < 0).sum() == 0
                 CI = CI.transpose()
 
             else:
                 CI = None
 
             ax = axes[counter % nrow][counter // nrow]
-            ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
+            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
 

@@ -262,7 +262,6 @@ def wavelet_estimation(signal, fs, n_moments, j2=None):
            for arr in transform.wt_coefs.values.values()]
     psd = np.array(psd)
 
-    # import ipdb; ipdb.set_trace()
     # Frequency
     scale = np.arange(len(psd)) + 1
     freq = (3/4 * fs) / (np.power(2, scale))

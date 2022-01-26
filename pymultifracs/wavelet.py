@@ -52,7 +52,7 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
         warnings.warn(f"eta(p) = {eta_p} <= 0, p-Leaders correction was not\
                         applied. A smaller value of p (or larger value of\
                         gamint) should be selected.")
-        return wt_leaders
+        return wt_leaders, eta_p
 
     JJ = np.arange(1, max_level + 1)
     J1LF = 1

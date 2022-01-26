@@ -9,8 +9,8 @@ import inspect
 import numpy as np
 
 from .utils import get_filter_length
-from .bootstrap import bootstrap, circular_leader_bootstrap, max_scale_bootstrap, \
-    get_confidence_interval
+from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
+    max_scale_bootstrap, get_confidence_interval
 
 
 @dataclass
@@ -99,6 +99,19 @@ class MultiResolutionQuantityBase:
                     )
 
             return get_confidence_interval(self, name[3:])
+
+        if name[:4] == 'CIE_':
+
+            if self.nrep < 2:
+                raise ValueError(
+                    f'nrep={self.nrep} too small to build confidence intervals'
+                    )
+
+            def wrapper(ref_mrq):
+
+                return get_empirical_CI(self, ref_mrq, name[4:])
+
+            return wrapper
 
         return None
 

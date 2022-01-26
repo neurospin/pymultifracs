@@ -33,11 +33,11 @@ def estimate_confidence_interval_from_bootstrap(
     """
 
     percent = 100.0 - confidence_level
-    bootstrap_confidence_interval \
-        = (np.percentile(bootstrap_estimates, percent / 2.0, axis=-1),
-           np.percentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1))
+    bootstrap_confidence_interval = np.array(
+        [np.percentile(bootstrap_estimates, percent / 2.0, axis=-1),
+         np.percentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)])
 
-    return bootstrap_confidence_interval
+    return bootstrap_confidence_interval.transpose()
 
 
 def get_confidence_interval(mrq, name):
@@ -48,19 +48,51 @@ def get_confidence_interval(mrq, name):
     attribute = getattr(mrq, name)
 
     if callable(attribute):
-        
+
         def wrapper(*args, **kwargs):
 
             CI = estimate_confidence_interval_from_bootstrap(
                 attribute(*args, **kwargs))
-            CI = np.array(CI).transpose()
 
             return CI
 
         return wrapper
 
     CI = estimate_confidence_interval_from_bootstrap(attribute)
-    CI = np.array(CI).transpose()
+
+    return CI
+
+
+def estimate_empirical_bootstrap(bootstrap_estimate,
+                                 central_estimate,
+                                 confidence_level=95.0):
+
+    return (central_estimate
+            - estimate_confidence_interval_from_bootstrap(
+                central_estimate - bootstrap_estimate, confidence_level)
+            )
+
+
+def get_empirical_CI(mrq, ref_mrq, name):
+
+    if mrq is None:
+        return None
+
+    attribute = getattr(mrq, name)
+    ref_attribute = getattr(ref_mrq, name)
+
+    if callable(attribute):
+
+        def wrapper(*args, **kwargs):
+
+            CI = estimate_empirical_bootstrap(
+                attribute(*args, **kwargs), ref_attribute(*args, **kwargs))
+
+            return CI
+
+        return wrapper
+
+    CI = estimate_empirical_bootstrap(attribute, ref_attribute)
 
     return CI
 

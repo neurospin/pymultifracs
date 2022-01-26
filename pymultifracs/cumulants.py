@@ -148,7 +148,7 @@ class Cumulants(MultiResolutionQuantityBase):
 
         # nj = np.tile(nj[:, None], (1, self.nrep))
 
-        ind_j1 = self.j1-   1
+        ind_j1 = self.j1-1
         ind_j2 = self.j2-1
 
         for ind_m, _ in enumerate(self.m):
@@ -164,10 +164,10 @@ class Cumulants(MultiResolutionQuantityBase):
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
-            return self.log_cumulants[self.m == int(name[1])].squeeze()
+            return self.log_cumulants[self.m == int(name[1])][0]
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
-            return self.values[self.m == int(name[1])].squeeze()
+            return self.values[self.m == int(name[1])][0]
 
         if name == 'M':
             return -self.c2
