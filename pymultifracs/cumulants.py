@@ -4,13 +4,12 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field, InitVar
+from typing import List, Tuple
 
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.special import binom as binomial_coefficient
 
-from pymultifracs.viz import plot_cumulants
-
+from .viz import plot_cumulants
 from .utils import linear_regression, fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
@@ -72,8 +71,7 @@ class Cumulants(MultiResolutionQuantityBase):
     """
     mrq: InitVar[MultiResolutionQuantity]
     n_cumul: int
-    j1: int
-    j2: int
+    scaling_ranges: List[Tuple[int]]
     weighted: bool
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
@@ -131,35 +129,51 @@ class Cumulants(MultiResolutionQuantityBase):
         Compute the log-cumulants
         (angular coefficients of the curves j->log[C_p(j)])
         """
-        self.log_cumulants = np.zeros(((len(self.m), self.nrep)))
-        self.var_log_cumulants = np.zeros((len(self.m), self.nrep))
-        self.slope = np.zeros((len(self.m), self.nrep))
-        self.intercept = np.zeros((len(self.m), self.nrep))
+
+        n_ranges = len(self.scaling_ranges)
+        j_min = self.j.min()
+        j_max = self.j.max()
+
+        self.log_cumulants = np.zeros((len(self.m), n_ranges, self.nrep))
+        self.var_log_cumulants = np.zeros_like(self.log_cumulants)
+        self.slope = np.zeros_like(self.log_cumulants)
+        self.intercept = np.zeros_like(self.log_cumulants)
 
         log2_e = np.log2(np.exp(1))
 
-        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
-                    (1, self.nrep))
+        # shape (n_scales, n_scaling_ranges, n_rep)
+        x = np.arange(j_min, j_max + 1)[:, None, None]
 
         if self.weighted:
-            nj = self.get_nj_interv(self.j1, self.j2)
+            nj = np.tile(self.get_nj_interv(j_min, j_max)[:, None, :],
+                         (1, n_ranges, 1))
         else:
-            nj = np.ones((len(x), self.nrep))
+            nj = np.ones((len(x), n_ranges, 1))
 
-        # nj = np.tile(nj[:, None], (1, self.nrep))
+        for i, (j1, j2) in enumerate(self.scaling_ranges):
+            nj[j2-j_min+1:, i] = 0
+            nj[:j1-j_min, i] = 0
 
-        ind_j1 = self.j1-1
-        ind_j2 = self.j2-1
+            # TODO check indices
+
+        # ind_j1 = self.j1-1
+        # ind_j2 = self.j2-1
 
         for ind_m, _ in enumerate(self.m):
-            y = self.values[ind_m, ind_j1:ind_j2+1]
+
+            y = self.values[ind_m, j_min-1:j_max, None, :]
+
             # pylint: disable=unbalanced-tuple-unpacking
             slope, intercept, var_slope = \
                 linear_regression(x, y, nj, return_variance=True)
+
             self.log_cumulants[ind_m] = slope*log2_e
             self.var_log_cumulants[ind_m] = (log2_e**2)*var_slope
             self.slope[ind_m] = slope
             self.intercept[ind_m] = intercept
+
+    def compute_R(self):
+        return super()._compute_R(self.values, self.slope, self.intercept)
 
     def __getattr__(self, name):
 
@@ -177,5 +191,6 @@ class Cumulants(MultiResolutionQuantityBase):
 
         return self.__getattribute__(name)
 
-    def plot(self, fignum=1, nrow=3, filename=None, cm_boot=None):
-        plot_cumulants(self, fignum, nrow, filename, cm_boot)
+    def plot(self, fignum=1, nrow=3, filename=None, cm_boot=None,
+             scaling_range=0):
+        plot_cumulants(self, fignum, nrow, filename, cm_boot, scaling_range)

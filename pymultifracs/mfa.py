@@ -4,7 +4,6 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from collections import namedtuple
-from multiprocessing.sharedctypes import Value
 
 import numpy as np
 
@@ -13,6 +12,7 @@ from .cumulants import Cumulants
 from .structurefunction import StructureFunction
 from .wavelet import wavelet_analysis
 from .estimation import estimate_hmin
+from .autorange import sanitize_scaling_ranges
 
 MFractalData = namedtuple('MFractalData', 'dwt lwt')
 """Aggregates wavelet coef-based and wavelet-leader based outputs of mfa
@@ -39,7 +39,7 @@ hmin : float
 """
 
 
-def mf_analysis(wt_coefs, wt_leaders, j1, weighted,
+def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
                 n_cumul, q):
     """Perform multifractal analysis, given wavelet coefficients.
 
@@ -75,7 +75,10 @@ def mf_analysis(wt_coefs, wt_leaders, j1, weighted,
     if isinstance(q, list):
         q = np.array(q)
 
-    j2 = wt_coefs.j2_eff()
+    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
+
+    j1 = min([sr[0] for sr in scaling_ranges])
+    j2 = max([sr[1] for sr in scaling_ranges])
 
     parameters = {
         'q': q,
@@ -83,6 +86,7 @@ def mf_analysis(wt_coefs, wt_leaders, j1, weighted,
         'j1': j1,
         'j2': j2,
         'weighted': weighted,
+        'scaling_ranges': scaling_ranges
     }
 
     param_dwt = {
@@ -188,7 +192,7 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q):
     return MFractalData(dwt, lwt)
 
 
-def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
+def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
                      weighted=True, wt_name='db3', p_exp=None, q=None,
                      n_cumul=3, minimal=False):
     """Perform multifractal analysis on a signal.
@@ -236,6 +240,9 @@ def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
     :obj:`~pymultifracs.wavelet.wavelet_analysis`
     """
 
+    j1 = min([sr[0] for sr in scaling_ranges])
+    j2 = max([sr[1] for sr in scaling_ranges])
+
     wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
                                     j1=j1, j2=j2, gamint=gamint,
                                     normalization=normalization,
@@ -245,8 +252,7 @@ def mf_analysis_full(signal, j1, j2, normalization=1, gamint=0.0,
 
     mf_data = fun(wt_transform.wt_coefs,
                   wt_transform.wt_leaders,
-                  wt_transform.wt_coefs.j2_eff(),
-                  j1=j1,
+                  scaling_ranges,
                   weighted=weighted,
                   n_cumul=n_cumul,
                   q=q)

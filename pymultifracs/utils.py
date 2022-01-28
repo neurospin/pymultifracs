@@ -99,7 +99,9 @@ def linear_regression(x, y, nj, return_variance=False):
     a = np.sum(weights_slope*y, axis=0)
     b = np.sum(weights_intercept*y, axis=0)
 
-    var_a = np.sum((1/nj)*weights_slope*weights_slope, axis=0)
+    wt = np.zeros_like(nj)
+    wt[nj != 0] = 1 / nj[nj != 0]
+    var_a = np.sum(wt*weights_slope*weights_slope, axis=0)
 
     if not return_variance:
         return a, b

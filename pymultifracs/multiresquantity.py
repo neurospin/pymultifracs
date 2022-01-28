@@ -4,6 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field
+from gettext import find
 import inspect
 
 import numpy as np
@@ -11,6 +12,7 @@ import numpy as np
 from .utils import get_filter_length
 from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
     max_scale_bootstrap, get_confidence_interval
+from .autorange import compute_Lambda, compute_R, find_max_lambda
 
 
 @dataclass
@@ -90,6 +92,19 @@ class MultiResolutionQuantityBase:
     def j2_eff(self):
         return len(self.nj)
 
+    def _compute_R(self, moment, slope, intercept):
+        return compute_R(self, moment, slope, intercept)
+
+    def compute_Lambda(self, bootstrap_mrq):
+
+        R = self.compute_R()
+        R_b = bootstrap_mrq.compute_R()
+
+        return compute_Lambda(R, R_b)
+
+    def find_best_range(self, bootstrap_mrq):
+        return find_max_lambda(self.compute_Lambda(bootstrap_mrq))
+
     def __getattr__(self, name):
 
         if name[:3] == 'CI_':
@@ -114,6 +129,7 @@ class MultiResolutionQuantityBase:
             return wrapper
 
         return None
+
 
 @dataclass
 class MultiResolutionQuantity(MultiResolutionQuantityBase):

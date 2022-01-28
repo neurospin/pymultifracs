@@ -33,7 +33,7 @@ def test_bivariate():
 
         X = data[key]
         j1 = 3
-        j2 = np.log2(X.shape[0]) - 3
+        j2 = int(np.log2(X.shape[0]) - 3)
         p_exp=2
         gamint = 1
 

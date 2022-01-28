@@ -4,10 +4,10 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
+from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import Ci
 
 from .utils import linear_regression, fast_power, fixednansum
 from .multiresquantity import MultiResolutionQuantityBase,\

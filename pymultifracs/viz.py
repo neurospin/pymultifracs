@@ -47,8 +47,8 @@ def plot_multiscale(results, seg2color, ax=None):
     }
 
     freqs_avg = {
-        seg: (freq := results.loc[subjects[0], seg].freq)[(freq <= maxf[seg])
-                                                          & (freq >= minf[seg])]
+        seg: (freq := results.loc[subjects[0], seg].freq)[
+            (freq <= maxf[seg]) & (freq >= minf[seg])]
         for seg in segs
     }
 
@@ -91,7 +91,8 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
-def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
+def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
+                   scaling_range=0):
     """
     Plots the cumulants.
     Args:
@@ -135,36 +136,34 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None):
 
         ax = axes[ind_m % nrow][ind_m // nrow]
 
-        if cm.nrep == 1:
+        ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
+        ax.set_xlabel('j')
+        ax.set_ylabel('m = ' + str(m))
+        # ax.grid()
+        # plt.draw()
 
-            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
-            ax.set_xlabel('j')
-            ax.set_ylabel('m = ' + str(m))
-            # ax.grid()
-            # plt.draw()
+        if len(cm.log_cumulants) > 0:
 
-            if len(cm.log_cumulants) > 0:
-                # plot regression line
-                x0 = cm.j1
-                x1 = cm.j2
-                slope_log2_e = cm.log_cumulants[ind_m]
-                slope = cm.slope[ind_m]
-                intercept = cm.intercept[ind_m]
-                y0 = slope*x0 + intercept
-                y1 = slope*x1 + intercept
+            x0, x1 = cm.scaling_ranges[scaling_range]
+            slope_log2_e = cm.log_cumulants[ind_m, scaling_range, 0]
+            slope = cm.slope[ind_m, scaling_range, 0]
+            intercept = cm.intercept[ind_m, scaling_range, 0]
 
-                if cm_boot is not None:
-                    CI = getattr(cm_boot, f"CIE_c{m}")(cm)
-                    CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
-                else:
-                    CI_legend = ""
+            y0 = slope*x0 + intercept
+            y1 = slope*x1 + intercept
 
-                legend = (rf'$c_{m}$ = {slope_log2_e[0]:.3f}' + CI_legend)
+            if cm_boot is not None:
+                CI = getattr(cm_boot, f"CIE_c{m}")(cm)
+                CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
+            else:
+                CI_legend = ""
 
-                ax.plot([x0, x1], [y0, y1], color='k',
-                        linestyle='-', linewidth=2, label=legend, zorder=0)
-                ax.legend()
-                plt.draw()
+            legend = (rf'$c_{m}$ = {slope_log2_e:.3f}' + CI_legend)
+
+            ax.plot([x0, x1], [y0, y1], color='k',
+                    linestyle='-', linewidth=2, label=legend, zorder=0)
+            ax.legend()
+            plt.draw()
 
     for j in range(ind_m + 1, len(axes.flat)):
         fig.delaxes(axes[j % nrow][j // nrow])

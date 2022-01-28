@@ -4,7 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
-import struct
+from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -64,8 +64,7 @@ class StructureFunction(MultiResolutionQuantityBase):
     """
     mrq: InitVar[MultiResolutionQuantity]
     q: np.array
-    j1: int
-    j2: int
+    scaling_ranges: List[Tuple[int]]
     weighted: bool
     j: np.array = field(init=False)
     logvalues: np.array = field(init=False)
@@ -78,10 +77,11 @@ class StructureFunction(MultiResolutionQuantityBase):
         self.formalism = mrq.formalism
         self.gamint = mrq.gamint
         self.nrep = mrq.nrep
+        self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
 
         self._compute(mrq)
-        self._compute_zeta(mrq)
+        self._compute_zeta()
         self.H = self._get_H()
 
     def _compute(self, mrq):
@@ -100,28 +100,48 @@ class StructureFunction(MultiResolutionQuantityBase):
 
         self.logvalues = np.log2(values)
 
-    def _compute_zeta(self, mrq):
+    def _compute_zeta(self):
         """
         Compute the value of the scale function zeta(q) for all q
         """
-        self.zeta = np.zeros((len(self.q), self.nrep))
-        self.intercept = np.zeros((len(self.q), self.nrep))
 
-        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
-                    (1, self.nrep))
+        n_ranges = len(self.scaling_ranges)
+        j_min = self.j.min()
+        j_max = self.j.max()
+
+        # shape (n_moment, n_scaling_ranges, n_rep)
+        self.zeta = np.zeros((len(self.q), n_ranges, self.nrep))
+        self.intercept = np.zeros_like(self.zeta)
+
+        # shape (n_scales, n_scaling_ranges, n_rep)
+        x = np.arange(j_min, j_max + 1)[:, None, None]
 
         if self.weighted:
-            nj = mrq.get_nj_interv(self.j1, self.j2)
+            # nj = mrq.get_nj_interv(self.j1, self.j2)
+            nj = np.tile(self.get_nj_interv(j_min, j_max)[:, None, :],
+                         (1, n_ranges, 1))
         else:
-            nj = np.ones((len(x), self.nrep))
+            # nj = np.ones((len(x), self.nrep))
+            nj = np.ones((len(x), n_ranges, 1))
 
-        ind_j1 = self.j1-1
-        ind_j2 = self.j2-1
+        for i, (j1, j2) in enumerate(self.scaling_ranges):
+            nj[j2-j_min+1:, i] = 0
+            nj[:j1-j_min, i] = 0
+
+        # ind_j1 = self.j1-1
+        # ind_j2 = self.j2-1
+
         for ind_q in range(len(self.q)):
-            y = self.logvalues[ind_q, ind_j1:ind_j2+1]
+
+            y = self.logvalues[ind_q, j_min-1:j_max, None, :]
+
             slope, intercept = linear_regression(x, y, nj)
+
             self.zeta[ind_q] = slope
             self.intercept[ind_q] = intercept
+
+    def compute_R(self):
+        return super()._compute_R(self.logvalues, self.zeta, self.intercept)
 
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
@@ -149,7 +169,7 @@ class StructureFunction(MultiResolutionQuantityBase):
             return super_attr
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True, figsize=None, struct_boot=None):
+             ignore_q0=True, figsize=None, struct_boot=None, scaling_range=0):
         """
         Plots the structure functions.
         """
@@ -207,21 +227,21 @@ class StructureFunction(MultiResolutionQuantityBase):
             counter += 1
 
             if len(self.zeta) > 0:
-                # plot regression line
-                x0 = self.j1
-                x1 = self.j2
-                slope = self.zeta[ind_q]
-                intercept = self.intercept[ind_q]
+
+                x0, x1 = self.scaling_ranges[scaling_range]
+                slope = self.zeta[ind_q, scaling_range, 0]
+                intercept = self.intercept[ind_q, scaling_range, 0]
+
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
 
                 if struct_boot is not None:
-                    CI = struct_boot.CI_s_q(q)
+                    CI = struct_boot.CIE_s_q(self)(q)[scaling_range]
                     CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
                 else:
                     CI_legend = ""
 
-                legend = rf'$s_{{{q:.2f}}}$ = {slope[0]:.3f}' + CI_legend
+                legend = rf'$s_{{{q:.2f}}}$ = {slope:.3f}' + CI_legend
 
                 ax.plot([x0, x1], [y0, y1], color='k',
                         linestyle='-', linewidth=2, label=legend, zorder=0)
@@ -229,6 +249,7 @@ class StructureFunction(MultiResolutionQuantityBase):
 
         for j in range(counter, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
+
         plt.draw()
 
         if filename is not None:

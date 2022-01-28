@@ -34,10 +34,10 @@ def _estimate_eta_p(wt_coefs, p_exp, j1, j2_eff, weighted):
 
     wavelet_structure = StructureFunction(wt_coefs,
                                           np.array([p_exp]),
-                                          j1, j2_eff,
+                                          [(j1, j2_eff)],
                                           weighted)
 
-    return wavelet_structure.zeta[0]
+    return wavelet_structure.zeta[0, 0]
 
 
 def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
@@ -64,6 +64,8 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
     zqhqcorr = np.log2((1 - np.power(2., -JJ0[None, :] * eta_p[:, None]))
                        / (1 - np.power(2., -eta_p[:, None])))
     ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
+
+    # import ipdb; ipdb.set_trace()
 
     # ZPJCorr shape (n_rep, n_level)
 
