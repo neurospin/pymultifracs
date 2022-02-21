@@ -99,7 +99,7 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
     dwt_spec = MultifractalSpectrum.from_dict(param_dwt)
 
     # pylint: disable=unbalanced-tuple-unpacking
-    dwt_hmin, _ = estimate_hmin(wt_coefs, j1, j2, weighted)
+    dwt_hmin, _ = estimate_hmin(wt_coefs, scaling_ranges, weighted)
 
     dwt = MFractalVar(dwt_struct, dwt_cumul, dwt_spec, dwt_hmin)
 
@@ -115,7 +115,7 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
         lwt_spec = MultifractalSpectrum.from_dict(param_lwt)
 
         # pylint: disable=unbalanced-tuple-unpacking
-        lwt_hmin, _ = estimate_hmin(wt_leaders, j1, j2, weighted)
+        lwt_hmin, _ = estimate_hmin(wt_leaders, scaling_ranges, weighted)
 
         lwt = MFractalVar(lwt_struct, lwt_cumul, lwt_spec, lwt_hmin)
 
@@ -138,7 +138,8 @@ def bootstrapped_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q, R,
                                      weighted, n_cumul, q)
 
 
-def minimal_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q):
+def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
+                        n_cumul, q):
     """Perform multifractal analysis, returning only what is needed for H and
     M estimation.
 
@@ -175,12 +176,18 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, j1, weighted, n_cumul, q):
     if isinstance(q, list):
         q = np.array(q)
 
+    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
+
+    j1 = min([sr[0] for sr in scaling_ranges])
+    j2 = max([sr[1] for sr in scaling_ranges])
+
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
         'j1': j1,
-        'j2': wt_coefs.j2_eff(),
+        'j2': j2,
         'weighted': weighted,
+        'scaling_ranges': scaling_ranges
     }
 
     dwt_struct = StructureFunction.from_dict({'mrq': wt_coefs, **parameters})

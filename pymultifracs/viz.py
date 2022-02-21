@@ -136,7 +136,8 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
 
         ax = axes[ind_m % nrow][ind_m // nrow]
 
-        ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
+        # import ipdb; ipdb.set_trace()
+        ax.errorbar(x[2:], y[2:, 0], CI[:, 2:], fmt='r--.', zorder=-1)
         ax.set_xlabel('j')
         ax.set_ylabel('m = ' + str(m))
         # ax.grid()
@@ -154,7 +155,9 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
 
             if cm_boot is not None:
                 CI = getattr(cm_boot, f"CIE_c{m}")(cm)
-                CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
+                # import ipdb; ipdb.set_trace()
+                CI_legend = (f"; [{CI[scaling_range, 0]:.3f}, "
+                             f"{CI[scaling_range, 1]:.3f}]")
             else:
                 CI_legend = ""
 

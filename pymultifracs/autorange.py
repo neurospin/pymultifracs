@@ -87,4 +87,5 @@ def compute_R(mrq, moment, slope, intercept):
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):
 
-    return [(j1, j2) for (j1, j2) in scaling_ranges if j2 <= j2_eff]
+    return np.array([(j1, j2) for (j1, j2) in scaling_ranges
+                     if j2 <= j2_eff and j1 < j2 - 2])
