@@ -4,7 +4,6 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
-from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt

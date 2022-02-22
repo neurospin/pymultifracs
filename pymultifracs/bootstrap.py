@@ -26,8 +26,8 @@ def estimate_confidence_interval_from_bootstrap(
     This function estimates a confidence interval of an estimator given a
     variety of estimates of the same statistic from resampled data.
     Args:
-        bootstrap_estimates: a NumPy array of dimension (B, ) containing the statistic
-                    computed from resampled data
+        bootstrap_estimates: a NumPy array of dimension (B, ) containing the
+                             statistic computed from resampled data
         confidence_level: the confidence level associated with the confidence
                           interval in percent (i.e. between 0 and 100)
     """
@@ -125,7 +125,8 @@ def bootstrap(mrq, R, wt_name):
     max_scale = max_scale_bootstrap(mrq, filt_len)
 
     values = {
-        scale: circular_block_bootstrap(data[~np.isnan(data)], filt_len, R).transpose()
+        scale: circular_block_bootstrap(
+            data[~np.isnan(data)], filt_len, R).transpose()
         for scale, data in mrq.values.items() if scale <= max_scale
     }
 
@@ -146,7 +147,7 @@ def bootstrap(mrq, R, wt_name):
 
 def _general_leader_bootstrap_loop(indices, block_length, max_scale):
 
-    if block_length / (2 ** max_scale - 1) >1:
+    if block_length / (2 ** max_scale - 1) > 1:
         raise ValueError('block length is too large w/ regards to max scale')
 
     indices_out = {}

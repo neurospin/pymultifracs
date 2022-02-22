@@ -56,7 +56,6 @@ def estimate_hmin(wt_coefs, scaling_ranges, weighted, warn=True,
     #     sup_c_j = np.nanmax(c_j, axis=0)
     #     sup_coeffs[j-j1] = sup_c_j
 
-
     # x, y and weights for linear regression
     # y = np.log2(sup_coeffs)
     # if weighted:

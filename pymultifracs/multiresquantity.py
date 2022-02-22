@@ -4,7 +4,6 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field
-from gettext import find
 import inspect
 
 import numpy as np
@@ -72,12 +71,12 @@ class MultiResolutionQuantityBase:
 
         if self.formalism == 'wavelet coef':
 
-            print("Using coef bootstrapping technique")
+            # print("Using coef bootstrapping technique")
             return bootstrap(self, R, wt_name)
 
         elif 'leader' in self.formalism:
 
-            print("Using leader bootstrapping technique")
+            # print("Using leader bootstrapping technique")
 
             block_length = get_filter_length(wt_name)
             max_scale = max_scale_bootstrap(self, block_length)
