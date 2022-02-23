@@ -270,7 +270,7 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
 
 
 def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
-                     gamint=0.0, normalization=1, weighted=True,
+                     gamint=0.0, normalization=1, weighted=None,
                      j2_reg=None):
     """
     Compute wavelet coefficient and wavelet leaders.
@@ -307,7 +307,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
     normalization : int
         Norm to use on the wavelet coefficients, see notes for more details.
 
-    weighted : bool
+    weighted : str | None
         Whether to perform weighted linear regression, used only when
         computing p-leaders for when estimating :math:`\\eta_p` in p-leader
         correction
@@ -407,7 +407,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     if formalism == 'wavelet p-leader':
         wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
-                                             j1, j2_eff, weighted, max_level)
+                                             j1, j2_eff, None, max_level)
     else:
         eta_p = None
 

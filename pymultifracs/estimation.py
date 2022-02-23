@@ -9,72 +9,81 @@ import matplotlib.pyplot as plt
 
 # from sklearn.linear_model import LinearRegression
 
-from .utils import linear_regression
+from .regression import linear_regression, prepare_regression, prepare_weights
 from .structurefunction import StructureFunction
 
 
-def estimate_hmin(wt_coefs, scaling_ranges, weighted, warn=True,
+def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
                   return_y=False):
     """
     Estimate the value of the uniform regularity exponent hmin using
     wavelet coefficients.
     """
 
-    n_ranges = len(scaling_ranges)
-    j = np.array([*wt_coefs.values])
-    j_min = j.min()
-    j_max = j.max()
+    x, n_ranges, j_min, j_max = prepare_regression(
+        scaling_ranges, np.array([*mrq.values])
+    )
+
+    if weighted == 'bootstrap' and mrq.bootstrapped_mrq is not None:
+
+        std = np.std(
+            mrq.bootstrapped_mrq.sup_coeffs(n_ranges, j_max, j_min,
+                                            scaling_ranges),
+            axis=-1)[None, :]
+
+    else:
+        std = None
+
+    w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
+                        scaling_ranges, std=std)
+
+    # n_ranges = len(scaling_ranges)
+    # j = np.array([*wt_coefs.values])
+    # j_min = j.min()
+    # j_max = j.max()
 
     # shape (n_scales, n_scaling_ranges, n_rep)
-    x = np.arange(j_min, j_max + 1)[:, None, None]
+    # x = np.arange(j_min, j_max + 1)[:, None, None]
 
     # shape n_scales, n_scaling_ranges, n_rep
-    sup_coeffs = np.ones((len(x), len(scaling_ranges), wt_coefs.nrep))
 
-    for i, (j1, j2) in enumerate(scaling_ranges):
-        for j in range(j1, j2 + 1):
-            c_j = np.abs(wt_coefs.values[j])
-            sup_c_j = np.nanmax(c_j, axis=0)
-            sup_coeffs[j-j_min, i] = sup_c_j
+    sup_coeffs = mrq.sup_coeffs(n_ranges, j_max, j_min, scaling_ranges)
 
-    y = np.log2(sup_coeffs)
+    # sup_coeffs = np.ones((len(x), n_ranges, wt_coefs.nrep))
 
-    if weighted:
-        nj = np.tile(wt_coefs.get_nj_interv(j_min, j_max)[:, None, :],
-                     (1, n_ranges, 1))
-    else:
-        nj = np.ones((len(x), n_ranges, 1))
+    # for i, (j1, j2) in enumerate(scaling_ranges):
+    #     for j in range(j1, j2 + 1):
+    #         c_j = np.abs(wt_coefs.values[j])
+    #         sup_c_j = np.nanmax(c_j, axis=0)
+    #         sup_coeffs[j-j_min, i] = sup_c_j
 
-    for i, (j1, j2) in enumerate(scaling_ranges):
-        nj[j2-j_min+1:, i] = 0
-        nj[:j1-j_min, i] = 0
+    y = np.log2(sup_coeffs)[None, :]
 
-    # sup_coeffs = np.zeros((j2_eff - j1 + 1, wt_coefs.nrep))
-
-    # for j in range(j1, j2_eff+1):
-    #     c_j = np.abs(wt_coefs.values[j])
-    #     sup_c_j = np.nanmax(c_j, axis=0)
-    #     sup_coeffs[j-j1] = sup_c_j
-
-    # x, y and weights for linear regression
-    # y = np.log2(sup_coeffs)
     # if weighted:
-    #     nj = wt_coefs.get_nj_interv(j1, j2_eff)
-    #     # nj = np.tile(nj[:, None], (1, sup_coeffs.shape[-1]))
+    #     nj = np.tile(wt_coefs.get_nj_interv(j_min, j_max)[:, None, :],
+    #                  (1, n_ranges, 1))
     # else:
-    #     nj = np.ones((len(x), sup_coeffs.shape[-1]))
+    #     nj = np.ones((len(x), n_ranges, 1))
 
-    slope, intercept = linear_regression(x, y, nj)
-    hmin = slope
+    # for i, (j1, j2) in enumerate(scaling_ranges):
+    #     nj[j2-j_min+1:, i] = 0
+    #     nj[:j1-j_min, i] = 0
+
+    try:
+        slope, intercept = linear_regression(x, y, w)
+    except AssertionError:
+        import ipdb; ipdb.set_trace()
+
+    hmin = slope[0]
 
     # warning
     if 0 in hmin and warn:
         warnings.warn(f"h_min = {hmin} < 0. gamint should be increased")
 
     if return_y:
-        return hmin, intercept, y
+        return hmin, intercept[0], y[0]
 
-    return hmin, intercept
+    return hmin, intercept[0]
 
 
 def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):

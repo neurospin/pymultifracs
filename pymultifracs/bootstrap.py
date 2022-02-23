@@ -40,6 +40,79 @@ def estimate_confidence_interval_from_bootstrap(
     return bootstrap_confidence_interval.transpose()
 
 
+def get_empirical_variance(mrq, ref_mrq, name):
+
+    if mrq is None:
+        return None
+
+    attribute = getattr(mrq, name)
+    ref_attribute = getattr(ref_mrq, name)
+
+    if callable(attribute):
+
+        def wrapper(*args, **kwargs):
+
+            var = np.mean((attribute(*args, **kwargs)
+                           - ref_attribute(*args, **kwargs)) ** 2, axis=-1)
+
+            return var
+
+        return wrapper
+
+    # attribute: shape (n_ranges, n_rep) if c_m or s_q
+    #            shape (n_scales, n_rep) if C_m or S_q
+    var = np.mean((attribute - ref_attribute) ** 2, axis=-1)
+
+    return var
+
+
+def get_variance(mrq, name):
+
+    if mrq is None:
+        return None
+
+    attribute = getattr(mrq, name)
+
+    if callable(attribute):
+
+        def wrapper(*args, **kwargs):
+
+            var = np.var(attribute(*args, **kwargs), ddof=1, axis=-1)
+
+            return var
+
+        return wrapper
+
+    # attribute: shape (n_ranges, n_rep) if c_m or s_q
+    #            shape (n_scales, n_rep) if C_m or S_q
+    var = np.var((attribute), ddof=1, axis=-1)
+
+    return var
+
+
+def get_std(mrq, name):
+
+    if mrq is None:
+        return None
+
+    attribute = getattr(mrq, name)
+
+    if callable(attribute):
+
+        def wrapper(*args, **kwargs):
+
+            std = np.std(attribute(*args, **kwargs), ddof=1, axis=-1)
+
+            return std
+
+        return wrapper
+
+    # attribute: shape (n_ranges, n_rep)
+    std = np.std(attribute, axis=-1, ddof=1)
+
+    return std
+
+
 def get_confidence_interval(mrq, name):
 
     if mrq is None:

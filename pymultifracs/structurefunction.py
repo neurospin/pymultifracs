@@ -9,13 +9,16 @@ from typing import List, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import linear_regression, fast_power, prepare_regression
+
+from .ScalingFunction import ScalingFunction
+from .regression import linear_regression, prepare_regression, prepare_weights
+from .utils import fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
 
 @dataclass
-class StructureFunction(MultiResolutionQuantityBase):
+class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
     """
     Computes and analyzes structure functions
 
@@ -29,7 +32,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted: bool
+    weighted: str | None
         Whether to used weighted linear regressions.
 
     Attributes
@@ -46,7 +49,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted : bool
+    weighted : str | None
         Whether weighted regression was performed.
     q : ndarray, shape (n_exponents,)
         Exponents for which the structure functions have been computed
@@ -65,7 +68,8 @@ class StructureFunction(MultiResolutionQuantityBase):
     mrq: InitVar[MultiResolutionQuantity]
     q: np.array
     scaling_ranges: List[Tuple[int]]
-    weighted: bool
+    weighted: str = None
+    bootstrapped_sf: MultiResolutionQuantityBase = None
     j: np.array = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
@@ -79,6 +83,7 @@ class StructureFunction(MultiResolutionQuantityBase):
         self.nrep = mrq.nrep
         self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
+        self.bootstrapped_mrq = self.bootstrapped_sf
 
         self._compute(mrq)
         self._compute_zeta()
@@ -105,24 +110,64 @@ class StructureFunction(MultiResolutionQuantityBase):
         Compute the value of the scale function zeta(q) for all q
         """
 
-        x, w, n_ranges, j_min, j_max = prepare_regression(
-            self, self.scaling_ranges, self.j, weighted=self.weighted)
+        x, n_ranges, j_min, j_max = prepare_regression(
+            self.scaling_ranges, self.j)
 
         # shape (n_moment, n_scaling_ranges, n_rep)
         self.zeta = np.zeros((len(self.q), n_ranges, self.nrep))
         self.intercept = np.zeros_like(self.zeta)
 
-        for ind_q in range(len(self.q)):
+        # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+        y = self.logvalues[:, j_min-1:j_max, None, :]
 
-            y = self.logvalues[ind_q, j_min-1:j_max, None, :]
+        if self.weighted == 'bootstrap':
 
-            slope, intercept = linear_regression(x, y, w)
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_sf is None:
+                std = self.STD_logvalues[:, j_min-1:j_max]
+                # std = getattr(self, "STD_S_q")(q)
 
-            self.zeta[ind_q] = slope
-            self.intercept[ind_q] = intercept
+            else:
+                std = self.bootstrapped_sf.STD_logvalues[:, j_min-1:j_max]
+                # std = getattr(self.bootstrapped_sf, "STD_S_q")(q)
+
+        else:
+            std = None
+
+        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                       self.scaling_ranges, std)
+
+        try:
+            self.zeta, self.intercept = linear_regression(x, y,self.weights)
+        except AssertionError:
+            import ipdb; ipdb.set_trace()
+
+        # for ind_q, q in enumerate(self.q):
+
+        #     if self.weighted == 'bootstrap':
+
+        #         # case where self is the bootstrapped mrq
+        #         if self.bootstrapped_sf is None:
+        #             std = getattr(self, "STD_S_q")(q)
+
+        #         else:
+        #             std = getattr(self.bootstrapped_sf, "STD_S_q")(q)
+
+        #     else:
+        #         std = None
+
+        #     self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+        #                                    self.scaling_ranges, std)
+
+        #     y = self.logvalues[ind_q, j_min-1:j_max, None, :]
+
+        #     slope, intercept = linear_regression(x, y, self.weights)
+
+        #     self.zeta[ind_q] = slope
+        #     self.intercept[ind_q] = intercept
 
     def compute_R(self):
-        return super()._compute_R(self.logvalues, self.zeta, self.intercept)
+        return super()._compute_R(self.logvalues, self.zeta, self.intercept, self.weights)
 
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
@@ -148,6 +193,8 @@ class StructureFunction(MultiResolutionQuantityBase):
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
+        
+        return self.__getattribute__(name)
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
              ignore_q0=True, figsize=None, struct_boot=None, scaling_range=0):

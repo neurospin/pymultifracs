@@ -20,7 +20,7 @@ class BiCumulants(MultiResolutionQuantityBase):
     n_cumul: int
     j1: int
     j2: int
-    weighted: bool
+    weighted: str = None
     j: np.array = field(init=False)
     m: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)

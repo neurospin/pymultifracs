@@ -9,15 +9,18 @@ from typing import List, Tuple
 import numpy as np
 from scipy.special import binom as binomial_coefficient
 
+
 from .viz import plot_cumulants
-from .utils import linear_regression, fast_power
+from .ScalingFunction import ScalingFunction
+from .regression import linear_regression, prepare_regression, prepare_weights
+from .utils import fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 # from .viz import plot_multiscale
 
 
 @dataclass
-class Cumulants(MultiResolutionQuantityBase):
+class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     r"""
     Computes and analyzes cumulants
 
@@ -31,7 +34,7 @@ class Cumulants(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted: bool
+    weighted: str | None
         Whether to used weighted linear regressions.
 
 
@@ -51,7 +54,7 @@ class Cumulants(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted : bool
+    weighted : str | None
         Whether weighted regression was performed.
     m : ndarray, shape (n_cumulants,)
         List of the m values (cumulants), in order presented in the value
@@ -72,7 +75,8 @@ class Cumulants(MultiResolutionQuantityBase):
     mrq: InitVar[MultiResolutionQuantity]
     n_cumul: int
     scaling_ranges: List[Tuple[int]]
-    weighted: bool
+    bootstrapped_cm: MultiResolutionQuantityBase = None
+    weighted: str = None
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
@@ -85,6 +89,7 @@ class Cumulants(MultiResolutionQuantityBase):
         self.nj = mrq.nj
         self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
+        self.bootstrapped_mrq = self.bootstrapped_cm
 
         self.m = np.arange(1, self.n_cumul+1)
         self.values = np.zeros((len(self.m), len(self.j), self.nrep))
@@ -130,50 +135,75 @@ class Cumulants(MultiResolutionQuantityBase):
         (angular coefficients of the curves j->log[C_p(j)])
         """
 
-        n_ranges = len(self.scaling_ranges)
-        j_min = self.j.min()
-        j_max = self.j.max()
+        x, n_ranges, j_min, j_max = prepare_regression(
+            self.scaling_ranges, self.j
+        )
 
         self.log_cumulants = np.zeros((len(self.m), n_ranges, self.nrep))
         self.var_log_cumulants = np.zeros_like(self.log_cumulants)
         self.slope = np.zeros_like(self.log_cumulants)
         self.intercept = np.zeros_like(self.log_cumulants)
+        self.weights = np.zeros((len(self.m), j_max - j_min + 1, n_ranges, self.nrep))
 
         log2_e = np.log2(np.exp(1))
 
-        # shape (n_scales, n_scaling_ranges, n_rep)
-        x = np.arange(j_min, j_max + 1)[:, None, None]
+        # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+        y = self.values[:, j_min - 1:j_max, None, :]
 
-        if self.weighted:
-            nj = np.tile(self.get_nj_interv(j_min, j_max)[:, None, :],
-                         (1, n_ranges, 1))
+        if self.weighted == 'bootstrap':
+
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_cm is None:
+                std = self.STD_values[:, j_min-1:j_max]
+                # std = getattr(self, f"STD_C{m}")
+
+            else:
+                std = self.bootstrapped_cm.STD_values[:, j_min-1:j_max]
+                # std = getattr(self.bootstrapped_cm, f"STD_C{m}")
+
         else:
-            nj = np.ones((len(x), n_ranges, 1))
+            std = None
 
-        for i, (j1, j2) in enumerate(self.scaling_ranges):
-            nj[j2-j_min+1:, i] = 0
-            nj[:j1-j_min, i] = 0
+        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                       self.scaling_ranges, std)
 
-            # TODO check indices
+        # pylint: disable=unbalanced-tuple-unpacking
+        self.slope, self.intercept, self.var_log_cumulants = \
+            linear_regression(x, y, self.weights, return_variance=True)
 
-        # ind_j1 = self.j1-1
-        # ind_j2 = self.j2-1
+        self.var_log_cumulants *= (log2_e ** 2)
 
-        for ind_m, _ in enumerate(self.m):
+        # for ind_m, m in enumerate(self.m):
 
-            y = self.values[ind_m, j_min-1:j_max, None, :]
+        #     # y = self.values[ind_m, j_min-1:j_max, None, :]
 
-            # pylint: disable=unbalanced-tuple-unpacking
-            slope, intercept, var_slope = \
-                linear_regression(x, y, nj, return_variance=True)
+        #     if self.weighted == 'bootstrap':
 
-            self.log_cumulants[ind_m] = slope*log2_e
-            self.var_log_cumulants[ind_m] = (log2_e**2)*var_slope
-            self.slope[ind_m] = slope
-            self.intercept[ind_m] = intercept
+        #         # case where self is the bootstrapped mrq
+        #         if self.bootstrapped_cm is None:
+        #             std = getattr(self, f"STD_C{m}")
+
+        #         else:
+        #             std = getattr(self.bootstrapped_cm, f"STD_C{m}")
+
+        #     else:
+        #         std = None
+
+        #     self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+        #                                    self.scaling_ranges, std)
+
+        #     # pylint: disable=unbalanced-tuple-unpacking
+        #     slope, intercept, var_slope = \
+        #         linear_regression(x, y, self.weights, return_variance=True)
+
+        #     self.var_log_cumulants[ind_m] = (log2_e ** 2) * var_slope
+        #     self.slope[ind_m] = slope
+        #     self.intercept[ind_m] = intercept
+
+        self.log_cumulants = log2_e * self.slope
 
     def compute_R(self):
-        return super()._compute_R(self.values, self.slope, self.intercept)
+        return super()._compute_R(self.values, self.slope, self.intercept, self.weights)
 
     def __getattr__(self, name):
 
@@ -191,6 +221,6 @@ class Cumulants(MultiResolutionQuantityBase):
 
         return self.__getattribute__(name)
 
-    def plot(self, fignum=1, nrow=3, filename=None, cm_boot=None,
+    def plot(self, fignum=1, nrow=3, filename=None,
              scaling_range=0):
-        plot_cumulants(self, fignum, nrow, filename, cm_boot, scaling_range)
+        plot_cumulants(self, fignum, nrow, filename, scaling_range)

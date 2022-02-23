@@ -253,7 +253,7 @@ def wavelet_estimation(signal, fs, n_moments, j2=None):
                                  normalization=1,
                                  wt_name=f'db{n_moments}',
                                  gamint=0.5,
-                                 weighted=False,
+                                 weighted=None,
                                  p_exp=None)
 
     # for arr in transform.wt_coefs.values.values():

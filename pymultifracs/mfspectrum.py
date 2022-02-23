@@ -9,14 +9,16 @@ from typing import List, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import linear_regression, fast_power, fixednansum,\
-    prepare_regression
+
+from .ScalingFunction import ScalingFunction
+from .regression import linear_regression, prepare_regression, prepare_weights
+from .utils import fast_power, fixednansum
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
 
 @dataclass
-class MultifractalSpectrum(MultiResolutionQuantityBase):
+class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
     """
     Estimates the Multifractal Spectrum
 
@@ -32,7 +34,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted : bool
+    weighted : str | None
         Whether to used weighted linear regressions.
 
     Attributes
@@ -49,7 +51,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Lower-bound of the scale support for the linear regressions.
     j2 : int
         Upper-bound of the scale support for the linear regressions.
-    weighted : bool
+    weighted : str | None
         Whether weighted regression was performed.
     q : ndarray, shape(n_exponents,)
         Exponents used construct the multifractal spectrum
@@ -76,8 +78,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
     mrq: InitVar[MultiResolutionQuantity]
     j: np.array = field(init=False)
     scaling_ranges: List[Tuple[int]]
-    weighted: bool
     q: np.array
+    bootstrapped_mfs: MultiResolutionQuantityBase = None
+    weighted: str = None
     Dq: np.array = field(init=False)
     hq: np.array = field(init=False)
     U: np.array = field(init=False)
@@ -89,6 +92,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         self.nj = mrq.nj
         self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
+        self.bootstrapped_mrq = self.bootstrapped_mfs
 
         self._compute(mrq)
 
@@ -98,8 +102,10 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         """
 
         # 1. Compute U(j,q) and V(j, q)
-        U = np.zeros((len(self.j), len(self.q), self.nrep))
-        V = np.zeros((len(self.j), len(self.q), self.nrep))
+
+        # shape (n_q, n_scales, n_rep)
+        U = np.zeros((len(self.q), len(self.j), self.nrep))
+        V = np.zeros_like(U)
 
         for ind_j, j in enumerate(self.j):
             nj = mrq.nj[j]
@@ -111,15 +117,15 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
             # np.nan ** 0 = 1.0, adressed here
             # temp[:, ixd_nan] = np.nan
             R_j = temp / np.nansum(temp, axis=1)[:, None, :]
-            V[ind_j, :] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
-            U[ind_j, :] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
-                                                    axis=1)
+            V[:, ind_j, :] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
+            U[:, ind_j, :] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
+                                                       axis=1)
 
         self.U = U
         self.V = V
 
-        x, w, n_ranges, j_min, j_max = prepare_regression(
-            self, self.scaling_ranges, self.j, weighted=self.weighted
+        x, n_ranges, j_min, j_max = prepare_regression(
+            self.scaling_ranges, self.j
         )
 
         # 2. Compute D(q) and h(q) via linear regressions
@@ -137,20 +143,81 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         # else:
         #    wj = np.ones((len(x), self.nrep))
 
-        for ind_q in range(len(self.q)):
+        # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+        y = U[:, j_min - 1:j_max, None, :]
+        z = V[:, j_min - 1:j_max, None, :]
 
-            # shape (n_scale, n_scaling_ranges, n_rep)
-            y = U[j_min-1:j_max, None, ind_q, :]
-            z = V[j_min-1:j_max, None, ind_q, :]
+        if self.weighted == 'bootstrap':
 
-            slope_1, _ = linear_regression(x, y, w)
-            slope_2, _ = linear_regression(x, z, w)
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_mfs is None:
+                std_V = getattr(self, "STD_V")[:, j_min-1:j_max]
+                std_U = getattr(self, "STD_U")[:, j_min-1:j_max]
 
-            Dq[ind_q] = 1 + slope_1
-            hq[ind_q] = slope_2
+            else:
+                std_V = getattr(self.bootstrapped_mfs, "STD_V")[:, j_min-1:j_max]
+                std_U = getattr(self.bootstrapped_mfs, "STD_U")[:, j_min-1:j_max]
+
+        else:
+            std_V = None
+            std_U = None
+
+        self.weights = {}
+
+        self.weights['w_V'] = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                              self.scaling_ranges, std_V)
+        self.weights['w_U'] = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                              self.scaling_ranges, std_U)
+
+        slope_1, _ = linear_regression(x, y, self.weights['w_U'])
+        slope_2, _ = linear_regression(x, z, self.weights['w_V'])
+
+        Dq = 1 + slope_1
+        hq = slope_2
+
+        # for ind_q, q in enumerate(self.q):
+
+        #     if self.weighted == 'bootstrap':
+
+        #         # case where self is the bootstrapped mrq
+        #         if self.bootstrapped_mfs is None:
+        #             std_V = getattr(self, "STD_V_q")(q)[:, j_min-1:j_max]
+        #             std_U = getattr(self, "STD_U_q")(q)[:, j_min-1:j_max]
+
+        #         else:
+        #             std_V = getattr(self.bootstrapped_mfs, "STD_V_q")(q)[:, j_min-1:j_max]
+        #             std_U = getattr(self.bootstrapped_mfs, "STD_U_q")(q)[:, j_min-1:j_max]
+
+        #     else:
+        #         std_V = None
+        #         std_U = None
+
+        #     self.weights = {}
+
+        #     self.weights['w_V'] = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+        #                                           self.scaling_ranges, std_V)
+        #     self.weights['w_U'] = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+        #                                           self.scaling_ranges, std_U)
+
+        #     # shape (n_scale, n_scaling_ranges, n_rep)
+        #     y = U[j_min-1:j_max, None, ind_q, :]
+        #     z = V[j_min-1:j_max, None, ind_q, :]
+
+        #     import ipdb; ipdb.set_trace()
+        #     slope_1, _ = linear_regression(x, y, self.weights['w_U'])
+        #     slope_2, _ = linear_regression(x, z, self.weights['w_V'])
+
+        #     Dq[ind_q] = 1 + slope_1
+        #     hq[ind_q] = slope_2
 
         self.Dq = Dq
         self.hq = hq
+
+    def V_q(self, q):
+        return self.V[self.q == q][0]
+
+    def U_q(self, q):
+        return self.U[self.q == q][0]
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
              fmt='ko-', mfs_boot=None, **plot_kwargs):

@@ -42,7 +42,7 @@ def bivariate_analysis(WT1, WT2, j1, weighted, n_cumul, q1, q2):
 
 
 def bivariate_analysis_full(signal1, signal2, j1, j2, normalization=1,
-                            gamint=0.0, weighted=True, wt_name='db3',
+                            gamint=0.0, weighted=None, wt_name='db3',
                             p_exp=None, q1=None, q2=None, n_cumul=3):
 
     wt_param = {

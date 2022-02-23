@@ -91,8 +91,7 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
-def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
-                   scaling_range=0):
+def plot_cumulants(cm, fignum=1, nrow=3, filename=None, scaling_range=0):
     """
     Plots the cumulants.
     Args:
@@ -121,10 +120,10 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
 
     for ind_m, m in enumerate(cm.m):
 
-        y = getattr(cm, f'C{m}')[2:, 0]
+        y = getattr(cm, f'C{m}')
 
-        if cm_boot is not None:
-            CI = getattr(cm_boot, f'CIE_C{m}')(cm)
+        if cm.bootstrapped_cm is not None:
+            CI = getattr(cm, f'CIE_C{m}')
 
             CI -= y
             CI[:, 1] *= -1
@@ -134,9 +133,10 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
         else:
             CI = None
 
+        y = y[2:, 0]
+
         ax = axes[ind_m % nrow][ind_m // nrow]
 
-        # import ipdb; ipdb.set_trace()
         ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
         ax.set_xlabel('j')
         ax.set_ylabel('m = ' + str(m))
@@ -153,11 +153,10 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
             y0 = slope*x0 + intercept
             y1 = slope*x1 + intercept
 
-            if cm_boot is not None:
-                CI = getattr(cm_boot, f"CIE_c{m}")(cm)
-                # import ipdb; ipdb.set_trace()
-                CI_legend = (f"; [{CI[scaling_range, 0]:.3f}, "
-                             f"{CI[scaling_range, 1]:.3f}]")
+            if cm.bootstrapped_cm is not None:
+                CI = getattr(cm, f"CIE_c{m}")
+                CI_legend = (f"; [{CI[scaling_range, 1]:.3f}, "
+                             f"{CI[scaling_range, 0]:.3f}]")
             else:
                 CI_legend = ""
 

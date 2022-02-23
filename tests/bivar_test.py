@@ -39,7 +39,7 @@ def test_bivariate():
 
         dwt, lwt = bivariate_analysis_full(X[:, 0], X[:, 1], p_exp=p_exp,
                                            j1=j1, j2=j2, gamint=gamint,
-                                           weighted=True, n_cumul=2,
+                                           weighted=None, n_cumul=2,
                                            q1=np.array([0, 1, 2]),
                                            q2=np.array([0, 1, 2]))
 

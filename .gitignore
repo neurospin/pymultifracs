@@ -34,7 +34,6 @@ examples/Demo-mne.ipynb
 MF_Synthesis/
 
 notebooks/figures/
-notebooks/*.ipynb
 
 pymultifracs/todo.txt
 

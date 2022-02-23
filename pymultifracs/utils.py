@@ -3,10 +3,36 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
+from collections import namedtuple
 import warnings
 
 import numpy as np
 import pywt
+
+
+MFractalData = namedtuple('MFractalData', 'dwt lwt')
+"""Aggregates wavelet coef-based and wavelet-leader based outputs of mfa
+
+Attributes
+----------
+dwt : MFractalVar
+    Wavelet coef-based estimates
+lwt : MFractalVar
+    Wavelet leader-based estimates, if applicable (p_exp was not None)
+"""
+
+MFractalVar = namedtuple('MFractalVar',
+                         'structure cumulants spectrum hmin bootstrap')
+"""Aggregates the output of multifractal analysis
+
+Attributes
+----------
+strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
+cumulants : :class:`~pymultifracs.cumulants.Cumulants`
+spectrum : :class:`~pymultifracs.mfspectrum.MultifractalSpectrum`
+hmin : float
+    Estimated minimum value of h
+"""
 
 
 def scale2freq(scale, sfreq):
@@ -59,78 +85,6 @@ def fast_power(array, exponent):
     return np.power(array, exponent)
 
 
-stat2fun = {
-    'mean': np.mean,
-    'median': np.median,
-    'min': np.nanmin,
-    'max': np.nanmax}
-
-
-def prepare_regression(mrq, scaling_ranges, j, weighted=None):
-
-    n_ranges = len(scaling_ranges)
-    j_min = j.min()
-    j_max = j.max()
-
-    # shape (n_scales, n_scaling_ranges, n_rep)
-    x = np.arange(j_min, j_max + 1)[:, None, None]
-
-    if weighted == 'Nj':
-        w = np.tile(mrq.get_nj_interv(j_min, j_max)[:, None, :],
-                     (1, n_ranges, 1))
-    else:  # weighted is None
-        w = np.ones((len(x), n_ranges, 1))
-
-    for i, (j1, j2) in enumerate(mrq.scaling_ranges):
-        w[j2-j_min+1:, i] = 0
-        w[:j1-j_min, i] = 0
-
-    return x, w, n_ranges, j_min, j_max
-
-
-def linear_regression(x, y, nj, return_variance=False):
-    """
-    Performs a (weighted or not) linear regression.
-    Finds 'a' that minimizes the error:
-        sum_j { n[j]*(y[j] - (a*x[j] + b))**2 }
-
-    Args:
-        x, y : regression variables
-        nj: list containg the weigths
-    Returns:
-        a, b: angular coefficient and intercept
-
-    (!!!!!!!!!!!!!)
-    IMPORTANT:
-
-    return_variance NOT DEBUGGED
-    (!!!!!!!!!!!!!)
-    """
-
-    # bj = np.array(nj, dtype=np.float)
-    assert isinstance(nj, np.ndarray)
-    assert len(nj) == len(x)
-
-    V_0 = np.sum(nj, axis=0)
-    V_1 = np.sum(nj * x, axis=0)
-    V_2 = np.sum(nj * (x**2), axis=0)
-
-    weights_slope = nj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
-    weights_intercept = nj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)
-
-    a = np.sum(weights_slope*y, axis=0)
-    b = np.sum(weights_intercept*y, axis=0)
-
-    wt = np.zeros_like(nj)
-    wt[nj != 0] = 1 / nj[nj != 0]
-    var_a = np.sum(wt*weights_slope*weights_slope, axis=0)
-
-    if not return_variance:
-        return a, b
-    else:
-        return a, b, var_a
-
-
 def build_q_log(q_min, q_max, n):
     """
     Build a convenient vector of q values for multifractal analysis
@@ -159,6 +113,13 @@ def build_q_log(q_min, q_max, n):
     q = np.unique(np.sort([*q, *(-q)]))
 
     return q
+
+
+stat2fun = {
+    'mean': np.mean,
+    'median': np.median,
+    'min': np.nanmin,
+    'max': np.nanmax}
 
 
 def fixednansum(a, **kwargs):

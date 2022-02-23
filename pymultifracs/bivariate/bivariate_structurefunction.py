@@ -22,7 +22,7 @@ class BiStructureFunction(MultiResolutionQuantityBase):
     j2: int
     q1: np.ndarray
     q2: np.ndarray
-    weighted: bool
+    weighted: str = None
     j: np.ndarray = field(init=False)
     logvalues: np.ndarray = field(init=False)
     zeta: np.ndarray = field(init=False)
@@ -79,6 +79,8 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         self.intercept = np.zeros(self.zeta.shape)
 
         x = np.arange(self.j1, self.j2+1)[:, None]
+
+        # TODO adapt to new regression factorization
 
         if self.weighted == 1:
             nj = self.get_nj_interv(self.j1, self.j2)

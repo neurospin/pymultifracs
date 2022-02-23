@@ -65,10 +65,7 @@ def find_max_lambda(L):
     return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
 
 
-def compute_R(mrq, moment, slope, intercept):
-
-    j_min = mrq.j.min()
-    j_max = mrq.j.max()
+def compute_R(mrq, moment, slope, intercept, weights, j_min, j_max):
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     moment = moment[:, j_min-1:j_max, None, :]
@@ -76,16 +73,18 @@ def compute_R(mrq, moment, slope, intercept):
     intercept = intercept[:, None, :]
 
     x = np.arange(j_min, j_max + 1)[None, :, None, None]
-    j_mask = np.ones((1, x.shape[1], slope.shape[2], 1))
+    # j_mask = np.ones((1, x.shape[1], slope.shape[2], 1))
 
-    for i, (j1, j2) in enumerate(mrq.scaling_ranges):
-        j_mask[:, j2-j_min+1:, i] = 0
-        j_mask[:, :j1-j_min, i] = 0
+    # for i, (j1, j2) in enumerate(mrq.scaling_ranges):
+    #     j_mask[:, j2-j_min+1:, i] = 0
+    #     j_mask[:, :j1-j_min, i] = 0
 
-    return (j_mask * (moment - x * slope - intercept) ** 2).sum(axis=1)
+    # shape (n_scales, n_scaling_ranges, n_rep) -> (n_moments, n_scales, n_scaling)
+
+    return (weights * (moment - x * slope - intercept) ** 2).sum(axis=1)
 
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):
 
     return np.array([(j1, j2) for (j1, j2) in scaling_ranges
-                     if j2 <= j2_eff and j1 < j2 - 2])
+                     if j2 <= j2_eff and j1 <= j2 - 2])
