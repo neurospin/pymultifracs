@@ -110,12 +110,14 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
     length = len(signal)
     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
     max_level = min(int(np.floor(np.log2(length))), max_level)
-    max_level = min(j2, max_level)
 
-    # Warning if j2 is greater than max_level
-    if j2 is not None and j2 > max_level and warn is not False:
-        warnings.warn("Value of j2 is higher than the maximum allowed level. "
-                      f"Max level and j2 set to {max_level}", UserWarning)
+    if j2 is not None:
+        if j2 > max_level and warn is not False:
+            warnings.warn(
+                "Value of j2 is higher than the maximum allowed level. "
+                f"Max level and j2 set to {max_level}", UserWarning)
+
+        max_level = min(j2, max_level)
 
     return max_level
 

@@ -77,6 +77,10 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
 
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
 
+    if len(scaling_ranges) == 0:
+        raise ValueError("No valid scaling range provided. "
+                         f"Effective max scale is {wt_coefs.j2_eff()}")
+
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
 

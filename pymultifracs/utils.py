@@ -66,6 +66,28 @@ stat2fun = {
     'max': np.nanmax}
 
 
+def prepare_regression(mrq, scaling_ranges, j, weighted=None):
+
+    n_ranges = len(scaling_ranges)
+    j_min = j.min()
+    j_max = j.max()
+
+    # shape (n_scales, n_scaling_ranges, n_rep)
+    x = np.arange(j_min, j_max + 1)[:, None, None]
+
+    if weighted == 'Nj':
+        w = np.tile(mrq.get_nj_interv(j_min, j_max)[:, None, :],
+                     (1, n_ranges, 1))
+    else:  # weighted is None
+        w = np.ones((len(x), n_ranges, 1))
+
+    for i, (j1, j2) in enumerate(mrq.scaling_ranges):
+        w[j2-j_min+1:, i] = 0
+        w[:j1-j_min, i] = 0
+
+    return x, w, n_ranges, j_min, j_max
+
+
 def linear_regression(x, y, nj, return_variance=False):
     """
     Performs a (weighted or not) linear regression.

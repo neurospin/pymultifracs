@@ -117,11 +117,11 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
 
     fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
 
-    x = cm.j
+    x = cm.j[2:]
 
     for ind_m, m in enumerate(cm.m):
 
-        y = getattr(cm, f'C{m}')
+        y = getattr(cm, f'C{m}')[2:, 0]
 
         if cm_boot is not None:
             CI = getattr(cm_boot, f'CIE_C{m}')(cm)
@@ -129,7 +129,7 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
             CI -= y
             CI[:, 1] *= -1
             assert (CI < 0).sum() == 0
-            CI = CI.transpose()
+            CI = CI.transpose()[:, 2:]
 
         else:
             CI = None
@@ -137,7 +137,7 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, cm_boot=None,
         ax = axes[ind_m % nrow][ind_m // nrow]
 
         # import ipdb; ipdb.set_trace()
-        ax.errorbar(x[2:], y[2:, 0], CI[:, 2:], fmt='r--.', zorder=-1)
+        ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
         ax.set_xlabel('j')
         ax.set_ylabel('m = ' + str(m))
         # ax.grid()

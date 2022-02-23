@@ -9,7 +9,7 @@ from typing import List, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import linear_regression, fast_power
+from .utils import linear_regression, fast_power, prepare_regression
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
@@ -105,37 +105,18 @@ class StructureFunction(MultiResolutionQuantityBase):
         Compute the value of the scale function zeta(q) for all q
         """
 
-        n_ranges = len(self.scaling_ranges)
-        j_min = self.j.min()
-        j_max = self.j.max()
+        x, w, n_ranges, j_min, j_max = prepare_regression(
+            self, self.scaling_ranges, self.j, weighted=self.weighted)
 
         # shape (n_moment, n_scaling_ranges, n_rep)
         self.zeta = np.zeros((len(self.q), n_ranges, self.nrep))
         self.intercept = np.zeros_like(self.zeta)
 
-        # shape (n_scales, n_scaling_ranges, n_rep)
-        x = np.arange(j_min, j_max + 1)[:, None, None]
-
-        if self.weighted:
-            # nj = mrq.get_nj_interv(self.j1, self.j2)
-            nj = np.tile(self.get_nj_interv(j_min, j_max)[:, None, :],
-                         (1, n_ranges, 1))
-        else:
-            # nj = np.ones((len(x), self.nrep))
-            nj = np.ones((len(x), n_ranges, 1))
-
-        for i, (j1, j2) in enumerate(self.scaling_ranges):
-            nj[j2-j_min+1:, i] = 0
-            nj[:j1-j_min, i] = 0
-
-        # ind_j1 = self.j1-1
-        # ind_j2 = self.j2-1
-
         for ind_q in range(len(self.q)):
 
             y = self.logvalues[ind_q, j_min-1:j_max, None, :]
 
-            slope, intercept = linear_regression(x, y, nj)
+            slope, intercept = linear_regression(x, y, w)
 
             self.zeta[ind_q] = slope
             self.intercept[ind_q] = intercept
@@ -261,7 +242,7 @@ class StructureFunction(MultiResolutionQuantityBase):
                                  " value is used")
 
         plt.figure(figlabel)
-        plt.plot(self.q, self.zeta, 'k--.')
+        plt.plot(self.q, self.zeta[:, 0, 0], 'k--.')
         plt.xlabel('q')
         plt.ylabel(r'$\zeta(q)$')
         plt.suptitle(self.formalism + ' - scaling function')

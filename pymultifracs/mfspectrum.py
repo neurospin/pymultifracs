@@ -4,11 +4,13 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
+from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import linear_regression, fast_power, fixednansum
+from .utils import linear_regression, fast_power, fixednansum,\
+    prepare_regression
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
@@ -73,8 +75,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
     """
     mrq: InitVar[MultiResolutionQuantity]
     j: np.array = field(init=False)
-    j1: int
-    j2: int
+    scaling_ranges: List[Tuple[int]]
     weighted: bool
     q: np.array
     Dq: np.array = field(init=False)
@@ -96,7 +97,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         Computes the multifractal spectrum (Dq, hq)
         """
 
-        # Compute U(j,q) and V(j, q)
+        # 1. Compute U(j,q) and V(j, q)
         U = np.zeros((len(self.j), len(self.q), self.nrep))
         V = np.zeros((len(self.j), len(self.q), self.nrep))
 
@@ -117,25 +118,33 @@ class MultifractalSpectrum(MultiResolutionQuantityBase):
         self.U = U
         self.V = V
 
-        # Compute D(q) and h(q) via linear regressions
-        Dq = np.zeros((len(self.q), self.nrep))
-        hq = np.zeros((len(self.q), self.nrep))
+        x, w, n_ranges, j_min, j_max = prepare_regression(
+            self, self.scaling_ranges, self.j, weighted=self.weighted
+        )
 
-        x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
-                    (1, self.nrep))
+        # 2. Compute D(q) and h(q) via linear regressions
+
+        # shape (n_q, n_scaling_ranges, n_rep)
+        Dq = np.zeros((len(self.q), n_ranges, self.nrep))
+        hq = np.zeros_like(Dq)
+
+        # x = np.tile(np.arange(self.j1, self.j2+1)[:, None],
+        #             (1, self.nrep))
 
         # weights
-        if self.weighted:
-            wj = self.get_nj_interv(self.j1, self.j2)
-        else:
-            wj = np.ones((len(x), self.nrep))
+        # if self.weighted:
+        #    wj = self.get_nj_interv(self.j1, self.j2)
+        # else:
+        #    wj = np.ones((len(x), self.nrep))
 
         for ind_q in range(len(self.q)):
-            y = U[(self.j1-1):self.j2, ind_q]
-            z = V[(self.j1-1):self.j2, ind_q]
 
-            slope_1, _ = linear_regression(x, y, wj)
-            slope_2, _ = linear_regression(x, z, wj)
+            # shape (n_scale, n_scaling_ranges, n_rep)
+            y = U[j_min-1:j_max, None, ind_q, :]
+            z = V[j_min-1:j_max, None, ind_q, :]
+
+            slope_1, _ = linear_regression(x, y, w)
+            slope_2, _ = linear_regression(x, z, w)
 
             Dq[ind_q] = 1 + slope_1
             hq[ind_q] = slope_2
