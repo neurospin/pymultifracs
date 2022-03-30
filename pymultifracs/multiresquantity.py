@@ -8,12 +8,14 @@ import inspect
 import typing
 
 import numpy as np
+from sympy import intersecting_product
 
 from .utils import get_filter_length
 from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
     max_scale_bootstrap, get_confidence_interval, get_empirical_variance,\
     get_variance, get_std
 from .autorange import compute_Lambda, compute_R, find_max_lambda
+from .regression import compute_R2
 
 
 @dataclass
@@ -87,12 +89,18 @@ class MultiResolutionQuantityBase:
     def j2_eff(self):
         return len(self.nj)
 
-    def _compute_R(self, moment, slope, intercept, weights):
+    def _get_j_min_max(self):
 
         j_min = min([sr[0] for sr in self.scaling_ranges])
         j_max = max([sr[1] for sr in self.scaling_ranges])
 
-        return compute_R(self, moment, slope, intercept, weights, j_min, j_max)
+        return j_min, j_max
+
+    def _compute_R2(self, moment, slope, intercept):
+        return compute_R2(moment, slope, intercept, *self._get_j_min_max())
+
+    def _compute_R(self, moment, slope, intercept):
+        return compute_R(moment, slope, intercept, *self._get_j_min_max())
 
     def compute_Lambda(self):
 

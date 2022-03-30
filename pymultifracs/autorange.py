@@ -65,7 +65,7 @@ def find_max_lambda(L):
     return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
 
 
-def compute_R(mrq, moment, slope, intercept, weights, j_min, j_max):
+def compute_R(moment, slope, intercept, j_min, j_max):
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     moment = moment[:, j_min-1:j_max, None, :]
@@ -81,7 +81,7 @@ def compute_R(mrq, moment, slope, intercept, weights, j_min, j_max):
 
     # shape (n_scales, n_scaling_ranges, n_rep) -> (n_moments, n_scales, n_scaling)
 
-    return (weights * (moment - x * slope - intercept) ** 2).sum(axis=1)
+    return ((moment - x * slope - intercept) ** 2).sum(axis=1)
 
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):

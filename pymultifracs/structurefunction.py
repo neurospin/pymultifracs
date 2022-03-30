@@ -167,7 +167,10 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         #     self.intercept[ind_q] = intercept
 
     def compute_R(self):
-        return super()._compute_R(self.logvalues, self.zeta, self.intercept, self.weights)
+        return super()._compute_R(self.logvalues, self.zeta, self.intercept)
+
+    def compute_R2(self):
+        return super()._compute_R2(self.logvalues, self.zeta, self.intercept)
 
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
