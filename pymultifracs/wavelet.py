@@ -131,8 +131,8 @@ def filtering(approx, high_filter, low_filter):
     # apply filters
     # note: 'direct' method MUST be used, since there are elements
     # that are np.inf inside `approx`
-    high = convolve(approx, high_filter, mode='same', method='direct')
-    low = convolve(approx, low_filter, mode='same', method='direct')
+    high = convolve(approx, high_filter, mode='full', method='direct')
+    low = convolve(approx, low_filter, mode='full', method='direct')
 
     # high[np.isnan(high)] = np.inf
     # low[np.isnan(low)] = np.inf
@@ -140,19 +140,26 @@ def filtering(approx, high_filter, low_filter):
     # index of first good value
     fp = len(high_filter) - 1
     # index of last good value
-    lp = nj_temp - len(high_filter)
+    lp = nj_temp # len(high_filter)
 
     # replace border with nan
     high[0:fp] = np.nan
-    high[lp+1:] = np.nan
+    high[lp:] = np.nan
     low[0:fp] = np.nan
-    low[lp+1:] = np.nan
+    low[lp:] = np.nan
 
     # centering and subsampling
     # nwt = len(high_filter) // 2
     # nl = len(high_filter)
-    detail_idx = np.arange(1, nj_temp, 2)
-    approx_idx = np.arange(1, nj_temp, 2)
+    # detail_idx = np.arange(1, nj_temp + 1, 2)
+    # approx_idx = np.arange(1, nj_temp, 2) + 1
+
+    # x0 = 2
+    x0Appro = len(high_filter)  # 2*self.nb_vanishing_moments
+
+    # centering and subsampling
+    detail_idx = np.arange(0, nj_temp, 2) + 1
+    approx_idx = np.arange(0, nj_temp, 2) + x0Appro - 1
 
     detail = high[detail_idx]
     approx = low[approx_idx]
@@ -170,15 +177,19 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
         max_index = int(np.floor(len(sans_voisin) / 2))
         detail = detail[:max_index]
 
+        # print(detail[:2])
+
         sans_voisin = np.stack([detail,
                                 sans_voisin[0:2*max_index:2],
                                 sans_voisin[1:2*max_index:2]],
                                axis=0)
 
+        # print(sans_voisin[:, :2])
+
         if formalism == 'wavelet p-leader':
-            sans_voisin = fixednansum(sans_voisin, axis=0)
+            sans_voisin = np.sum(sans_voisin, axis=0)
         else:
-            sans_voisin = fixednanmax(sans_voisin, axis=0)
+            sans_voisin = np.max(sans_voisin, axis=0)
 
     return sans_voisin
 
@@ -195,6 +206,8 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
 
     sans_voisin = _find_sans_voisin(scale, detail, sans_voisin, formalism)
 
+    # print(sans_voisin[:2], detail[:2])
+
     len_sv = len(sans_voisin)
     leaders = np.stack([sans_voisin[0:len_sv-2],
                         sans_voisin[1:len_sv-1],
@@ -202,10 +215,11 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
                        axis=0)
 
     if formalism == 'wavelet p-leader':
-        leaders = fixednansum(leaders, axis=0)
+        # import ipdb; ipdb.set_trace()
+        leaders = np.sum(leaders, axis=0)
         leaders = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
     else:
-        leaders = fixednanmax(leaders, axis=0)
+        leaders = np.max(leaders, axis=0)
 
     return leaders, sans_voisin
 

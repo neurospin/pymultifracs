@@ -37,7 +37,7 @@ def estimate_confidence_interval_from_bootstrap(
         [np.percentile(bootstrap_estimates, percent / 2.0, axis=-1),
          np.percentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)])
 
-    return bootstrap_confidence_interval.transpose()
+    return bootstrap_confidence_interval.swapaxes(1, 0)
 
 
 def get_empirical_variance(mrq, ref_mrq, name):

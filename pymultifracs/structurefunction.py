@@ -4,6 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
+from multiprocessing.sharedctypes import Value
 from typing import List, Tuple
 
 import numpy as np
@@ -105,6 +106,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         self.logvalues = np.log2(values)
 
+        self.logvalues[np.isinf(self.logvalues)] = np.nan
+
     def _compute_zeta(self):
         """
         Compute the value of the scale function zeta(q) for all q
@@ -138,9 +141,11 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                                        self.scaling_ranges, std)
 
         try:
-            self.zeta, self.intercept = linear_regression(x, y,self.weights)
-        except AssertionError:
+            self.zeta, self.intercept = linear_regression(x, y, self.weights)
+        except AssertionError:  
             import ipdb; ipdb.set_trace()
+
+        # self.zeta[np.isinf(self.zeta)] = np.nan
 
         # for ind_q, q in enumerate(self.q):
 
@@ -170,7 +175,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         return super()._compute_R(self.logvalues, self.zeta, self.intercept)
 
     def compute_R2(self):
-        return super()._compute_R2(self.logvalues, self.zeta, self.intercept)
+        return super()._compute_R2(self.logvalues, self.zeta, self.intercept, self.weights)
 
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
@@ -200,7 +205,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         return self.__getattribute__(name)
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True, figsize=None, struct_boot=None, scaling_range=0):
+             ignore_q0=True, figsize=None, scaling_range=0, plot_scales=None):
         """
         Plots the structure functions.
         """
@@ -229,7 +234,14 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         fig.suptitle(self.formalism +
                      r' - structure functions $\log_2(S(j,q))$')
 
-        x = self.j
+        if plot_scales is None:
+            idx = np.s_[:]
+        else:
+            j_min = self.j.min()
+            idx = np.s_[plot_scales[0] - j_min:plot_scales[1] - j_min + 1]
+
+        x = self.j[idx]
+
         counter = 0
 
         for ind_q, q in enumerate(self.q):
@@ -237,10 +249,13 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             if q == 0.0 and ignore_q0:
                 continue
 
-            y = self.S_q(q)
+            y = self.S_q(q)[idx]
 
-            if struct_boot is not None:
-                CI = struct_boot.CIE_S_q(self)(q)
+            if self.bootstrapped_mrq is not None:
+                try:
+                    CI = self.CIE_S_q(q)[idx]
+                except FloatingPointError:
+                    import ipdb; ipdb.set_trace()
 
                 CI -= y
                 CI[:, 1] *= -1
@@ -263,16 +278,19 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                 slope = self.zeta[ind_q, scaling_range, 0]
                 intercept = self.intercept[ind_q, scaling_range, 0]
 
+                assert x0 in x, "Scaling range not included in plotting range"
+                assert x1 in x, "Scaling range not included in plotting range"
+
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
 
-                if struct_boot is not None:
-                    CI = struct_boot.CIE_s_q(self)(q)[scaling_range]
-                    CI_legend = f"; [{CI[0]:.3f}, {CI[1]:.3f}]"
+                if self.bootstrapped_mrq is not None:
+                    CI = self.CIE_s_q(q)[scaling_range]
+                    CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
                 else:
                     CI_legend = ""
 
-                legend = rf'$s_{{{q:.2f}}}$ = {slope:.3f}' + CI_legend
+                legend = rf'$s_{{{q:.2f}}}$ = {slope:.2f}' + CI_legend
 
                 ax.plot([x0, x1], [y0, y1], color='k',
                         linestyle='-', linewidth=2, label=legend, zorder=0)

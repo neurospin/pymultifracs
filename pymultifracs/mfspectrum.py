@@ -111,15 +111,21 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
             nj = mrq.nj[j]
             mrq_values_j = np.abs(mrq.values[j])
 
-            # ixd_nan = np.isnan(mrq_values_j)
+            idx_nan = np.isnan(mrq_values_j)
             temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
                             axis=0)
             # np.nan ** 0 = 1.0, adressed here
-            # temp[:, ixd_nan] = np.nan
+            temp[:, idx_nan] = np.nan
             R_j = temp / np.nansum(temp, axis=1)[:, None, :]
             V[:, ind_j, :] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
             U[:, ind_j, :] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
                                                        axis=1)
+
+            # if j > 10:
+            #     import ipdb; ipdb.set_trace()
+
+        U[np.isinf(U)] = np.nan
+        V[np.isinf(V)] = np.nan
 
         self.U = U
         self.V = V
@@ -220,7 +226,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         return self.U[self.q == q][0]
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
-             fmt='ko-', mfs_boot=None, **plot_kwargs):
+             fmt='ko-', scaling_range=0, **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
@@ -235,10 +241,10 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         # plt.figure(figlabel)
         ax = plt.gca() if ax is None else ax
 
-        if mfs_boot is not None:
+        if self.bootstrapped_mfs is not None:
 
-            CI_Dq = mfs_boot.CIE_Dq(self)
-            CI_hq = mfs_boot.CIE_hq(self)
+            CI_Dq = self.CIE_Dq
+            CI_hq = self.CIE_hq
 
             CI_Dq -= self.Dq
             CI_hq -= self.hq
@@ -249,11 +255,13 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
             CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
             CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
 
+            # import ipdb; ipdb.set_trace()
+
             assert(CI_Dq < 0).sum() == 0
             assert(CI_hq < 0).sum() == 0
 
-            CI_Dq = CI_Dq.transpose()
-            CI_hq = CI_hq.transpose()
+            CI_Dq = CI_Dq.transpose(1, 2, 0)
+            CI_hq = CI_hq.transpose(1, 2, 0)
 
         else:
             CI_Dq, CI_hq = None, None
@@ -263,7 +271,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         # print(CI_hq.shape)
         # print(self.hq.shape)
 
-        ax.errorbar(self.hq[:, 0], self.Dq[:, 0], CI_Dq, CI_hq,
+        # import ipdb; ipdb.set_trace()
+
+        ax.errorbar(self.hq[:, scaling_range, 0], self.Dq[:, scaling_range, 0], CI_Dq[:, scaling_range], CI_hq[:, scaling_range],
                     fmt, **plot_kwargs)
         ax.set_xlabel('h')
         ax.set_ylabel('D(h)')

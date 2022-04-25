@@ -96,8 +96,8 @@ class MultiResolutionQuantityBase:
 
         return j_min, j_max
 
-    def _compute_R2(self, moment, slope, intercept):
-        return compute_R2(moment, slope, intercept, *self._get_j_min_max())
+    def _compute_R2(self, moment, slope, intercept, weights):
+        return compute_R2(moment, slope, intercept, weights, *self._get_j_min_max())
 
     def _compute_R(self, moment, slope, intercept):
         return compute_R(moment, slope, intercept, *self._get_j_min_max())

@@ -91,7 +91,9 @@ def linear_regression(x, y, nj, return_variance=False):
         return a, b, var_a
 
 
-def compute_R2(moment, slope, intercept, j_min, j_max):
+def compute_R2(moment, slope, intercept, weights, j_min, j_max):
+
+    weights = 1 / weights
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     moment = moment[:, j_min-1:j_max, None, :]
@@ -100,9 +102,9 @@ def compute_R2(moment, slope, intercept, j_min, j_max):
 
     x = np.arange(j_min, j_max + 1)[None, :, None, None]
 
-    res = ((moment - x * slope - intercept) ** 2).sum(axis=1)
+    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).sum(axis=1)
 
-    avg = moment.mean(axis=1)[:, None, :]
-    tot = ((moment - avg) ** 2).sum(axis=1)
+    avg = (moment * weights).mean(axis=1)[:, None, :]
+    tot = ((moment * weights - avg) ** 2).sum(axis=1)
 
     return 1 - res / tot

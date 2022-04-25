@@ -206,7 +206,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         return super()._compute_R(self.values, self.slope, self.intercept)
 
     def compute_R2(self):
-        return super()._compute_R2(self.logvalues, self.zeta, self.intercept)
+        return super()._compute_R2(self.values, self.slope, self.intercept, self.weights)
 
     def __getattr__(self, name):
 
