@@ -194,7 +194,7 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
     return sans_voisin
 
 
-def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
+def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp, size=3):
     """
     Compute wavelet leaders
     """
@@ -209,10 +209,15 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
     # print(sans_voisin[:2], detail[:2])
 
     len_sv = len(sans_voisin)
-    leaders = np.stack([sans_voisin[0:len_sv-2],
-                        sans_voisin[1:len_sv-1],
-                        sans_voisin[2:len_sv]],
-                       axis=0)
+    
+    if size == 1:
+        leaders = sans_voisin[None, :]
+        
+    elif size == 3:
+        leaders = np.stack([sans_voisin[0:len_sv-2],
+                            sans_voisin[1:len_sv-1],
+                            sans_voisin[2:len_sv]],
+                           axis=0)
 
     if formalism == 'wavelet p-leader':
         # import ipdb; ipdb.set_trace()
@@ -222,6 +227,45 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
         leaders = np.max(leaders, axis=0)
 
     return leaders, sans_voisin
+
+
+def compute_leaders(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3):
+    
+    formalism = _check_formalism(p_exp)
+
+    sans_voisin = None
+    wt_leaders = MultiResolutionQuantity(formalism, gamint)
+    
+    max_level = wt_coefs.j2_eff()
+    
+    for scale in range(1, max_level + 1):
+        
+        detail = wt_coefs.values[scale]
+        
+        leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
+                                                scale, formalism, p_exp, size=size)
+        
+        # remove infinite values and store wavelet leaders
+        # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
+        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+        # leaders[~finite_idx_wl] = np.nan
+
+        if np.sum(finite_idx_wl, axis=0).min() < 3:
+            max_level = scale-1
+            break
+
+        wt_leaders.add_values(leaders, scale)
+        
+    # "effective" j2, used in linear regression
+    j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
+    
+    if formalism == 'wavelet p-leader':
+        wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
+                                             j1, j2_eff, None, max_level)
+    else:
+        eta_p = None
+        
+    return wt_leaders, eta_p
 
 
 WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',

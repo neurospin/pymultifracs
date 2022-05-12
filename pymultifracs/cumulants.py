@@ -117,6 +117,9 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                 moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
                                                    axis=0)
 
+                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                moments[ind_m, ind_j, idx_unreliable] = np.nan
+
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
                 else:
@@ -148,17 +151,17 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         log2_e = np.log2(np.exp(1))
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = self.values[:, j_min - 1:j_max, None, :]
+        y = self.values[:, j_min - self.j.min():j_max - self.j.min() + 1, None, :]
 
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
             if self.bootstrapped_cm is None:
-                std = self.STD_values[:, j_min-1:j_max]
+                std = self.STD_values[:, j_min - self.j.min():j_max - self.j.min() + 1]
                 # std = getattr(self, f"STD_C{m}")
 
             else:
-                std = self.bootstrapped_cm.STD_values[:, j_min-1:j_max]
+                std = self.bootstrapped_cm.STD_values[:, j_min - self.bootstrapped_cm.j.min():j_max - self.bootstrapped_cm.j.min() + 1]
                 # std = getattr(self.bootstrapped_cm, f"STD_C{m}")
 
         else:
@@ -166,6 +169,10 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
                                        self.scaling_ranges, std)
+
+        nan_weighting = np.ones_like(y)
+        nan_weighting[np.isnan(y)] = np.nan
+        self.weights = self.weights * nan_weighting
 
         # pylint: disable=unbalanced-tuple-unpacking
         self.slope, self.intercept, self.var_log_cumulants = \
@@ -224,6 +231,5 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         return self.__getattribute__(name)
 
-    def plot(self, fignum=1, nrow=3, filename=None,
-             scaling_range=0):
-        plot_cumulants(self, fignum, nrow, filename, scaling_range)
+    def plot(self, fignum=1, nrow=3, j1=1, filename=None, scaling_range=0):
+        plot_cumulants(self, fignum, nrow, j1, filename, scaling_range)

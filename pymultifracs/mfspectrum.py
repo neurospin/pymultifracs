@@ -116,7 +116,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
                             axis=0)
             # np.nan ** 0 = 1.0, adressed here
             temp[:, idx_nan] = np.nan
-            R_j = temp / np.nansum(temp, axis=1)[:, None, :]
+            Z = np.nansum(temp, axis=1)[:, None, :]
+            Z[Z == 0] = np.nan
+            R_j = temp / Z
             V[:, ind_j, :] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
             U[:, ind_j, :] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
                                                        axis=1)

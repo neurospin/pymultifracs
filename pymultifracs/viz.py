@@ -1,7 +1,9 @@
 import time
 import os
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.colors import CenteredNorm, Normalize
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -91,13 +93,21 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
-def plot_cumulants(cm, fignum=1, nrow=3, filename=None, scaling_range=0):
+def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0):
     """
     Plots the cumulants.
     Args:
     fignum(int):  figure number
     plt        :  pointer to matplotlib.pyplot
     """
+
+    if j1 is None:
+        j1 = cm.j.min()
+
+    if cm.j.min() > j1:
+        raise ValueError(f"Expected mrq to have minium scale {j1=}, got {cm.j.min()} instead")
+
+    j_min = j1 - cm.j.min()
 
     nrow = min(nrow, len(cm.m))
 
@@ -116,24 +126,26 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, scaling_range=0):
 
     fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
 
-    x = cm.j[2:]
+    x = cm.j[j_min:]
 
     for ind_m, m in enumerate(cm.m):
 
-        y = getattr(cm, f'C{m}')
+        y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 
         if cm.bootstrapped_cm is not None:
-            CI = getattr(cm, f'CIE_C{m}')
 
-            CI -= y
+            if cm.bootstrapped_cm.j.min() > j1:
+                raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_cm.j.min()} instead")
+
+            CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():]
+
+            CI -= y[:, None]
             CI[:, 1] *= -1
             assert (CI < 0).sum() == 0
-            CI = CI.transpose()[:, 2:]
+            CI = CI.transpose()
 
         else:
             CI = None
-
-        y = y[2:, 0]
 
         ax = axes[ind_m % nrow][ind_m // nrow]
 
@@ -172,6 +184,52 @@ def plot_cumulants(cm, fignum=1, nrow=3, filename=None, scaling_range=0):
 
     if filename is not None:
         plt.savefig(filename)
+
+
+def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None, leader_idx_correction=True):
+
+    min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
+    
+    if vmax is None:
+        vmax = max([np.nanmax(mrq[s]) for s in range(j1, j2+1) if s in mrq])
+    if vmin is None:
+        vmin = min_all
+    
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(20, 7))
+
+    for i, scale in enumerate(range(j1, j2 + 1)):
+        
+        if scale not in mrq:
+            continue
+
+        temp = mrq[scale][:, 0]
+        
+        X = (np.arange(temp.shape[0] + 1) + (1 if leader and leader_idx_correction else 0)) * (2 ** (scale - j1 + 1))
+        X = np.tile(X[:, None], (1, 2))
+
+        C = temp[:, None]
+        
+        Y = np.ones(X.shape[0]) * scale
+        Y = np.stack([Y - .5, Y + .5]).transpose()
+        
+        if leader:
+            norm = Normalize(vmin=vmin, vmax=vmax)
+        else:
+            norm = CenteredNorm(halfrange=max([abs(vmin), abs(vmax)]))
+        
+        cmap = mpl.cm.get_cmap('inferno').copy()
+        cmap.set_bad('grey')
+        
+        qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm)
+        
+    ax.set_ylim(j1-.5, j2+.5)
+    
+    ax.set_xlabel('shift')
+    ax.set_ylabel('scale')
+    ax.set_facecolor('grey')
+    plt.colorbar(qm, ax=ax)
+
 
 # From pyvista, since https://github.com/pyvista/pyvista/issues/1125 is not yet
 # fixed

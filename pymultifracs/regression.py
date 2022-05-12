@@ -71,9 +71,9 @@ def linear_regression(x, y, nj, return_variance=False):
     assert nj.shape[1] == x.shape[1]
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    V_0 = np.sum(nj, axis=1)[:, None, :, :]
-    V_1 = np.sum(nj * x, axis=1)[:, None, :, :]
-    V_2 = np.sum(nj * (x**2), axis=1)[:, None, :, :]
+    V_0 = np.nansum(nj, axis=1)[:, None, :, :]
+    V_1 = np.nansum(nj * x, axis=1)[:, None, :, :]
+    V_2 = np.nansum(nj * (x**2), axis=1)[:, None, :, :]
 
     weights_slope = nj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
     weights_intercept = nj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)

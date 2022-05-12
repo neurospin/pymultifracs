@@ -33,9 +33,15 @@ def estimate_confidence_interval_from_bootstrap(
     """
 
     percent = 100.0 - confidence_level
+
+    # bootstrap_estimates: shape (..., n_CI)
+    idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(axis=-1) < 3
+
     bootstrap_confidence_interval = np.array(
-        [np.percentile(bootstrap_estimates, percent / 2.0, axis=-1),
-         np.percentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)])
+        [np.nanpercentile(bootstrap_estimates, percent / 2.0, axis=-1),
+         np.nanpercentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)])
+
+    bootstrap_confidence_interval[:, idx_unreliable] = np.nan
 
     return bootstrap_confidence_interval.swapaxes(1, 0)
 
@@ -101,14 +107,19 @@ def get_std(mrq, name):
 
         def wrapper(*args, **kwargs):
 
-            std = np.std(attribute(*args, **kwargs), ddof=1, axis=-1)
+            var = attribute(*args, **kwargs)
+            unreliable = (~np.isnan(var)).sum(axis=-1) < 3
+            std = np.nanstd(var, ddof=1, axis=-1)
+            std[unreliable] = np.nan
 
             return std
 
         return wrapper
 
     # attribute: shape (n_ranges, n_rep)
-    std = np.std(attribute, axis=-1, ddof=1)
+    unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
+    std = np.nanstd(attribute, axis=-1, ddof=1)
+    std[unreliable] = np.nan
 
     return std
 
@@ -146,6 +157,24 @@ def estimate_empirical_bootstrap(bootstrap_estimate,
             )
 
 
+def _get_align_slice(attribute, mrq, ref_mrq):
+    """
+    Align attributes from different multi res quantities in case they have different minimum j values
+    """
+
+    if attribute.shape[0] == 1:
+        mrq_slice = np.s_[:]
+        ref_mrq_slice = np.s_[:]
+    elif mrq.j.min() > ref_mrq.j.min():
+        mrq_slice = np.s_[:]
+        ref_mrq_slice = np.s_[mrq.j.min()-ref_mrq.j.min():]
+    elif mrq.j.min() < ref_mrq.j.min():
+        mrq_slice = np.s_[ref_mrq.j.min()-mrq.j.min():]
+        ref_mrq_slice = np.s_[:]
+
+    return mrq_slice, ref_mrq_slice
+
+
 def get_empirical_CI(mrq, ref_mrq, name):
 
     if mrq is None:
@@ -158,12 +187,18 @@ def get_empirical_CI(mrq, ref_mrq, name):
 
         def wrapper(*args, **kwargs):
 
+            attr = attribute(*args, **kwargs)
+
+            # mrq_slice, ref_mrq_slice = _get_align_slice(attr, mrq, ref_mrq)
+
             CI = estimate_empirical_bootstrap(
                 attribute(*args, **kwargs), ref_attribute(*args, **kwargs))
 
             return CI
 
         return wrapper
+    
+    # mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
 
     CI = estimate_empirical_bootstrap(attribute, ref_attribute)
 
@@ -188,7 +223,7 @@ def max_scale_bootstrap(mrq, filt_len):
     return i
 
 
-def bootstrap(mrq, R, wt_name):
+def bootstrap(mrq, R, wt_name, min_scale=1):
 
     if mrq.nrep > 1:
         raise ValueError("Bootstrap only available for signals with 1 rep")
@@ -199,13 +234,13 @@ def bootstrap(mrq, R, wt_name):
 
     values = {
         scale: circular_block_bootstrap(
-            data[~np.isnan(data)], filt_len, R).transpose()
-        for scale, data in mrq.values.items() if scale <= max_scale
+            data[:, 0], filt_len, R).transpose()
+        for scale, data in mrq.values.items() if scale <= max_scale and scale >= min_scale
     }
 
     nj = {
         scale: np.array([*array] * R)
-        for scale, array in mrq.nj.items() if scale <= max_scale
+        for scale, array in mrq.nj.items() if scale <= max_scale and scale >= min_scale
     }
 
     new_mrq = mrq.from_dict({
@@ -316,7 +351,7 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
     return indices
 
 
-def circular_leader_bootstrap(mrq, max_scale, block_length, replications,
+def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replications,
                               sub_sample_length=None, link_rngs=True,
                               double=False):
     """
@@ -360,8 +395,8 @@ def circular_leader_bootstrap(mrq, max_scale, block_length, replications,
         if `double` was passed as True
     """
 
-    x = mrq.values[1]
-    x = x[~np.isnan(x)]
+    x = mrq.values[1][:, 0]
+    # x = x[~np.isnan(x)]
 
     max_scale = min(max_scale_bootstrap(mrq, block_length), max_scale)
 
@@ -386,8 +421,11 @@ def circular_leader_bootstrap(mrq, max_scale, block_length, replications,
 
     for scale, indices_scale in indices.items():
 
-        data = mrq.values[scale]
-        data = data[~np.isnan(data)]
+        if scale < min_scale:
+            continue
+
+        data = mrq.values[scale][:, 0]
+        # data = data[~np.isnan(data)]
 
         if data.ndim == 1:
             data = np.hstack((data, data))
@@ -434,10 +472,18 @@ def circular_leader_bootstrap(mrq, max_scale, block_length, replications,
             [indices_scale[rep, indices_scale[rep] >= 0].shape[0]
              for rep in range(replications)])
 
+        # out = np.zeros(
+        #     (replications, mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
+        #     dtype=float) + np.nan
+
         out = np.zeros(
-            (replications, mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
+            (replications, mrq.values[1].shape[0]),
             dtype=float) + np.nan
-        out[indices_scale >= 0] = data[idx]
+
+        try:
+            out[indices_scale >= 0] = data[idx]
+        except Exception:
+            import ipdb; ipdb.set_trace()
 
         compact_idx = np.all(np.isnan(out), axis=0)
         values[scale] = out[:, ~compact_idx].transpose()

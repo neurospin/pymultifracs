@@ -42,6 +42,12 @@ class MultiResolutionQuantityBase:
         # return nj
         return np.array([self.nj[j] for j in range(j1, j2+1)])
 
+    def update_nj(self):
+        self.nj = {
+            scale: (~np.isnan(self.values[scale])).sum(axis=0)
+            for scale in self.values
+        }
+
     @classmethod
     def from_dict(cls, d):
         r"""Method to instanciate a dataclass by passing a dictionary with
@@ -225,16 +231,13 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
 
-    def bootstrap(self, R, wt_name):
+    def bootstrap(self, R, wt_name, min_scale=1):
 
         if self.formalism == 'wavelet coef':
-
             # print("Using coef bootstrapping technique")
-            self.bootstrapped_mrq = bootstrap(self, R, wt_name)
-            return self.bootstrapped_mrq
+            self.bootstrapped_mrq = bootstrap(self, R, wt_name, min_scale)
 
         elif 'leader' in self.formalism:
-
             # print("Using leader bootstrapping technique")
 
             block_length = get_filter_length(wt_name)
@@ -246,8 +249,17 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                                  'when computing wavelet leaders.')
 
             self.bootstrapped_mrq = circular_leader_bootstrap(
-                self, max_scale, block_length, R)
-            return self.bootstrapped_mrq
+                self, min_scale, max_scale, block_length, R)
+
+        j = np.array([*self.values])
+
+        if min_scale > j.min():
+            self.values = {scale: value for scale, value in self.values.items() if scale >= min_scale}
+            self.nj = {scale: nj for scale, nj in self.nj.items() if scale >= min_scale}
+        
+        return self.bootstrapped_mrq
+
+
 
     def add_values(self, coeffs, j):
 
