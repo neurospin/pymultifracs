@@ -93,7 +93,7 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
-def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0):
+def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0, legend=True):
     """
     Plots the cumulants.
     Args:
@@ -122,7 +122,9 @@ def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0
     fig, axes = plt.subplots(plot_dim_1,
                              plot_dim_2,
                              num=fignum,
-                             squeeze=False)
+                             squeeze=False,
+                             figsize=figsize,
+                             sharex=True)
 
     fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
 
@@ -149,7 +151,7 @@ def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0
 
         ax = axes[ind_m % nrow][ind_m // nrow]
 
-        ax.errorbar(x, y, CI, fmt='r--.', zorder=-1)
+        ax.errorbar(x, y, CI, fmt='--.', color='grey', zorder=-1)
         ax.set_xlabel('j')
         ax.set_ylabel('m = ' + str(m))
         # ax.grid()
@@ -167,8 +169,8 @@ def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0
 
             if cm.bootstrapped_cm is not None:
                 CI = getattr(cm, f"CIE_c{m}")
-                CI_legend = (f"; [{CI[scaling_range, 1]:.3f}, "
-                             f"{CI[scaling_range, 0]:.3f}]")
+                CI_legend = (f"; [{CI[scaling_range, 1]:.2f}, "
+                             f"{CI[scaling_range, 0]:.2f}]")
             else:
                 CI_legend = ""
 
@@ -176,59 +178,72 @@ def plot_cumulants(cm, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0
 
             ax.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label=legend, zorder=0)
-            ax.legend()
+            if legend:
+                ax.legend()
             plt.draw()
+
+    for j in range(ind_m):
+        axes[j % nrow][j // nrow].xaxis.set_visible(False)
 
     for j in range(ind_m + 1, len(axes.flat)):
         fig.delaxes(axes[j % nrow][j // nrow])
 
+    plt.tight_layout()
+
     if filename is not None:
         plt.savefig(filename)
 
+    return fig
 
-def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None, leader_idx_correction=True):
+
+def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
+              leader_idx_correction=True, cbar=True):
 
     min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
-    
+
     if vmax is None:
         vmax = max([np.nanmax(mrq[s]) for s in range(j1, j2+1) if s in mrq])
     if vmin is None:
         vmin = min_all
-    
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(20, 7))
 
     for i, scale in enumerate(range(j1, j2 + 1)):
-        
+
         if scale not in mrq:
             continue
 
         temp = mrq[scale][:, 0]
-        
+
         X = (np.arange(temp.shape[0] + 1) + (1 if leader and leader_idx_correction else 0)) * (2 ** (scale - j1 + 1))
         X = np.tile(X[:, None], (1, 2))
 
         C = temp[:, None]
-        
+
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
-        
+
         if leader:
             norm = Normalize(vmin=vmin, vmax=vmax)
         else:
             norm = CenteredNorm(halfrange=max([abs(vmin), abs(vmax)]))
-        
+
         cmap = mpl.cm.get_cmap('inferno').copy()
         cmap.set_bad('grey')
-        
+
         qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm)
-        
+
     ax.set_ylim(j1-.5, j2+.5)
-    
+
     ax.set_xlabel('shift')
     ax.set_ylabel('scale')
     ax.set_facecolor('grey')
-    plt.colorbar(qm, ax=ax)
+
+    if cbar:
+        formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        locator = mpl.ticker.MaxNLocator(5, symmetric=not leader, steps=[1, 5, 10])
+        plt.colorbar(qm, ax=ax, format=formatter, ticks=locator)
 
 
 # From pyvista, since https://github.com/pyvista/pyvista/issues/1125 is not yet

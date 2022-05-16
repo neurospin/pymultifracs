@@ -113,7 +113,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         Compute the value of the scale function zeta(q) for all q
         """
 
-        x, n_ranges, j_min, j_max = prepare_regression(
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
 
         # shape (n_moment, n_scaling_ranges, n_rep)
@@ -121,17 +121,17 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         self.intercept = np.zeros_like(self.zeta)
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = self.logvalues[:, j_min-1:j_max, None, :]
+        y = self.logvalues[:, j_min_idx:j_max_idx, None, :]
 
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
             if self.bootstrapped_sf is None:
-                std = self.STD_logvalues[:, j_min-1:j_max]
+                std = self.STD_logvalues[:, j_min_idx:j_max_idx]
                 # std = getattr(self, "STD_S_q")(q)
 
             else:
-                std = self.bootstrapped_sf.STD_logvalues[:, j_min-1:j_max]
+                std = self.bootstrapped_sf.STD_logvalues[:, j_min - self.bootstrapped_sf.j.min():j_max - self.bootstrapped_sf.j.min() + 1]
                 # std = getattr(self.bootstrapped_sf, "STD_S_q")(q)
 
         else:

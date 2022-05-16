@@ -44,7 +44,7 @@ def prepare_regression(scaling_ranges, j):
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     x = np.arange(j_min, j_max + 1)[None, :, None, None]
 
-    return x, n_ranges, j_min, j_max
+    return x, n_ranges, j_min, j_max, j_min - j.min(), j_max - j.min() + 1
 
 
 def linear_regression(x, y, nj, return_variance=False):

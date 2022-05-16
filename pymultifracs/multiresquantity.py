@@ -8,7 +8,6 @@ import inspect
 import typing
 
 import numpy as np
-from sympy import intersecting_product
 
 from .utils import get_filter_length
 from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
@@ -93,7 +92,7 @@ class MultiResolutionQuantityBase:
         return sup_coeffs
 
     def j2_eff(self):
-        return len(self.nj)
+        return max(list(self.nj))
 
     def _get_j_min_max(self):
 
@@ -133,7 +132,7 @@ class MultiResolutionQuantityBase:
             bootstrapped_mrq = self.bootstrapped_mrq
 
         bootstrapped_mrq._check_enough_rep_bootstrap()
-    
+
         return bootstrapped_mrq
 
     def _check_bootstrap_mrq(self):
@@ -141,7 +140,7 @@ class MultiResolutionQuantityBase:
         if self.bootstrapped_mrq is None:
             raise ValueError(
                 "Bootstrapped mrq needs to be computed prior to estimating empirical estimators")
-        
+
         self.bootstrapped_mrq._check_enough_rep_bootstrap()
 
     def __getattr__(self, name):
@@ -161,7 +160,7 @@ class MultiResolutionQuantityBase:
         elif name[:3] == 'VE_':
 
             self._check_bootstrap_mrq()
-        
+
             return get_empirical_variance(self.bootstrapped_mrq, self, name[3:])
 
         elif name[:3] == 'SE_':
@@ -256,7 +255,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         if min_scale > j.min():
             self.values = {scale: value for scale, value in self.values.items() if scale >= min_scale}
             self.nj = {scale: nj for scale, nj in self.nj.items() if scale >= min_scale}
-        
+
         return self.bootstrapped_mrq
 
 

@@ -197,7 +197,7 @@ def get_empirical_CI(mrq, ref_mrq, name):
             return CI
 
         return wrapper
-    
+
     # mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
 
     CI = estimate_empirical_bootstrap(attribute, ref_attribute)
@@ -337,10 +337,15 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
                     circular=circular,
                     successive_3d=False)
 
+    # Make sure to not have blocks start and end with nans
+    nan_idx = np.isnan(x)
+    idx_start = ~nan_idx & ~np.roll(nan_idx, -block_length)
+    start_indices = np.arange(0, x.shape[0])[idx_start]
+
     indices \
         = _general_block_bootstrap_loop(
             block_length=block_length, replications=replications,
-            block_start_indices=np.arange(0, x.shape[0] + block_length),
+            block_start_indices=start_indices,
             successive_indices=successive_indices,
             sub_sample_length=sub_sample_length,
             replace=replace, link_rngs=link_rngs)
@@ -396,6 +401,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
     """
 
     x = mrq.values[1][:, 0]
+
     # x = x[~np.isnan(x)]
 
     max_scale = min(max_scale_bootstrap(mrq, block_length), max_scale)

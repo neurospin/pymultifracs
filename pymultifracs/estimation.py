@@ -20,7 +20,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
     wavelet coefficients.
     """
 
-    x, n_ranges, j_min, j_max = prepare_regression(
+    x, n_ranges, j_min, j_max, *_ = prepare_regression(
         scaling_ranges, np.array([*mrq.values])
     )
 

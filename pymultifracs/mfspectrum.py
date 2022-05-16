@@ -132,7 +132,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         self.U = U
         self.V = V
 
-        x, n_ranges, j_min, j_max = prepare_regression(
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j
         )
 
@@ -152,19 +152,19 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         #    wj = np.ones((len(x), self.nrep))
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = U[:, j_min - 1:j_max, None, :]
-        z = V[:, j_min - 1:j_max, None, :]
+        y = U[:, j_min_idx:j_max_idx, None, :]
+        z = V[:, j_min_idx:j_max_idx, None, :]
 
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
             if self.bootstrapped_mfs is None:
-                std_V = getattr(self, "STD_V")[:, j_min-1:j_max]
-                std_U = getattr(self, "STD_U")[:, j_min-1:j_max]
+                std_V = getattr(self, "STD_V")[:, j_min_idx:j_max_idx]
+                std_U = getattr(self, "STD_U")[:, j_min_idx:j_max_idx]
 
             else:
-                std_V = getattr(self.bootstrapped_mfs, "STD_V")[:, j_min-1:j_max]
-                std_U = getattr(self.bootstrapped_mfs, "STD_U")[:, j_min-1:j_max]
+                std_V = getattr(self.bootstrapped_mfs, "STD_V")[:, j_min - self.bootstrapped_mfs.j.min():j_max - self.bootstrapped_mfs.j.min() + 1]
+                std_U = getattr(self.bootstrapped_mfs, "STD_U")[:, j_min - self.bootstrapped_mfs.j.min():j_max - self.bootstrapped_mfs.j.min() + 1]
 
         else:
             std_V = None
