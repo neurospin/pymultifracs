@@ -142,7 +142,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         try:
             self.zeta, self.intercept = linear_regression(x, y, self.weights)
-        except AssertionError:  
+        except AssertionError:
             import ipdb; ipdb.set_trace()
 
         # self.zeta[np.isinf(self.zeta)] = np.nan
@@ -201,7 +201,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
-        
+
         return self.__getattribute__(name)
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,

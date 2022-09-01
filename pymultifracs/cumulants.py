@@ -4,11 +4,15 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field, InitVar
+import enum
 from typing import List, Tuple
 
 import numpy as np
 from scipy.special import binom as binomial_coefficient
-
+from scipy.stats import norm as Gaussian
+from statsmodels.robust.scale import qn_scale, huber
+from statsmodels.robust.norms import estimate_location, TukeyBiweight
+from statsmodels.tools.validation import array_like, float_like
 
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
@@ -17,6 +21,131 @@ from .utils import fast_power
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 # from .viz import plot_multiscale
+
+
+def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
+    """
+    Computes the Qn robust estimator of scale
+
+    The Qn scale estimator is a more efficient alternative to the MAD.
+    The Qn scale estimator of an array a of length n is defined as
+    c * {abs(a[i] - a[j]): i<j}_(k), for k equal to [n/2] + 1 choose 2. Thus,
+    the Qn estimator is the k-th order statistic of the absolute differences
+    of the array. The optional constant is used to normalize the estimate
+    as explained below. The implementation follows the algorithm described
+    in Croux and Rousseeuw (1992).
+
+    Parameters
+    ----------
+    a : array_like
+        Input array.
+    c : float, optional
+        The normalization constant. The default value is used to get consistent
+        estimates of the standard deviation at the normal distribution.
+    axis : int, optional
+        The default is 0.
+
+    Returns
+    -------
+    {float, ndarray}
+        The Qn robust estimator of scale
+    """
+
+    a = array_like(
+        a, "a", ndim=None, dtype=np.float64, contiguous=True, order="C"
+    )
+    c = float_like(c, "c")
+
+    if a.ndim == 0:
+        raise ValueError("a should have at least one dimension")
+    elif a.size == 0:
+        return np.nan
+    else:
+        out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
+        if out.ndim == 0:
+            return float(out)
+        return out
+
+
+def compute_robust_cumulants(X, alpha, m_array):
+    # shape X (n_j, n_rep)
+
+    n_j, n_rep = X.shape
+    moments = np.zeros((len(m_array), n_rep))
+    values = np.zeros_like(moments)
+
+    idx_unreliable = (~np.isnan(X)).sum(axis=0) < 3
+
+    # compute robust moments
+    for rep in range(n_rep):
+
+        if idx_unreliable[rep]:
+            values[:, rep] = np.nan
+            continue
+
+        X_norm = X[~np.isinf(X[:, rep]) & ~np.isnan(X[:, rep]), rep]
+
+        q_est = qn_scale(X_norm)
+
+        if np.isclose(q_est, 0):
+            values[m_array == 1, rep] = np.median(X_norm, axis=0)
+            continue
+
+        try:
+            m_est = estimate_location(X_norm, q_est, norm=TukeyBiweight(),
+                                      maxiter=1000)
+        except ValueError:
+
+            if X_norm.shape[0] < 20:
+                values[:, rep] = np.nan
+                continue
+
+            print(q_est, X_norm.shape)
+            print(X_norm)
+
+            m_est = np.median(X_norm)
+
+        X_norm -= m_est
+        X_norm /= q_est
+
+        for ind_m, m in enumerate(m_array):
+
+            decaying_factor = (alpha
+                               * np.exp(-.5 * (alpha ** 2 - 1) * X_norm ** 2))
+
+            moments[ind_m, rep] = np.mean(
+                fast_power(alpha * X_norm, m) * decaying_factor, axis=0)
+
+            if m == 1:
+                values[ind_m, rep] = m_est
+            elif m == 2:
+                values[ind_m, rep] = q_est ** 2
+            else:
+                aux = 0
+
+                for ind_n, n in enumerate(np.arange(1, m)):
+
+                    if m_array[ind_m - ind_n - 1] > 2:
+                        temp_moment = moments[ind_m - ind_n - 1, rep]
+                    elif m_array[ind_m - ind_n - 1] == 2:
+                        temp_moment = 1
+                    elif m_array[ind_m - ind_n - 1] == 1:
+                        temp_moment = 0
+
+                    if m_array[ind_n] > 2:
+                        temp_value = values[ind_n, rep]
+                    elif m_array[ind_n] == 2:
+                        temp_value = 1
+                    elif m_array[ind_n] == 1:
+                        temp_value = 0
+
+                    aux += (binomial_coefficient(m-1, n-1)
+                            * temp_value * temp_moment)
+
+                values[ind_m, rep] = moments[ind_m, rep] - aux
+
+    return values
+
 
 
 @dataclass
@@ -77,13 +206,15 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     scaling_ranges: List[Tuple[int]]
     bootstrapped_cm: MultiResolutionQuantityBase = None
     weighted: str = None
+    alpha: float = 1  # 1.342
+    robust: InitVar[bool] = False
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
     var_log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq):
+    def __post_init__(self, mrq, robust):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
@@ -94,10 +225,10 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         self.m = np.arange(1, self.n_cumul+1)
         self.values = np.zeros((len(self.m), len(self.j), self.nrep))
 
-        self._compute(mrq)
+        self._compute(mrq, robust)
         self._compute_log_cumulants()
 
-    def _compute(self, mrq):
+    def _compute(self, mrq, robust):
 
         moments = np.zeros((len(self.m), len(self.j), self.nrep))
         aux = np.zeros_like(moments)
@@ -112,25 +243,36 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             # log_T_X_j = log_T_X_j[~np.isinf(log_T_X_j)]
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-            for ind_m, m in enumerate(self.m):
+            # log T_X_j shape (n_j, n_reps)
 
-                moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
-                                                   axis=0)
+            if self.alpha > 1 or robust:
 
-                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
-                moments[ind_m, ind_j, idx_unreliable] = np.nan
+                values = compute_robust_cumulants(
+                    log_T_X_j, self.alpha, self.m)
 
-                if m == 1:
-                    self.values[ind_m, ind_j] = moments[ind_m, ind_j]
-                else:
-                    aux = 0
+                self.values[:, ind_j] = values
 
-                    for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += (binomial_coefficient(m-1, n-1)
-                                * self.values[ind_n, ind_j]
-                                * moments[ind_m-ind_n-1, ind_j])
+            else:
+                # Non-robust estimation
+                for ind_m, m in enumerate(self.m):
 
-                    self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+                    moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
+                                                       axis=0)
+
+                    idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                    moments[ind_m, ind_j, idx_unreliable] = np.nan
+
+                    if m == 1:
+                        self.values[ind_m, ind_j] = moments[ind_m, ind_j]
+                    else:
+                        aux = 0
+
+                        for ind_n, n in enumerate(np.arange(1, m)):
+                            aux += (binomial_coefficient(m-1, n-1)
+                                    * self.values[ind_n, ind_j]
+                                    * moments[ind_m-ind_n-1, ind_j])
+
+                        self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
 
     def _compute_log_cumulants(self):
         """
@@ -234,7 +376,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         return self.__getattribute__(name)
 
-    def plot(self, figsize=None, fignum=1, nrow=3, j1=1, filename=None,
+    def plot(self, figsize=(8, 6), fignum=1, nrow=3, j1=None, filename=None,
              scaling_range=0):
 
         return plot_cumulants(

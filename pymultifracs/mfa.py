@@ -147,7 +147,7 @@ def bootstrapped_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
 
 
 def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
-                        n_cumul, q, bootstrap_weighted):
+                        n_cumul, q, bootstrap_weighted, robust):
     """Perform multifractal analysis, returning only what is needed for H and
     M estimation.
 
@@ -178,19 +178,23 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
         are filled are dwt.structure and lwt.cumulants
     """
 
-    if wt_coefs.bootstrapped_mrq is not None:
+    if wt_leaders is not None and wt_leaders.bootstrapped_mrq is not None:
+        leader_boot = wt_leaders.bootstrapped_mrq
+    else:
+        leader_boot = None
 
-        if wt_leaders is not None and wt_leaders.bootstrapped_mrq is not None:
-            leader_boot = wt_leaders.bootstrapped_mrq
-        else:
-            leader_boot = None
+    if wt_coefs is not None and wt_coefs.bootstrapped_mrq is not None:
+        coef_boot = wt_coefs.bootstrapped_mrq
+    else:
+        coef_boot = None
 
+    if coef_boot is not None or leader_boot is not None:
         dwt_boot, lwt_boot = minimal_mf_analysis(
-            wt_coefs.bootstrapped_mrq, leader_boot, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None)
-
+            coef_boot, leader_boot, scaling_ranges,
+            bootstrap_weighted, n_cumul, q, None, robust)
     else:
         dwt_boot, lwt_boot = None, None
+
 
     if q is None:
         q = [2]
@@ -198,7 +202,13 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
     if isinstance(q, list):
         q = np.array(q)
 
-    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
+
+    if wt_coefs is not None:
+        j2_eff = wt_coefs.j2_eff()
+    else:
+        j2_eff = wt_leaders.j2_eff()
+
+    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, j2_eff)
 
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
@@ -212,10 +222,16 @@ def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
         'scaling_ranges': scaling_ranges,
         'bootstrapped_cm': lwt_boot.cumulants if lwt_boot is not None else None,
         'bootstrapped_sf': dwt_boot.structure if dwt_boot is not None else None,
+        'robust': robust
     }
 
-    dwt_struct = StructureFunction.from_dict({'mrq': wt_coefs, **parameters})
-    dwt = MFractalVar(dwt_struct, None, None, None, parameters['bootstrapped_sf'])
+    if wt_coefs is not None:
+        dwt_struct = StructureFunction.from_dict(
+            {'mrq': wt_coefs, **parameters})
+        dwt = MFractalVar(dwt_struct, None, None, None,
+                          parameters['bootstrapped_sf'])
+    else:
+        dwt = None
 
     lwt_cumul = Cumulants.from_dict({'mrq': wt_leaders, **parameters})
     lwt = MFractalVar(None, lwt_cumul, None, None, parameters['bootstrapped_cm'])

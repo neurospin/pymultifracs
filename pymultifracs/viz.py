@@ -1,9 +1,11 @@
+from distutils.log import error
 import time
 import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import CenteredNorm, Normalize
+from matplotlib.ticker import AutoLocator
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -93,6 +95,103 @@ def plot_multiscale(results, seg2color, ax=None):
     ax.set_ylim(ylim)
 
 
+def cp_string_format(cp, CI=False):
+
+    threshold_1 = 1 if CI else .1
+    threshold_2 = .01 if CI else .001
+
+    if abs(cp) > threshold_1:
+        return f"{cp:.2g} "
+    elif abs(cp) > threshold_2:
+        return f"{cp:.1g}"
+    elif CI:
+        return f"{cp:.2f}"
+    else:
+        return f"{cp:.3f}"
+
+
+def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
+            fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
+            C_fmt='--.', lw_C=None, offset=0, plot_CI=True, **C_kwargs):
+
+    if j1 is None:
+        j1 = cm.j.min()
+
+    if j2 is None:
+        j2 = cm.j.max()
+
+    if cm.j.min() > j1:
+        raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+                         f"{cm.j.min()} instead")
+
+    j_min = j1 - cm.j.min()
+    j_max = j2 - cm.j.min() + 1
+
+    m = cm.m[ind_m]
+
+    x = cm.j[j_min:j_max]
+    y = getattr(cm, f'C{m}')[j_min:j_max, scaling_range]
+
+    if cm.bootstrapped_cm is not None and plot_CI:
+
+        if cm.bootstrapped_cm.j.min() > j1:
+            raise ValueError(
+                f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
+                f"{cm.bootstrapped_cm.j.min()} instead")
+
+        CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():
+                                      j2 - cm.bootstrapped_cm.j.min() + 1]
+
+        CI -= y[:, None]
+        CI[:, 1] *= -1
+        assert (CI < 0).sum() == 0
+        CI = CI.transpose()
+
+    else:
+        CI = None
+
+    y += offset
+
+    errobar_params = {
+        'zorder': -1
+    }
+
+    errobar_params.update(C_kwargs)
+
+    ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
+
+    ax.set_xlabel('j')
+    ax.set_ylabel(f'$C_{m}(j)$')
+    # ax.grid()
+    # plt.draw()
+
+    if len(cm.log_cumulants) > 0 and plot_fit:
+
+        x0, x1 = cm.scaling_ranges[scaling_range]
+        slope_log2_e = cm.log_cumulants[ind_m, scaling_range, 0]
+        slope = cm.slope[ind_m, scaling_range, 0]
+        intercept = cm.intercept[ind_m, scaling_range, 0]
+
+        y0 = slope*x0 + intercept
+        y1 = slope*x1 + intercept
+
+        if cm.bootstrapped_cm is not None:
+            CI = getattr(cm, f"CIE_c{m}")
+            CI_legend = (
+                f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
+                f"{cp_string_format(CI[scaling_range, 0], True)}]")
+        else:
+            CI_legend = ""
+
+        legend = (rf'$c_{m}$ = {cp_string_format(slope_log2_e)}'
+                  + CI_legend)
+
+        ax.plot([x0, x1], [y0, y1], color=fit_color,
+                linestyle='-', linewidth=lw_fit, label=legend, zorder=0)
+        if plot_legend:
+            ax.legend()
+
+
 def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scaling_range=0, legend=True):
     """
     Plots the cumulants.
@@ -132,55 +231,61 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
 
     for ind_m, m in enumerate(cm.m):
 
-        y = getattr(cm, f'C{m}')[j_min:, scaling_range]
-
-        if cm.bootstrapped_cm is not None:
-
-            if cm.bootstrapped_cm.j.min() > j1:
-                raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_cm.j.min()} instead")
-
-            CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():]
-
-            CI -= y[:, None]
-            CI[:, 1] *= -1
-            assert (CI < 0).sum() == 0
-            CI = CI.transpose()
-
-        else:
-            CI = None
-
         ax = axes[ind_m % nrow][ind_m // nrow]
 
-        ax.errorbar(x, y, CI, fmt='--.', color='grey', zorder=-1)
-        ax.set_xlabel('j')
-        ax.set_ylabel('m = ' + str(m))
-        # ax.grid()
-        # plt.draw()
+        plot_cm(cm, ind_m, j1, None, scaling_range, ax, plot_legend=True)
 
-        if len(cm.log_cumulants) > 0:
+        # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 
-            x0, x1 = cm.scaling_ranges[scaling_range]
-            slope_log2_e = cm.log_cumulants[ind_m, scaling_range, 0]
-            slope = cm.slope[ind_m, scaling_range, 0]
-            intercept = cm.intercept[ind_m, scaling_range, 0]
+        # if cm.bootstrapped_cm is not None:
 
-            y0 = slope*x0 + intercept
-            y1 = slope*x1 + intercept
+        #     if cm.bootstrapped_cm.j.min() > j1:
+        #         raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_cm.j.min()} instead")
 
-            if cm.bootstrapped_cm is not None:
-                CI = getattr(cm, f"CIE_c{m}")
-                CI_legend = (f"; [{CI[scaling_range, 1]:.2f}, "
-                             f"{CI[scaling_range, 0]:.2f}]")
-            else:
-                CI_legend = ""
+        #     CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():]
 
-            legend = (rf'$c_{m}$ = {slope_log2_e:.3f}' + CI_legend)
+        #     CI -= y[:, None]
+        #     CI[:, 1] *= -1
+        #     assert (CI < 0).sum() == 0
+        #     CI = CI.transpose()
 
-            ax.plot([x0, x1], [y0, y1], color='k',
-                    linestyle='-', linewidth=2, label=legend, zorder=0)
-            if legend:
-                ax.legend()
-            plt.draw()
+        # else:
+        #     CI = None
+
+        # ax = axes[ind_m % nrow][ind_m // nrow]
+
+        # ax.errorbar(x, y, CI, fmt='--.', color='grey', zorder=-1)
+        # ax.set_xlabel('j')
+        # ax.set_ylabel('m = ' + str(m))
+        # # ax.grid()
+        # # plt.draw()
+
+        # if len(cm.log_cumulants) > 0:
+
+        #     x0, x1 = cm.scaling_ranges[scaling_range]
+        #     slope_log2_e = cm.log_cumulants[ind_m, scaling_range, 0]
+        #     slope = cm.slope[ind_m, scaling_range, 0]
+        #     intercept = cm.intercept[ind_m, scaling_range, 0]
+
+        #     y0 = slope*x0 + intercept
+        #     y1 = slope*x1 + intercept
+
+        #     if cm.bootstrapped_cm is not None:
+        #         CI = getattr(cm, f"CIE_c{m}")
+        #         CI_legend = (
+        #             f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
+        #             f"{cp_string_format(CI[scaling_range, 1], True)}]")
+        #     else:
+        #         CI_legend = ""
+
+        #     legend = (rf'$c_{m}$ = {cp_string_format(slope_log2_e)}'
+        #               + CI_legend)
+
+        #     ax.plot([x0, x1], [y0, y1], color='k',
+        #             linestyle='-', linewidth=2, label=legend, zorder=0)
+        #     if legend:
+        #         ax.legend()
+        #     plt.draw()
 
     for j in range(ind_m):
         axes[j % nrow][j // nrow].xaxis.set_visible(False)
@@ -197,7 +302,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
 
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
-              leader_idx_correction=True, cbar=True):
+              leader_idx_correction=True, cbar=True, figsize=(20, 7)):
 
     min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
 
@@ -207,7 +312,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
         vmin = min_all
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(20, 7))
+        fig, ax = plt.subplots(figsize=figsize)
 
     for i, scale in enumerate(range(j1, j2 + 1)):
 
@@ -235,6 +340,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
         qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm)
 
     ax.set_ylim(j1-.5, j2+.5)
+    ax.set_yticks(range(j1, j2+1))
 
     ax.set_xlabel('shift')
     ax.set_ylabel('scale')
