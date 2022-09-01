@@ -14,8 +14,8 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalData, MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, weighted,
-                n_cumul, q, bootstrap_weighted=None, R=1):
+def mf_analysis(mrq, scaling_ranges, weighted, n_cumul, q,
+                bootstrap_weighted=None, R=1, estimates="scm"):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -90,9 +90,14 @@ def mf_analysis(mrq, scaling_ranges, weighted,
         'bootstrapped_mfa': mfa_boot,
     }
 
-    struct = StructureFunction.from_dict(parameters)
-    cumul = Cumulants.from_dict(parameters)
-    spec = MultifractalSpectrum.from_dict(parameters)
+    struct, cumul, spec = None, None, None
+
+    if 's' in estimates:
+        struct = StructureFunction.from_dict(parameters)
+    if 'c' in estimates:
+        cumul = Cumulants.from_dict(parameters)
+    if 'm' in estimates:
+        spec = MultifractalSpectrum.from_dict(parameters)
 
     # pylint: disable=unbalanced-tuple-unpacking
     if mrq.formalism == 'wavelet coef':
