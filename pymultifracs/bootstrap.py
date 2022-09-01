@@ -248,6 +248,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         'gamint': mrq.gamint,
         'nj': nj,
         'values': values,
+        'wt_name': wt_name,
     })
 
     return new_mrq

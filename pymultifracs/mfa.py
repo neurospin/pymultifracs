@@ -14,8 +14,8 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalData, MFractalVar
 
 
-def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
-                n_cumul, q, bootstrap_weighted):
+def mf_analysis(mrq, scaling_ranges, weighted,
+                n_cumul, q, bootstrap_weighted=None, R=1):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -42,19 +42,25 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
         The output of the multifractal analysis
     """
 
-    if wt_coefs.bootstrapped_mrq is not None:
+    try:
+        return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
+                             q, bootstrap_weighted) for m in mrq])
+    except TypeError:
+        pass
 
-        if wt_leaders is not None and wt_leaders.bootstrapped_mrq is not None:
-            leader_boot = wt_leaders.bootstrapped_mrq
-        else:
-            leader_boot = None
+    # if len()
 
-        dwt_boot, lwt_boot = mf_analysis(
-            wt_coefs.bootstrapped_mrq, leader_boot, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None)
+    if R > 1:
+        mrq.bootstrap(R)
+
+    if mrq.bootstrapped_mrq is not None:
+
+        mfa_boot = mf_analysis(
+            mrq.bootstrapped_mrq, scaling_ranges,
+            bootstrap_weighted, n_cumul, q, None, 1)
 
     else:
-        dwt_boot, lwt_boot = None, None
+        mfa_boot = None
 
     # In case no value of q is specified, we still include q=2 in order to be
     # able to estimate H
@@ -64,11 +70,11 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
     if isinstance(q, list):
         q = np.array(q)
 
-    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
+    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
 
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. "
-                         f"Effective max scale is {wt_coefs.j2_eff()}")
+                         f"Effective max scale is {mrq.j2_eff()}")
 
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
@@ -80,70 +86,21 @@ def mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
         'j2': j2,
         'weighted': weighted,
         'scaling_ranges': scaling_ranges,
+        'mrq': mrq,
+        'bootstrapped_mfa': mfa_boot,
     }
 
-    param_dwt = {
-        'mrq': wt_coefs,
-        'bootstrapped_cm': (dwt_boot.cumulants
-                            if dwt_boot is not None else None),
-        'bootstrapped_sf': (dwt_boot.structure
-                            if dwt_boot is not None else None),
-        'bootstrapped_mfs': (dwt_boot.spectrum
-                             if dwt_boot is not None else None),
-        **parameters
-    }
-
-    dwt_struct = StructureFunction.from_dict(param_dwt)
-    dwt_cumul = Cumulants.from_dict(param_dwt)
-    dwt_spec = MultifractalSpectrum.from_dict(param_dwt)
+    struct = StructureFunction.from_dict(parameters)
+    cumul = Cumulants.from_dict(parameters)
+    spec = MultifractalSpectrum.from_dict(parameters)
 
     # pylint: disable=unbalanced-tuple-unpacking
-    dwt_hmin, _ = estimate_hmin(wt_coefs, scaling_ranges, weighted)
-
-    dwt = MFractalVar(dwt_struct, dwt_cumul, dwt_spec, dwt_hmin, dwt_boot)
-
-    if wt_leaders is not None:
-
-        param_lwt = {
-            'mrq': wt_leaders,
-            'bootstrapped_cm': (lwt_boot.cumulants
-                                if lwt_boot is not None else None),
-            'bootstrapped_sf': (lwt_boot.structure
-                                if lwt_boot is not None else None),
-            'bootstrapped_mfs': (lwt_boot.spectrum
-                                 if lwt_boot is not None else None),
-            **parameters
-        }
-
-        lwt_struct = StructureFunction.from_dict(param_lwt)
-        lwt_cumul = Cumulants.from_dict(param_lwt)
-        lwt_spec = MultifractalSpectrum.from_dict(param_lwt)
-
-        # pylint: disable=unbalanced-tuple-unpacking
-        lwt_hmin, _ = estimate_hmin(wt_leaders, scaling_ranges, weighted)
-
-        lwt = MFractalVar(lwt_struct, lwt_cumul, lwt_spec, lwt_hmin, lwt_boot)
-
+    if mrq.formalism == 'wavelet coef':
+        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted)
     else:
+        hmin = None
 
-        lwt = None
-
-    return MFractalData(dwt, lwt)
-
-
-def bootstrapped_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
-                             weighted_boot, n_cumul, q, R, wt_name):
-
-    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, wt_coefs.j2_eff())
-
-    coef_boot = wt_coefs.bootstrap(R, wt_name)
-    leader_boot = wt_leaders.bootstrap(R, wt_name)
-
-    dwt_boot, lwt_boot = mf_analysis(coef_boot, leader_boot, scaling_ranges,
-                                     weighted_boot, n_cumul, q)
-
-    dwt, lwt = mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
-                           n_cumul, q, dwt_boot, lwt_boot, coef_boot)
+    return MFractalVar(struct, cumul, spec, hmin)
 
 
 def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,

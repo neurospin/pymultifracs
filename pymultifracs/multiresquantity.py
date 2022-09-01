@@ -21,6 +21,7 @@ from .regression import compute_R2
 class MultiResolutionQuantityBase:
     formalism: str = field(init=False, default=None)
     gamint: float = field(init=False, default=None)
+    wt_name: str = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
     nrep: int = field(init=False)
     bootstrapped_mrq: typing.Any = field(init=False, default=None)
@@ -77,8 +78,6 @@ class MultiResolutionQuantityBase:
             if k in inspect.signature(cls).parameters
         })
 
-
-
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges):
 
         sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.nrep))
@@ -102,10 +101,12 @@ class MultiResolutionQuantityBase:
         return j_min, j_max
 
     def _compute_R2(self, moment, slope, intercept, weights):
-        return compute_R2(moment, slope, intercept, weights, *self._get_j_min_max())
+        return compute_R2(moment, slope, intercept, weights,
+                          *self._get_j_min_max())
 
     def _compute_R(self, moment, slope, intercept):
-        return compute_R(moment, slope, intercept, *self._get_j_min_max())
+        return compute_R(moment, slope, intercept,
+                         *self._get_j_min_max())
 
     def compute_Lambda(self):
 
@@ -161,14 +162,16 @@ class MultiResolutionQuantityBase:
 
             self._check_bootstrap_mrq()
 
-            return get_empirical_variance(self.bootstrapped_mrq, self, name[3:])
+            return get_empirical_variance(self.bootstrapped_mrq, self,
+                                          name[3:])
 
         elif name[:3] == 'SE_':
 
             self._check_bootstrap_mrq()
 
             return np.sqrt(
-                get_empirical_variance(self.bootstrapped_mrq, self, name[3:](self)))
+                get_empirical_variance(self.bootstrapped_mrq, self,
+                                       name[3:](self)))
 
         elif name[:2] == 'V_':
 
@@ -218,6 +221,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     """
     formalism: str
     gamint: float
+    wt_name: str
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
     bootstrapped_mrq: MultiResolutionQuantityBase = field(init=False,
@@ -230,16 +234,16 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
 
-    def bootstrap(self, R, wt_name, min_scale=1):
+    def bootstrap(self, R, min_scale=1):
 
         if self.formalism == 'wavelet coef':
             # print("Using coef bootstrapping technique")
-            self.bootstrapped_mrq = bootstrap(self, R, wt_name, min_scale)
+            self.bootstrapped_mrq = bootstrap(self, R, self.wt_name, min_scale)
 
         elif 'leader' in self.formalism:
             # print("Using leader bootstrapping technique")
 
-            block_length = get_filter_length(wt_name)
+            block_length = get_filter_length(self.wt_name)
             max_scale = max_scale_bootstrap(self, block_length)
 
             if max_scale < self.j2_eff():
@@ -253,12 +257,12 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         j = np.array([*self.values])
 
         if min_scale > j.min():
-            self.values = {scale: value for scale, value in self.values.items() if scale >= min_scale}
-            self.nj = {scale: nj for scale, nj in self.nj.items() if scale >= min_scale}
+            self.values = {scale: value for scale, value in self.values.items()
+                           if scale >= min_scale}
+            self.nj = {scale: nj for scale, nj in self.nj.items()
+                       if scale >= min_scale}
 
         return self.bootstrapped_mrq
-
-
 
     def add_values(self, coeffs, j):
 

@@ -22,7 +22,7 @@ lwt : MFractalVar
 """
 
 MFractalVar = namedtuple('MFractalVar',
-                         'structure cumulants spectrum hmin bootstrap')
+                         'structure cumulants spectrum hmin')
 """Aggregates the output of multifractal analysis
 
 Attributes

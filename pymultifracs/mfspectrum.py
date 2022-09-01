@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power, fixednansum
+from .utils import MFractalVar, fast_power, fixednansum
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
@@ -79,20 +79,22 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
     j: np.array = field(init=False)
     scaling_ranges: List[Tuple[int]]
     q: np.array
-    bootstrapped_mfs: MultiResolutionQuantityBase = None
+    bootstrapped_mfa: InitVar[MFractalVar] = None
     weighted: str = None
     Dq: np.array = field(init=False)
     hq: np.array = field(init=False)
     U: np.array = field(init=False)
     V: np.array = field(init=False)
 
-    def __post_init__(self, mrq):
+    def __post_init__(self, mrq, bootstrapped_mfa):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
-        self.bootstrapped_mrq = self.bootstrapped_mfs
+
+        if bootstrapped_mfa is not None:
+            self.bootstrapped_mrq = bootstrapped_mfa.spectrum
 
         self._compute(mrq)
 

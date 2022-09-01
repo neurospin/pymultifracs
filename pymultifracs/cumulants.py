@@ -17,7 +17,7 @@ from statsmodels.tools.validation import array_like, float_like
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power
+from .utils import MFractalData, fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 # from .viz import plot_multiscale
@@ -204,7 +204,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     mrq: InitVar[MultiResolutionQuantity]
     n_cumul: int
     scaling_ranges: List[Tuple[int]]
-    bootstrapped_cm: MultiResolutionQuantityBase = None
+    bootstrapped_mfa: InitVar[MFractalVar] = None
     weighted: str = None
     alpha: float = 1  # 1.342
     robust: InitVar[bool] = False
@@ -214,13 +214,15 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     log_cumulants: np.ndarray = field(init=False)
     var_log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq, robust):
+    def __post_init__(self, mrq, bootstrapped_mfa, robust):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.nrep = mrq.nrep
         self.j = np.array(list(mrq.values))
-        self.bootstrapped_mrq = self.bootstrapped_cm
+
+        if bootstrapped_mfa is not None:
+            self.bootstrapped_mrq = bootstrapped_mfa.cumulants
 
         self.m = np.arange(1, self.n_cumul+1)
         self.values = np.zeros((len(self.m), len(self.j), self.nrep))
@@ -299,13 +301,13 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
-            if self.bootstrapped_cm is None:
+            if self.bootstrapped_mrq is None:
                 std = self.STD_values[:, j_min_idx:j_max_idx]
                 # std = getattr(self, f"STD_C{m}")
 
             else:
-                std = self.bootstrapped_cm.STD_values[:, j_min - self.bootstrapped_cm.j.min():j_max - self.bootstrapped_cm.j.min() + 1]
-                # std = getattr(self.bootstrapped_cm, f"STD_C{m}")
+                std = self.bootstrapped_mrq.STD_values[:, j_min - self.bootstrapped_mrq.j.min():j_max - self.bootstrapped_mrq.j.min() + 1]
+                # std = getattr(self.bootstrapped_mrq, f"STD_C{m}")
 
         else:
             std = None
@@ -331,11 +333,11 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         #     if self.weighted == 'bootstrap':
 
         #         # case where self is the bootstrapped mrq
-        #         if self.bootstrapped_cm is None:
+        #         if self.bootstrapped_mrq is None:
         #             std = getattr(self, f"STD_C{m}")
 
         #         else:
-        #             std = getattr(self.bootstrapped_cm, f"STD_C{m}")
+        #             std = getattr(self.bootstrapped_mrq, f"STD_C{m}")
 
         #     else:
         #         std = None

@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.special import binom as binomial_coefficient
 
-from ..utils import fast_power, linear_regression
+from ..regression import linear_regression, prepare_regression, prepare_weights
+from ..utils import MFractalVar, fast_power
 from ..multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 
@@ -21,6 +22,7 @@ class BiCumulants(MultiResolutionQuantityBase):
     j1: int
     j2: int
     weighted: str = None
+    bootstrapped_mfa: InitVar[MFractalVar] = None
     j: np.array = field(init=False)
     m: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
@@ -30,12 +32,13 @@ class BiCumulants(MultiResolutionQuantityBase):
     RHO_MF: np.ndarray = field(init=False)
     rho_mf: float = field(init=False)
 
-    def __post_init__(self, mrq1, mrq2):
+    def __post_init__(self, mrq1, mrq2, bootstrapped_mfa):
 
         self.nrep = 1
 
         assert mrq1.formalism == mrq2.formalism
         self.formalism = mrq1.formalism
+        self.bootstrapped_mrq = bootstrapped_mfa
 
         assert mrq1.nj == mrq2.nj
         self.nj = mrq1.nj
@@ -106,12 +109,33 @@ class BiCumulants(MultiResolutionQuantityBase):
         Compute the log-cumulants
         (angular coefficients of the curves j->log[C_p(j)])
         """
+
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+            self.scaling_ranges, self.j
+        )
+
         self.log_cumulants = np.zeros(self.values.shape[:2])
         self.slope = np.zeros(self.log_cumulants.shape)
         self.intercept = np.zeros(self.log_cumulants.shape)
 
         log2_e = np.log2(np.exp(1))
-        x = np.arange(self.j1, self.j2+1)[:, None]
+        # x = np.arange(self.j1, self.j2+1)[:, None]
+
+        y = self.values[:, j_min_idx:j_max_idx, None, :]
+
+        if self.weighted == 'bootstrap':
+
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_cm is None:
+                std = self.STD_values[:, j_min_idx:j_max_idx]
+                # std = getattr(self, f"STD_C{m}")
+
+            else:
+                std = self.bootstrapped_cm.STD_values[:, j_min - self.bootstrapped_cm.j.min():j_max - self.bootstrapped_cm.j.min() + 1]
+                # std = getattr(self.bootstrapped_cm, f"STD_C{m}")
+
+        else:
+            std = None
 
         if self.weighted:
             nj = self.get_nj_interv(self.j1, self.j2)

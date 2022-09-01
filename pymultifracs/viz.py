@@ -97,11 +97,11 @@ def plot_multiscale(results, seg2color, ax=None):
 
 def cp_string_format(cp, CI=False):
 
-    threshold_1 = 1 if CI else .1
+    threshold_1 = .2 if CI else .1
     threshold_2 = .01 if CI else .001
 
     if abs(cp) > threshold_1:
-        return f"{cp:.2g} "
+        return f"{cp:.2g}"
     elif abs(cp) > threshold_2:
         return f"{cp:.1g}"
     elif CI:
@@ -132,15 +132,15 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
     x = cm.j[j_min:j_max]
     y = getattr(cm, f'C{m}')[j_min:j_max, scaling_range]
 
-    if cm.bootstrapped_cm is not None and plot_CI:
+    if cm.bootstrapped_mrq is not None and plot_CI:
 
-        if cm.bootstrapped_cm.j.min() > j1:
+        if cm.bootstrapped_mrq.j.min() > j1:
             raise ValueError(
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
-                f"{cm.bootstrapped_cm.j.min()} instead")
+                f"{cm.bootstrapped_mrq.j.min()} instead")
 
-        CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():
-                                      j2 - cm.bootstrapped_cm.j.min() + 1]
+        CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_mrq.j.min():
+                                      j2 - cm.bootstrapped_mrq.j.min() + 1]
 
         CI -= y[:, None]
         CI[:, 1] *= -1
@@ -175,7 +175,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept
 
-        if cm.bootstrapped_cm is not None:
+        if cm.bootstrapped_mrq is not None:
             CI = getattr(cm, f"CIE_c{m}")
             CI_legend = (
                 f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
@@ -206,7 +206,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
     if cm.j.min() > j1:
         raise ValueError(f"Expected mrq to have minium scale {j1=}, got {cm.j.min()} instead")
 
-    j_min = j1 - cm.j.min()
+    # j_min = j1 - cm.j.min()
 
     nrow = min(nrow, len(cm.m))
 
@@ -227,7 +227,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
 
     fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
 
-    x = cm.j[j_min:]
+    # x = cm.j[j_min:]
 
     for ind_m, m in enumerate(cm.m):
 
@@ -237,12 +237,12 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
 
         # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 
-        # if cm.bootstrapped_cm is not None:
+        # if cm.bootstrapped_mrq is not None:
 
-        #     if cm.bootstrapped_cm.j.min() > j1:
-        #         raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_cm.j.min()} instead")
+        #     if cm.bootstrapped_mrq.j.min() > j1:
+        #         raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_mrq.j.min()} instead")
 
-        #     CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_cm.j.min():]
+        #     CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_mrq.j.min():]
 
         #     CI -= y[:, None]
         #     CI[:, 1] *= -1
@@ -270,7 +270,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
         #     y0 = slope*x0 + intercept
         #     y1 = slope*x1 + intercept
 
-        #     if cm.bootstrapped_cm is not None:
+        #     if cm.bootstrapped_mrq is not None:
         #         CI = getattr(cm, f"CIE_c{m}")
         #         CI_legend = (
         #             f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
@@ -298,7 +298,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None, scalin
     if filename is not None:
         plt.savefig(filename)
 
-    return fig
+    # return fig
 
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,

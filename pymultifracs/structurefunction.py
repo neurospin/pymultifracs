@@ -70,21 +70,23 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
     q: np.array
     scaling_ranges: List[Tuple[int]]
     weighted: str = None
-    bootstrapped_sf: MultiResolutionQuantityBase = None
+    bootstrapped_mfa: InitVar[MFractalVar] = None
     j: np.array = field(init=False)
     logvalues: np.array = field(init=False)
     zeta: np.array = field(init=False)
     H: np.array = field(init=False)
     gamint: float = field(init=False)
 
-    def __post_init__(self, mrq):
+    def __post_init__(self, mrq, bootstrapped_mfa):
 
         self.formalism = mrq.formalism
         self.gamint = mrq.gamint
         self.nrep = mrq.nrep
         self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
-        self.bootstrapped_mrq = self.bootstrapped_sf
+
+        if bootstrapped_mfa is not None:
+            self.bootstrapped_mrq = bootstrapped_mfa.structure
 
         self._compute(mrq)
         self._compute_zeta()
@@ -126,13 +128,13 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
-            if self.bootstrapped_sf is None:
+            if self.bootstrapped_mrq is None:
                 std = self.STD_logvalues[:, j_min_idx:j_max_idx]
                 # std = getattr(self, "STD_S_q")(q)
 
             else:
-                std = self.bootstrapped_sf.STD_logvalues[:, j_min - self.bootstrapped_sf.j.min():j_max - self.bootstrapped_sf.j.min() + 1]
-                # std = getattr(self.bootstrapped_sf, "STD_S_q")(q)
+                std = self.bootstrapped_mrq.STD_logvalues[:, j_min - self.bootstrapped_mrq.j.min():j_max - self.bootstrapped_mrq.j.min() + 1]
+                # std = getattr(self.bootstrapped_mrq, "STD_S_q")(q)
 
         else:
             std = None
@@ -152,11 +154,11 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         #     if self.weighted == 'bootstrap':
 
         #         # case where self is the bootstrapped mrq
-        #         if self.bootstrapped_sf is None:
+        #         if self.bootstrapped_mrq is None:
         #             std = getattr(self, "STD_S_q")(q)
 
         #         else:
-        #             std = getattr(self.bootstrapped_sf, "STD_S_q")(q)
+        #             std = getattr(self.bootstrapped_mrq, "STD_S_q")(q)
 
         #     else:
         #         std = None
