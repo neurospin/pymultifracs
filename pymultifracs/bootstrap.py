@@ -15,6 +15,8 @@ from recombinator.block_bootstrap import\
      _generate_block_start_indices_and_successive_indices,\
      _general_block_bootstrap_loop, circular_block_bootstrap
 
+from pymultifracs.multiresquantity import MultiResolutionQuantity
+
 from .utils import get_filter_length
 
 
@@ -124,11 +126,18 @@ def get_std(mrq, name):
     return std
 
 
+def reshape(attribute, nrep):
+    if nrep == 1:
+        return attribute
+    return attribute.reshape((attribute.shape[0], nrep, -1))
+
+
 def get_confidence_interval(mrq, name):
 
     if mrq is None:
         return None
 
+    # shape (n_scale, n_rep)
     attribute = getattr(mrq, name)
 
     if callable(attribute):
@@ -216,7 +225,7 @@ def max_scale_bootstrap(mrq, filt_len):
     """
 
     for i, nj in mrq.nj.items():
-        if nj < filt_len:
+        if (nj < filt_len).any():
             i -= 1
             break
 
@@ -225,8 +234,8 @@ def max_scale_bootstrap(mrq, filt_len):
 
 def bootstrap(mrq, R, wt_name, min_scale=1):
 
-    if mrq.nrep > 1:
-        raise ValueError("Bootstrap only available for signals with 1 rep")
+    # if mrq.nrep > 1:
+    #     raise ValueError("Bootstrap only available for signals with 1 rep")
 
     filt_len = get_filter_length(wt_name)
 
@@ -234,13 +243,18 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
 
     values = {
         scale: circular_block_bootstrap(
-            data[:, 0], filt_len, R).transpose()
-        for scale, data in mrq.values.items() if scale <= max_scale and scale >= min_scale
+            data, filt_len, R).transpose(1, 2, 0)
+        for scale, data in mrq.values.items()
+        if scale <= max_scale and scale >= min_scale
     }
+
+    for k, v in values.items():
+        values[k] = v.reshape((v.shape[0], -1))
 
     nj = {
         scale: np.array([*array] * R)
-        for scale, array in mrq.nj.items() if scale <= max_scale and scale >= min_scale
+        for scale, array in mrq.nj.items()
+        if scale <= max_scale and scale >= min_scale
     }
 
     new_mrq = mrq.from_dict({
@@ -249,6 +263,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         'nj': nj,
         'values': values,
         'wt_name': wt_name,
+        'nrep': mrq.nrep
     })
 
     return new_mrq
@@ -331,6 +346,7 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
                                       bootstrap_type=bootstrap_type,
                                       sub_sample_length=sub_sample_length)
 
+    # Looks like it's useless, still keep for now
     block_start_indices, successive_indices \
         = _generate_block_start_indices_and_successive_indices(
                     sample_length=T,
@@ -338,28 +354,31 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
                     circular=circular,
                     successive_3d=False)
 
-    # Make sure to not have blocks start and end with nans
-    nan_idx = np.isnan(x)
-    idx_start = ~nan_idx & ~np.roll(nan_idx, -block_length)
-    start_indices = np.arange(0, x.shape[0])[idx_start]
+    block_start_indices = np.arange(0, x.shape[0])
 
+    # Make sure to not have blocks start and end with nans
+    # nan_idx = np.isnan(x)
+    # idx_start = ~nan_idx & ~np.roll(nan_idx, -block_length)
+    # start_indices = np.arange(0, x.shape[0])[idx_start]
+
+    # Samples indices from possible values
     indices \
         = _general_block_bootstrap_loop(
             block_length=block_length, replications=replications,
-            block_start_indices=start_indices,
+            block_start_indices=block_start_indices,
             successive_indices=successive_indices,
             sub_sample_length=sub_sample_length,
             replace=replace, link_rngs=link_rngs)
 
-    indices = _general_leader_bootstrap_loop(indices, block_start_indices,
-                                             block_length, max_scale)
+    # Casts the lower-scale indices to higher scales => returns dict
+    indices = _general_leader_bootstrap_loop(indices, block_length, max_scale)
 
     return indices
 
 
-def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replications,
-                              sub_sample_length=None, link_rngs=True,
-                              double=False):
+def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
+                              replications, sub_sample_length=None,
+                              link_rngs=True, double=False):
     """
     Returns double-bootstrapped multi-res quantities
 
@@ -401,13 +420,9 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
         if `double` was passed as True
     """
 
-    x = mrq.values[1][:, 0]
-
-    # x = x[~np.isnan(x)]
-
     max_scale = min(max_scale_bootstrap(mrq, block_length), max_scale)
 
-    indices = _general_leader_bootstrap(x, max_scale, block_length,
+    indices = _general_leader_bootstrap(mrq.values[1], max_scale, block_length,
                                         replications, sub_sample_length,
                                         link_rngs)
 
@@ -431,13 +446,13 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
         if scale < min_scale:
             continue
 
-        data = mrq.values[scale][:, 0]
+        data = mrq.values[scale]
         # data = data[~np.isnan(data)]
 
         if data.ndim == 1:
-            data = np.hstack((data, data))
+            data = np.hstack((data, data[:block_length]))
         else:
-            data = np.vstack((data, data))
+            data = np.vstack((data, data[:block_length]))
 
         idx = indices_scale[indices_scale >= 0]
 
@@ -484,7 +499,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
         #     dtype=float) + np.nan
 
         out = np.zeros(
-            (replications, mrq.values[1].shape[0]),
+            (replications, *mrq.values[1].shape),
             dtype=float) + np.nan
 
         try:
@@ -500,6 +515,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
         'gamint': mrq.gamint,
         'nj': nj,
         'values': values,
+        'nrep': mrq.nrep
     })
 
     if double:
@@ -509,7 +525,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length, replicati
                 'formalism': mrq.formalism,
                 'gamint': mrq.gamint,
                 'nj': nj_double[rep],
-                'values': values_double[rep],
+                'values': values_double[rep]
             })
             for rep in values_double}
 

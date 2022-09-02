@@ -365,10 +365,12 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
-            return self.log_cumulants[self.m == int(name[1])][0]
+            out = self.log_cumulants[self.m == int(name[1])][0]
+            return out.reshape(out.shape[0], self.nrep, -1).squeeze(axis=2)
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
-            return self.values[self.m == int(name[1])][0]
+            out = self.values[self.m == int(name[1])][0]
+            return out.reshape(out.shape[0], self.nrep, -1).squeeze(axis=2)
 
         if name == 'M':
             return -self.c2

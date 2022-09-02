@@ -5,7 +5,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from dataclasses import dataclass, field
 import inspect
-import typing
+from typing import Any
 
 import numpy as np
 
@@ -23,8 +23,8 @@ class MultiResolutionQuantityBase:
     gamint: float = field(init=False, default=None)
     wt_name: str = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
-    nrep: int = field(init=False)
-    bootstrapped_mrq: typing.Any = field(init=False, default=None)
+    nrep: int = field(init=False, default=None)
+    bootstrapped_mrq: Any = field(init=False, default=None)
 
     def get_nj(self):
         """
@@ -34,12 +34,8 @@ class MultiResolutionQuantityBase:
 
     def get_nj_interv(self, j1, j2):
         """
-        Returns nj as a list, for j in [j1,j2]
+        Returns nj as an array, for j in [j1,j2]
         """
-        # nj = []
-        # for j in range(j1, j2+1):
-        #     nj.append(self.nj[j])
-        # return nj
         return np.array([self.nj[j] for j in range(j1, j2+1)])
 
     def update_nj(self):
@@ -84,6 +80,7 @@ class MultiResolutionQuantityBase:
 
         for i, (j1, j2) in enumerate(scaling_ranges):
             for j in range(j1, j2 + 1):
+
                 c_j = np.abs(self.values[j])
                 sup_c_j = np.nanmax(c_j, axis=0)
                 sup_coeffs[j-j_min, i] = sup_c_j
@@ -140,7 +137,8 @@ class MultiResolutionQuantityBase:
 
         if self.bootstrapped_mrq is None:
             raise ValueError(
-                "Bootstrapped mrq needs to be computed prior to estimating empirical estimators")
+                "Bootstrapped mrq needs to be computed prior to estimating "
+                "empirical estimators")
 
         self.bootstrapped_mrq._check_enough_rep_bootstrap()
 
@@ -224,6 +222,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     wt_name: str
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
+    nrep: int = None
     bootstrapped_mrq: MultiResolutionQuantityBase = field(init=False,
                                                           default=None)
 
@@ -254,13 +253,14 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
             self.bootstrapped_mrq = circular_leader_bootstrap(
                 self, min_scale, max_scale, block_length, R)
 
-        j = np.array([*self.values])
-
-        if min_scale > j.min():
-            self.values = {scale: value for scale, value in self.values.items()
-                           if scale >= min_scale}
-            self.nj = {scale: nj for scale, nj in self.nj.items()
-                       if scale >= min_scale}
+        # j = np.array([*self.values])
+        #
+        # if min_scale > j.min():
+        #     self.values = {scale: value
+        #                    for scale, value in self.values.items()
+        #                    if scale >= min_scale}
+        #     self.nj = {scale: nj for scale, nj in self.nj.items()
+        #                if scale >= min_scale}
 
         return self.bootstrapped_mrq
 
@@ -269,9 +269,21 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         self.values[j] = coeffs
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
-    def __getattr__(self, name):
+    # def __getattr__(self, name):
+    #     if name == 'nrep':
+    #         if self.nrep is not None:
+    #             return self.nrep
+    #         if len(self.values) > 0:
+    #             return self.values[[*self.values][0]].shape[1]
+
+    #     return self.__getattribute__(name)
+
+    def __getattribute__(self, name: str) -> Any:
+
         if name == 'nrep':
+            if (nrep := super().__getattribute__('nrep')) is not None:
+                return nrep
             if len(self.values) > 0:
                 return self.values[[*self.values][0]].shape[1]
 
-        return self.__getattribute__(name)
+        return super().__getattribute__(name)
