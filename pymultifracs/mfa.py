@@ -3,6 +3,8 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
+from collections.abc import Iterable
+
 import numpy as np
 
 from .mfspectrum import MultifractalSpectrum
@@ -11,10 +13,10 @@ from .structurefunction import StructureFunction
 from .wavelet import wavelet_analysis
 from .estimation import estimate_hmin
 from .autorange import sanitize_scaling_ranges
-from .utils import MFractalData, MFractalVar
+from .utils import MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, weighted, n_cumul, q,
+def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
                 bootstrap_weighted=None, R=1, estimates="scm"):
     """Perform multifractal analysis, given wavelet coefficients.
 
@@ -42,13 +44,19 @@ def mf_analysis(mrq, scaling_ranges, weighted, n_cumul, q,
         The output of the multifractal analysis
     """
 
-    try:
-        return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
-                             q, bootstrap_weighted) for m in mrq])
-    except TypeError:
-        pass
+    if isinstance(mrq, Iterable):
 
-    # if len()
+        if isinstance(estimates, str):
+            estimates = [estimates] * len(mrq)
+
+        elif (n := len(estimates)) != (m := len(mrq)):
+            raise ValueError(
+                f"Length of `estimates` = {n} does not match `mrq` = {m}"
+            )
+
+        return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
+                             q, bootstrap_weighted, R, estimates[i])
+                 for i, m in enumerate(mrq)])
 
     if R > 1:
         mrq.bootstrap(R)
@@ -57,7 +65,7 @@ def mf_analysis(mrq, scaling_ranges, weighted, n_cumul, q,
 
         mfa_boot = mf_analysis(
             mrq.bootstrapped_mrq, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None, 1)
+            bootstrap_weighted, n_cumul, q, None, 1, estimates)
 
     else:
         mfa_boot = None
@@ -108,102 +116,10 @@ def mf_analysis(mrq, scaling_ranges, weighted, n_cumul, q,
     return MFractalVar(struct, cumul, spec, hmin)
 
 
-def minimal_mf_analysis(wt_coefs, wt_leaders, scaling_ranges, weighted,
-                        n_cumul, q, bootstrap_weighted, robust):
-    """Perform multifractal analysis, returning only what is needed for H and
-    M estimation.
-
-    Parameters
-    ----------
-    wt_coefs : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-        Wavelet coefs
-    wt_leaders : \
-        :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-        Wavelet leaders
-    j2_eff : int
-        Effective maximum scale
-    p_exp : int | None
-        Exponent for the wavelet leaders
-    j1 : int
-        Minimum scale
-    weighted : str | None
-        Perform weighted regression
-    n_cumul : int
-        Number of cumulants computed
-    q : list(float)
-        List of q values used in the multifractal analysis
-
-    Returns
-    -------
-    :class:`~pymultifracs.mf_analysis.MFractalData`
-        The output of the multifractal analysis. The only fields that
-        are filled are dwt.structure and lwt.cumulants
-    """
-
-    if wt_leaders is not None and wt_leaders.bootstrapped_mrq is not None:
-        leader_boot = wt_leaders.bootstrapped_mrq
-    else:
-        leader_boot = None
-
-    if wt_coefs is not None and wt_coefs.bootstrapped_mrq is not None:
-        coef_boot = wt_coefs.bootstrapped_mrq
-    else:
-        coef_boot = None
-
-    if coef_boot is not None or leader_boot is not None:
-        dwt_boot, lwt_boot = minimal_mf_analysis(
-            coef_boot, leader_boot, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None, robust)
-    else:
-        dwt_boot, lwt_boot = None, None
-
-
-    if q is None:
-        q = [2]
-
-    if isinstance(q, list):
-        q = np.array(q)
-
-
-    if wt_coefs is not None:
-        j2_eff = wt_coefs.j2_eff()
-    else:
-        j2_eff = wt_leaders.j2_eff()
-
-    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, j2_eff)
-
-    j1 = min([sr[0] for sr in scaling_ranges])
-    j2 = max([sr[1] for sr in scaling_ranges])
-
-    parameters = {
-        'q': q,
-        'n_cumul': n_cumul,
-        'j1': j1,
-        'j2': j2,
-        'weighted': weighted,
-        'scaling_ranges': scaling_ranges,
-        'bootstrapped_cm': lwt_boot.cumulants if lwt_boot is not None else None,
-        'bootstrapped_sf': dwt_boot.structure if dwt_boot is not None else None,
-        'robust': robust
-    }
-
-    if wt_coefs is not None:
-        dwt_struct = StructureFunction.from_dict(
-            {'mrq': wt_coefs, **parameters})
-        dwt = MFractalVar(dwt_struct, None, None, None,
-                          parameters['bootstrapped_sf'])
-    else:
-        dwt = None
-
-    lwt_cumul = Cumulants.from_dict({'mrq': wt_leaders, **parameters})
-    lwt = MFractalVar(None, lwt_cumul, None, None, parameters['bootstrapped_cm'])
-
-    return MFractalData(dwt, lwt)
-
-
 def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
                      weighted=None, wt_name='db3', p_exp=None, q=None,
-                     n_cumul=3, minimal=False, bootstrap_weighted=None):
+                     n_cumul=3, bootstrap_weighted=None,
+                     estimates='scm', R=1):
     """Perform multifractal analysis on a signal.
 
     .. note:: This function combines wavelet analysis and multifractal analysis
@@ -257,14 +173,20 @@ def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
                                     normalization=normalization,
                                     weighted=weighted)
 
-    fun = minimal_mf_analysis if minimal else mf_analysis
+    mrq = [wt_transform.wt_coefs]
 
-    mf_data = fun(wt_transform.wt_coefs,
-                  wt_transform.wt_leaders,
-                  scaling_ranges,
-                  weighted=weighted,
-                  n_cumul=n_cumul,
-                  q=q,
-                  bootstrap_weighted=bootstrap_weighted)
+    if wt_transform.wt_leaders is not None:
+        mrq += [wt_transform.wt_leaders]
+
+    mf_data = mf_analysis(
+        mrq,
+        scaling_ranges,
+        weighted=weighted,
+        n_cumul=n_cumul,
+        q=q,
+        bootstrap_weighted=bootstrap_weighted,
+        R=R,
+        estimates=estimates,
+    )
 
     return mf_data

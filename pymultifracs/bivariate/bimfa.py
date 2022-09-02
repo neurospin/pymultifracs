@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-from ..mfa import MFractalData
+from ..utils import MFractalData
 from ..wavelet import wavelet_analysis
 from .bivariate_cumulants import BiCumulants
 from .bivariate_structurefunction import BiStructureFunction

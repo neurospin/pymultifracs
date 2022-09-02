@@ -9,7 +9,8 @@ import seaborn as sns
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-from ..utils import fast_power, linear_regression
+from ..utils import fast_power
+from ..regression import linear_regression
 from ..multiresquantity import MultiResolutionQuantityBase, \
     MultiResolutionQuantity
 
