@@ -67,12 +67,12 @@ def find_max_lambda(L):
 
 def compute_R(moment, slope, intercept, j_min, j_max):
 
-    # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+    # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, B)
     moment = moment[:, j_min-1:j_max, None, :]
     slope = slope[:, None, :]
     intercept = intercept[:, None, :]
 
-    x = np.arange(j_min, j_max + 1)[None, :, None, None]
+    x = np.arange(j_min, j_max + 1)[None, :, None, None, None]
     # j_mask = np.ones((1, x.shape[1], slope.shape[2], 1))
 
     # for i, (j1, j2) in enumerate(mrq.scaling_ranges):

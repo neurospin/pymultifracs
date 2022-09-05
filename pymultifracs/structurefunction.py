@@ -4,7 +4,6 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
-from multiprocessing.sharedctypes import Value
 from typing import List, Tuple
 
 import numpy as np
@@ -13,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power, MFractalVar
+from .utils import fast_power, MFractalVar, isclose
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
@@ -43,7 +42,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         or 'wavelet p-leaders'.
     nj : dict(ndarray)
         Number of coefficients at scale j.
-        Arrays are of the shape (nrep,)
+        Arrays are of the shape (n_rep,)
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
     j1 : int
@@ -54,15 +53,15 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         Whether weighted regression was performed.
     q : ndarray, shape (n_exponents,)
         Exponents for which the structure functions have been computed
-    values : ndarray, shape (n_exponents, n_scales, nrep)
+    values : ndarray, shape (n_exponents, n_scales, n_rep)
         Structure functions : :math:`S(j, q)`
-    logvalues : ndarray, shape (n_exponents, n_scales, nrep)
+    logvalues : ndarray, shape (n_exponents, n_scales, n_rep)
         :math:`\\log_2 S(j, q)`
-    zeta : ndarray, shape(n_exponents, nrep)
+    zeta : ndarray, shape(n_exponents, n_rep)
         Scaling function : :math:`\\zeta(q)`
-    H : ndarray, shape (nrep,) | None
+    H : ndarray, shape (n_rep,) | None
         Estimates of H. Set to None if 2 is not in `q`.
-    nrep : int
+    n_rep : int
         Number of realisations
 
     """
@@ -81,7 +80,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         self.formalism = mrq.formalism
         self.gamint = mrq.gamint
-        self.nrep = mrq.nrep
+        self.n_sig = mrq.n_sig
         self.nj = mrq.nj
         self.j = np.array(list(mrq.values))
 
@@ -89,17 +88,17 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             self.bootstrapped_mrq = bootstrapped_mfa.structure
 
         self._compute(mrq)
-        self._compute_zeta()
+        self._compute_zeta(mrq.n_rep)
         self.H = self._get_H()
 
     def _compute(self, mrq):
 
-        values = np.zeros((len(self.q), len(self.j), self.nrep))
+        values = np.zeros((len(self.q), len(self.j), mrq.n_rep))
 
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.values[j]
-            s_j = np.zeros((values.shape[0], self.nrep))
+            s_j = np.zeros((values.shape[0], mrq.n_rep))
 
             for ind_q, q in enumerate(self.q):
                 s_j[ind_q, :] = np.nanmean(fast_power(np.abs(c_j), q), axis=0)
@@ -110,7 +109,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         self.logvalues[np.isinf(self.logvalues)] = np.nan
 
-    def _compute_zeta(self):
+    def _compute_zeta(self, n_rep):
         """
         Compute the value of the scale function zeta(q) for all q
         """
@@ -119,7 +118,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             self.scaling_ranges, self.j)
 
         # shape (n_moment, n_scaling_ranges, n_rep)
-        self.zeta = np.zeros((len(self.q), n_ranges, self.nrep))
+        self.zeta = np.zeros((len(self.q), n_ranges, n_rep))
         self.intercept = np.zeros_like(self.zeta)
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
@@ -130,63 +129,51 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             # case where self is the bootstrapped mrq
             if self.bootstrapped_mrq is None:
                 std = self.STD_logvalues[:, j_min_idx:j_max_idx]
-                # std = getattr(self, "STD_S_q")(q)
 
             else:
-                std = self.bootstrapped_mrq.STD_logvalues[:, j_min - self.bootstrapped_mrq.j.min():j_max - self.bootstrapped_mrq.j.min() + 1]
-                # std = getattr(self.bootstrapped_mrq, "STD_S_q")(q)
+                std = self.bootstrapped_mrq.STD_logvalues[
+                    :,
+                    j_min - self.bootstrapped_mrq.j.min():
+                    j_max - self.bootstrapped_mrq.j.min() + 1]
 
         else:
             std = None
 
-        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
-                                       self.scaling_ranges, std)
+        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
+                                       j_max, self.scaling_ranges, std)
 
-        try:
-            self.zeta, self.intercept = linear_regression(x, y, self.weights)
-        except AssertionError:
-            import ipdb; ipdb.set_trace()
-
-        # self.zeta[np.isinf(self.zeta)] = np.nan
-
-        # for ind_q, q in enumerate(self.q):
-
-        #     if self.weighted == 'bootstrap':
-
-        #         # case where self is the bootstrapped mrq
-        #         if self.bootstrapped_mrq is None:
-        #             std = getattr(self, "STD_S_q")(q)
-
-        #         else:
-        #             std = getattr(self.bootstrapped_mrq, "STD_S_q")(q)
-
-        #     else:
-        #         std = None
-
-        #     self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
-        #                                    self.scaling_ranges, std)
-
-        #     y = self.logvalues[ind_q, j_min-1:j_max, None, :]
-
-        #     slope, intercept = linear_regression(x, y, self.weights)
-
-        #     self.zeta[ind_q] = slope
-        #     self.intercept[ind_q] = intercept
+        self.zeta, self.intercept = linear_regression(x, y, self.weights)
 
     def compute_R(self):
-        return super()._compute_R(self.logvalues, self.zeta, self.intercept)
+
+        values = self.logvalues.reshape(
+            *self.logvalues.shape[:2], self.n_sig, -1)
+        slope = self.zeta.reshape(*self.zeta.shape[:2], self.n_sig, -1)
+        intercept = self.intercept.reshape(
+            *self.intercept.shape[:2], self.n_sig, -1)
+
+        return super()._compute_R(values, slope, intercept)
 
     def compute_R2(self):
-        return super()._compute_R2(self.logvalues, self.zeta, self.intercept, self.weights)
+        return super()._compute_R2(self.logvalues, self.zeta, self.intercept,
+                                   self.weights)
 
     def _get_H(self):
         return (self.zeta[self.q == 2][0] / 2) - self.gamint
 
     def S_q(self, q):
-        return self.logvalues[self.q == q][0]
+
+        out = self.logvalues[isclose(q, self.q)][0]
+        out = out.reshape(out.shape[0], self.n_sig, -1)
+
+        return out
 
     def s_q(self, q):
-        return self.zeta[self.q == q][0]
+
+        out = self.zeta[isclose(q, self.q)][0]
+        out = out.reshape(out.shape[0], self.n_sig, -1)
+
+        return out
 
     def get_intercept(self):
         intercept = self.intercept[self.q == 2]
@@ -199,7 +186,11 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
     def __getattr__(self, name):
 
         if name == 'S2':
-            return self.logvalues[self.q == 2].squeeze()
+            out = self.logvalues[self.q == 2]
+            return out.reshape(out.shape[0], self.n_sig, -1)
+
+        if name == 'n_rep':
+            return self.zeta.shape[-1]
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
@@ -212,7 +203,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         Plots the structure functions.
         """
 
-        if self.nrep > 1:
+        if self.n_rep > 1:
             raise ValueError('Cannot plot structure functions for more than '
                              '1 repetition at a time')
 
@@ -254,10 +245,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             y = self.S_q(q)[idx]
 
             if self.bootstrapped_mrq is not None:
-                try:
-                    CI = self.CIE_S_q(q)[idx]
-                except FloatingPointError:
-                    import ipdb; ipdb.set_trace()
+
+                CI = self.CIE_S_q(q)[idx]
 
                 CI -= y
                 CI[:, 1] *= -1

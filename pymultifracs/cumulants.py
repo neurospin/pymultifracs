@@ -4,23 +4,21 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field, InitVar
-import enum
 from typing import List, Tuple
 
 import numpy as np
 from scipy.special import binom as binomial_coefficient
 from scipy.stats import norm as Gaussian
-from statsmodels.robust.scale import qn_scale, huber
+from statsmodels.robust.scale import qn_scale
 from statsmodels.robust.norms import estimate_location, TukeyBiweight
 from statsmodels.tools.validation import array_like, float_like
 
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import MFractalData, fast_power, MFractalVar
+from .utils import fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-# from .viz import plot_multiscale
 
 
 def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
@@ -61,7 +59,7 @@ def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     elif a.size == 0:
         return np.nan
     else:
-        out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
+        out = np.apply_along_axis(qn_scale, axis=axis, arr=a, c=c)
         if out.ndim == 0:
             return float(out)
         return out
@@ -147,7 +145,6 @@ def compute_robust_cumulants(X, alpha, m_array):
     return values
 
 
-
 @dataclass
 class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     r"""
@@ -174,8 +171,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         or 'wavelet p-leaders'.
     nj : dict(ndarray)
         Number of coefficients at scale j.
-        Arrays are of the shape (nrep,)
-    values : ndarray, shape (n_cumulants, n_scales, nrep)
+        Arrays are of the shape (n_rep,)
+    values : ndarray, shape (n_cumulants, n_scales, n_rep)
         :math:`C_m(j)`.
     n_cumul : int
         Number of computed cumulants.
@@ -190,14 +187,14 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         arrays.
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
-    log_cumulants : ndarray, shape (n_cumulants, nrep)
+    log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
-    var_log_cumulants : ndarray, shape (n_cumulants, nrep)
+    var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
         Estimates of the log-cumulants
 
         .. warning:: var_log_cumulants
                      was not debugged
-    nrep : int
+    n_rep : int
         Number of realisations
 
     """
@@ -218,21 +215,21 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
-        self.nrep = mrq.nrep
+        self.n_sig = mrq.n_sig
         self.j = np.array(list(mrq.values))
 
         if bootstrapped_mfa is not None:
             self.bootstrapped_mrq = bootstrapped_mfa.cumulants
 
         self.m = np.arange(1, self.n_cumul+1)
-        self.values = np.zeros((len(self.m), len(self.j), self.nrep))
+        self.values = np.zeros((len(self.m), len(self.j), mrq.n_rep))
 
         self._compute(mrq, robust)
-        self._compute_log_cumulants()
+        self._compute_log_cumulants(mrq.n_rep)
 
     def _compute(self, mrq, robust):
 
-        moments = np.zeros((len(self.m), len(self.j), self.nrep))
+        moments = np.zeros((len(self.m), len(self.j), mrq.n_rep))
         aux = np.zeros_like(moments)
 
         for ind_j, j in enumerate(self.j):
@@ -242,7 +239,6 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             log_T_X_j = np.log(T_X_j)
 
             # dropping infinite coefs
-            # log_T_X_j = log_T_X_j[~np.isinf(log_T_X_j)]
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
             # log T_X_j shape (n_j, n_reps)
@@ -258,8 +254,9 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                 # Non-robust estimation
                 for ind_m, m in enumerate(self.m):
 
-                    moments[ind_m, ind_j] = np.nanmean(fast_power(log_T_X_j, m),
-                                                       axis=0)
+                    moments[ind_m, ind_j] = np.nanmean(
+                        fast_power(log_T_X_j, m),
+                        axis=0)
 
                     idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
                     moments[ind_m, ind_j, idx_unreliable] = np.nan
@@ -276,7 +273,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
                         self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
 
-    def _compute_log_cumulants(self):
+    def _compute_log_cumulants(self, n_rep):
         """
         Compute the log-cumulants
         (angular coefficients of the curves j->log[C_p(j)])
@@ -286,12 +283,12 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             self.scaling_ranges, self.j
         )
 
-        self.log_cumulants = np.zeros((len(self.m), n_ranges, self.nrep))
+        self.log_cumulants = np.zeros((len(self.m), n_ranges, n_rep))
         self.var_log_cumulants = np.zeros_like(self.log_cumulants)
         self.slope = np.zeros_like(self.log_cumulants)
         self.intercept = np.zeros_like(self.log_cumulants)
         self.weights = np.zeros((len(self.m), j_max - j_min + 1, n_ranges,
-                                 self.nrep))
+                                 n_rep))
 
         log2_e = np.log2(np.exp(1))
 
@@ -303,11 +300,12 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             # case where self is the bootstrapped mrq
             if self.bootstrapped_mrq is None:
                 std = self.STD_values[:, j_min_idx:j_max_idx]
-                # std = getattr(self, f"STD_C{m}")
 
             else:
-                std = self.bootstrapped_mrq.STD_values[:, j_min - self.bootstrapped_mrq.j.min():j_max - self.bootstrapped_mrq.j.min() + 1]
-                # std = getattr(self.bootstrapped_mrq, f"STD_C{m}")
+                std = self.bootstrapped_mrq.STD_values[
+                    :,
+                    j_min - self.bootstrapped_mrq.j.min():
+                    j_max - self.bootstrapped_mrq.j.min() + 1]
 
         else:
             std = None
@@ -326,37 +324,16 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         self.var_log_cumulants *= (log2_e ** 2)
 
-        # for ind_m, m in enumerate(self.m):
-
-        #     # y = self.values[ind_m, j_min-1:j_max, None, :]
-
-        #     if self.weighted == 'bootstrap':
-
-        #         # case where self is the bootstrapped mrq
-        #         if self.bootstrapped_mrq is None:
-        #             std = getattr(self, f"STD_C{m}")
-
-        #         else:
-        #             std = getattr(self.bootstrapped_mrq, f"STD_C{m}")
-
-        #     else:
-        #         std = None
-
-        #     self.weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
-        #                                    self.scaling_ranges, std)
-
-        #     # pylint: disable=unbalanced-tuple-unpacking
-        #     slope, intercept, var_slope = \
-        #         linear_regression(x, y, self.weights, return_variance=True)
-
-        #     self.var_log_cumulants[ind_m] = (log2_e ** 2) * var_slope
-        #     self.slope[ind_m] = slope
-        #     self.intercept[ind_m] = intercept
-
         self.log_cumulants = log2_e * self.slope
 
     def compute_R(self):
-        return super()._compute_R(self.values, self.slope, self.intercept)
+
+        values = self.values.reshape(*self.values.shape[:2], self.n_sig, -1)
+        slope = self.slope.reshape(*self.slope.shape[:2], self.n_sig, -1)
+        intercept = self.intercept.reshape(
+            *self.intercept.shape[:2], self.n_sig, -1)
+
+        return super()._compute_R(values, slope, intercept)
 
     def compute_R2(self):
         return super()._compute_R2(self.values, self.slope, self.intercept,
@@ -365,15 +342,24 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
+
             out = self.log_cumulants[self.m == int(name[1])][0]
-            return out.reshape(out.shape[0], self.nrep, -1).squeeze(axis=2)
+            out = out.reshape(out.shape[0], self.n_sig, -1)
+
+            return out
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
+
             out = self.values[self.m == int(name[1])][0]
-            return out.reshape(out.shape[0], self.nrep, -1).squeeze(axis=2)
+            out = out.reshape(out.shape[0], self.n_sig, -1)
+
+            return out
 
         if name == 'M':
             return -self.c2
+
+        if name == 'n_rep':
+            return self.log_cumulants.shape[-1]
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr

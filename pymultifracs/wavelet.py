@@ -12,7 +12,7 @@ from scipy.signal import convolve
 
 from .structurefunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
-from .utils import fast_power, fixednansum, fixednanmax, get_filter_length
+from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
 def _check_formalism(p_exp):
@@ -74,6 +74,20 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
             wt_leaders.values[j]*ZPJCorr[None, :, ind_j]
 
     return wt_leaders, eta_p
+
+
+def decomposition_level_bootstrap(X, wt_name):
+    """
+    Determines maximum scale possible to perform bootstrapping
+
+    Parameters
+    ----------
+    mrq: :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+
+    """
+
+    return max_scale_bootstrap(
+        wavelet_analysis(X, wt_name=wt_name, p_exp=None)[0])
 
 
 def decomposition_level(length, wt_name):
@@ -140,7 +154,7 @@ def filtering(approx, high_filter, low_filter):
     # index of first good value
     fp = len(high_filter) - 1
     # index of last good value
-    lp = nj_temp # len(high_filter)
+    lp = nj_temp  # len(high_filter)
 
     # replace border with nan
     high[0:fp] = np.nan
@@ -243,7 +257,8 @@ def compute_leaders(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3):
         detail = wt_coefs.values[scale]
 
         leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
-                                                scale, formalism, p_exp, size=size)
+                                                scale, formalism, p_exp,
+                                                size=size)
 
         # remove infinite values and store wavelet leaders
         # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
@@ -288,9 +303,9 @@ eta_p : float
 
 
 def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
-                           normalization, gamint, j2):
+                           normalization, gamint, j2, wt_name):
 
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint)
+    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name)
     wt_leaders = None
 
     for scale in range(1, max_level + 1):
@@ -413,11 +428,14 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     if formalism == 'wavelet coef':
         return _wavelet_coef_analysis(approx, max_level, high_filter,
-                                      low_filter, normalization, gamint, j2)
+                                      low_filter, normalization, gamint, j2,
+                                      wt_name)
 
     # Initialize structures
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name)
-    wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name)
+    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name,
+                                       n_sig=signal.shape[1])
+    wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
+                                         n_sig=signal.shape[1])
 
     sans_voisin = None
 

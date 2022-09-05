@@ -140,3 +140,27 @@ def get_filter_length(wt_name):
 
     wt = pywt.Wavelet(wt_name)
     return len(wt.dec_hi)
+
+
+def max_scale_bootstrap(mrq):
+    """
+    Determines maximum scale possible to perform bootstrapping
+
+    Parameters
+    ----------
+    mrq: :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+
+    """
+
+    filt_len = mrq.filt_len
+
+    for i, nj in mrq.nj.items():
+        if (nj < filt_len).any():
+            i -= 1
+            break
+
+    return i
+
+
+def isclose(a, b, rel_tol=1.98e-03):
+    return np.abs(a - b) <= rel_tol * max(np.max(np.abs(a)), np.max(np.abs(b)))

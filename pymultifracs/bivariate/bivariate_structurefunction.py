@@ -33,7 +33,7 @@ class BiStructureFunction(MultiResolutionQuantityBase):
 
     def __post_init__(self, mrq1, mrq2):
 
-        self.nrep = 1
+        self.n_rep = 1
 
         assert mrq1.formalism == mrq2.formalism
         self.formalism = mrq1.formalism

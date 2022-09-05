@@ -37,42 +37,11 @@ def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
     w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
                         scaling_ranges, std=std)
 
-    # n_ranges = len(scaling_ranges)
-    # j = np.array([*wt_coefs.values])
-    # j_min = j.min()
-    # j_max = j.max()
-
-    # shape (n_scales, n_scaling_ranges, n_rep)
-    # x = np.arange(j_min, j_max + 1)[:, None, None]
-
-    # shape n_scales, n_scaling_ranges, n_rep
-
     sup_coeffs = mrq.sup_coeffs(n_ranges, j_max, j_min, scaling_ranges)
-
-    # sup_coeffs = np.ones((len(x), n_ranges, wt_coefs.nrep))
-
-    # for i, (j1, j2) in enumerate(scaling_ranges):
-    #     for j in range(j1, j2 + 1):
-    #         c_j = np.abs(wt_coefs.values[j])
-    #         sup_c_j = np.nanmax(c_j, axis=0)
-    #         sup_coeffs[j-j_min, i] = sup_c_j
 
     y = np.log2(sup_coeffs)[None, :]
 
-    # if weighted:
-    #     nj = np.tile(wt_coefs.get_nj_interv(j_min, j_max)[:, None, :],
-    #                  (1, n_ranges, 1))
-    # else:
-    #     nj = np.ones((len(x), n_ranges, 1))
-
-    # for i, (j1, j2) in enumerate(scaling_ranges):
-    #     nj[j2-j_min+1:, i] = 0
-    #     nj[:j1-j_min, i] = 0
-
-    try:
-        slope, intercept = linear_regression(x, y, w)
-    except AssertionError:
-        import ipdb; ipdb.set_trace()
+    slope, intercept = linear_regression(x, y, w)
 
     hmin = slope[0]
 

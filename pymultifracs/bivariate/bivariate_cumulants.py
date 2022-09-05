@@ -34,7 +34,7 @@ class BiCumulants(MultiResolutionQuantityBase):
 
     def __post_init__(self, mrq1, mrq2, bootstrapped_mfa):
 
-        self.nrep = 1
+        # self.nrep = 1
 
         assert mrq1.formalism == mrq2.formalism
         self.formalism = mrq1.formalism

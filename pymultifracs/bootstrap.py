@@ -15,9 +15,7 @@ from recombinator.block_bootstrap import\
      _generate_block_start_indices_and_successive_indices,\
      _general_block_bootstrap_loop, circular_block_bootstrap
 
-from pymultifracs.multiresquantity import MultiResolutionQuantity
-
-from .utils import get_filter_length
+from .utils import max_scale_bootstrap
 
 
 def estimate_confidence_interval_from_bootstrap(
@@ -34,6 +32,7 @@ def estimate_confidence_interval_from_bootstrap(
                           interval in percent (i.e. between 0 and 100)
     """
 
+    # bootstrap estimates shape (n_j, n_sig, n_rep)
     percent = 100.0 - confidence_level
 
     # bootstrap_estimates: shape (..., n_CI)
@@ -45,7 +44,7 @@ def estimate_confidence_interval_from_bootstrap(
 
     bootstrap_confidence_interval[:, idx_unreliable] = np.nan
 
-    return bootstrap_confidence_interval.swapaxes(1, 0)
+    return bootstrap_confidence_interval.transpose(1, 2, 0)
 
 
 def get_empirical_variance(mrq, ref_mrq, name):
@@ -126,10 +125,10 @@ def get_std(mrq, name):
     return std
 
 
-def reshape(attribute, nrep):
-    if nrep == 1:
+def reshape(attribute, n_sig):
+    if n_sig == 1:
         return attribute
-    return attribute.reshape((attribute.shape[0], nrep, -1))
+    return attribute.reshape((attribute.shape[0], n_sig, -1))
 
 
 def get_confidence_interval(mrq, name):
@@ -168,7 +167,8 @@ def estimate_empirical_bootstrap(bootstrap_estimate,
 
 def _get_align_slice(attribute, mrq, ref_mrq):
     """
-    Align attributes from different multi res quantities in case they have different minimum j values
+    Align attributes from different multi res quantities in case they have \
+        different minimum j values
     """
 
     if attribute.shape[0] == 1:
@@ -196,7 +196,8 @@ def get_empirical_CI(mrq, ref_mrq, name):
 
         def wrapper(*args, **kwargs):
 
-            attr = attribute(*args, **kwargs)
+            # attr = attribute(*args, **kwargs)
+            # ref = ref_attribute(*args, **kwargs)
 
             # mrq_slice, ref_mrq_slice = _get_align_slice(attr, mrq, ref_mrq)
 
@@ -214,36 +215,13 @@ def get_empirical_CI(mrq, ref_mrq, name):
     return CI
 
 
-def max_scale_bootstrap(mrq, filt_len):
-    """
-    Determines maximum scale possible to perform bootstrapping
-
-    Parameters
-    ----------
-    mrq: :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-
-    """
-
-    for i, nj in mrq.nj.items():
-        if (nj < filt_len).any():
-            i -= 1
-            break
-
-    return i
-
-
 def bootstrap(mrq, R, wt_name, min_scale=1):
 
-    # if mrq.nrep > 1:
-    #     raise ValueError("Bootstrap only available for signals with 1 rep")
-
-    filt_len = get_filter_length(wt_name)
-
-    max_scale = max_scale_bootstrap(mrq, filt_len)
+    max_scale = max_scale_bootstrap(mrq)
 
     values = {
         scale: circular_block_bootstrap(
-            data, filt_len, R).transpose(1, 2, 0)
+            data, mrq.filt_len, R).transpose(1, 2, 0)
         for scale, data in mrq.values.items()
         if scale <= max_scale and scale >= min_scale
     }
@@ -263,7 +241,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         'nj': nj,
         'values': values,
         'wt_name': wt_name,
-        'nrep': mrq.nrep
+        'n_sig': mrq.n_rep
     })
 
     return new_mrq
@@ -420,7 +398,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
         if `double` was passed as True
     """
 
-    max_scale = min(max_scale_bootstrap(mrq, block_length), max_scale)
+    max_scale = min(max_scale_bootstrap(mrq), max_scale)
 
     indices = _general_leader_bootstrap(mrq.values[1], max_scale, block_length,
                                         replications, sub_sample_length,
@@ -507,15 +485,17 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
         except Exception:
             import ipdb; ipdb.set_trace()
 
-        compact_idx = np.all(np.isnan(out), axis=0)
-        values[scale] = out[:, ~compact_idx].transpose()
+        compact_idx = np.all(np.isnan(out), axis=(0, 2))
+        # print(compact_idx.shape, out.shape)
+        values[scale] = out[:, ~compact_idx].transpose(1, 0, 2)
+        values[scale] = values[scale].reshape(values[scale].shape[0], -1)
 
     new_mrq = mrq.from_dict({
         'formalism': mrq.formalism,
         'gamint': mrq.gamint,
         'nj': nj,
         'values': values,
-        'nrep': mrq.nrep
+        'n_sig': mrq.n_rep
     })
 
     if double:

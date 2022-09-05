@@ -9,9 +9,9 @@ from typing import Any
 
 import numpy as np
 
-from .utils import get_filter_length
+from .utils import get_filter_length, max_scale_bootstrap
 from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
-    max_scale_bootstrap, get_confidence_interval, get_empirical_variance,\
+    get_confidence_interval, get_empirical_variance,\
     get_variance, get_std
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .regression import compute_R2
@@ -23,7 +23,7 @@ class MultiResolutionQuantityBase:
     gamint: float = field(init=False, default=None)
     wt_name: str = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
-    nrep: int = field(init=False, default=None)
+    n_sig: int = field(init=False, default=None)
     bootstrapped_mrq: Any = field(init=False, default=None)
 
     def get_nj(self):
@@ -76,7 +76,7 @@ class MultiResolutionQuantityBase:
 
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges):
 
-        sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.nrep))
+        sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.n_rep))
 
         for i, (j1, j2) in enumerate(scaling_ranges):
             for j in range(j1, j2 + 1):
@@ -110,6 +110,8 @@ class MultiResolutionQuantityBase:
         R = self.compute_R()
         R_b = self.bootstrapped_mrq.compute_R()
 
+        print(R.shape, R_b.shape)
+
         return compute_Lambda(R, R_b)
 
     def find_best_range(self):
@@ -117,9 +119,10 @@ class MultiResolutionQuantityBase:
 
     def _check_enough_rep_bootstrap(self):
 
-        if self.nrep < 2:
+        if (ratio := self.n_rep // self.n_sig) < 2:
             raise ValueError(
-                f'nrep={self.nrep} too small to build confidence intervals'
+                f'n_rep = {ratio} per original signal too small to build '
+                'confidence intervals'
                 )
 
     def _get_bootstrapped_mrq(self):
@@ -183,7 +186,7 @@ class MultiResolutionQuantityBase:
 
             return get_std(bootstrapped_mrq, name[4:])
 
-        return None
+        return self.__getattribute__(name)
 
 
 @dataclass
@@ -210,19 +213,19 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         Size of the scale range covered.
     nj : dict(ndarray)
         Contains the number of coefficients at the scale j.
-        Arrays are of the shape (nrep,)
+        Arrays are of the shape (n_rep,)
     values : dict(ndarray)
         `values[j]` contains the coefficients at the scale j.
-        Arrays are of the shape (nj, nrep)
-    nrep : int
+        Arrays are of the shape (nj, n_rep)
+    n_rep : int
         Number of realisations
     """
     formalism: str
     gamint: float
     wt_name: str
+    n_sig: int = None
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
-    nrep: int = None
     bootstrapped_mrq: MultiResolutionQuantityBase = field(init=False,
                                                           default=None)
 
@@ -243,7 +246,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
             # print("Using leader bootstrapping technique")
 
             block_length = get_filter_length(self.wt_name)
-            max_scale = max_scale_bootstrap(self, block_length)
+            max_scale = max_scale_bootstrap(self)
 
             if max_scale < self.j2_eff():
                 raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
@@ -270,9 +273,9 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
     # def __getattr__(self, name):
-    #     if name == 'nrep':
-    #         if self.nrep is not None:
-    #             return self.nrep
+    #     if name == 'n_rep':
+    #         if self.n_rep is not None:
+    #             return self.n_rep
     #         if len(self.values) > 0:
     #             return self.values[[*self.values][0]].shape[1]
 
@@ -280,10 +283,19 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
     def __getattribute__(self, name: str) -> Any:
 
-        if name == 'nrep':
-            if (nrep := super().__getattribute__('nrep')) is not None:
-                return nrep
+        # if name == 'n_sig':
+        #     if (n_sig := super().__getattribute__('n_sig')) is not None:
+        #         return n_sig
+
+        if name == 'filt_len':
+            return get_filter_length(self.wt_name)
+
+        return super().__getattribute__(name)
+
+    def __getattr__(self, name):
+
+        if name == 'n_rep':
             if len(self.values) > 0:
                 return self.values[[*self.values][0]].shape[1]
 
-        return super().__getattribute__(name)
+        return super().__getattr__(name)
