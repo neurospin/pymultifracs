@@ -17,7 +17,7 @@ from .utils import MFractalVar
 
 
 def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
-                bootstrap_weighted=None, R=1, estimates="scm"):
+                bootstrap_weighted=None, R=1, estimates="scm", robust=False):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -58,8 +58,17 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
                              q, bootstrap_weighted, R, estimates[i])
                  for i, m in enumerate(mrq)])
 
+    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
+
+    if len(scaling_ranges) == 0:
+        raise ValueError("No valid scaling range provided. "
+                         f"Effective max scale is {mrq.j2_eff()}")
+
+    j1 = min([sr[0] for sr in scaling_ranges])
+    j2 = max([sr[1] for sr in scaling_ranges])
+
     if R > 1:
-        mrq.bootstrap(R)
+        mrq.bootstrap(R, j1)
 
     if mrq.bootstrapped_mrq is not None:
 
@@ -78,15 +87,6 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
     if isinstance(q, list):
         q = np.array(q)
 
-    scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
-
-    if len(scaling_ranges) == 0:
-        raise ValueError("No valid scaling range provided. "
-                         f"Effective max scale is {mrq.j2_eff()}")
-
-    j1 = min([sr[0] for sr in scaling_ranges])
-    j2 = max([sr[1] for sr in scaling_ranges])
-
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
@@ -96,6 +96,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
         'scaling_ranges': scaling_ranges,
         'mrq': mrq,
         'bootstrapped_mfa': mfa_boot,
+        'robust': robust
     }
 
     struct, cumul, spec = None, None, None

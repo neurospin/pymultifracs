@@ -1,3 +1,5 @@
+from math import floor
+
 import numpy as np
 
 
@@ -6,27 +8,33 @@ def prepare_weights(mrq, weighted, n_ranges, j_min, j_max, scaling_ranges,
 
     if weighted == 'Nj':
 
-        w = np.tile(mrq.get_nj_interv(j_min, j_max)[None, :, None, :],
-                    (1, 1, n_ranges, 1))
+        w = np.tile(
+            mrq.get_nj_interv(floor(j_min), floor(j_max))[None, :, None, :],
+            (1, 1, n_ranges, 1))
 
     elif weighted == 'bootstrap':
 
+        # try:
         std[std == 0] = std[std != 0].min()
+        # except ValueError:
+            # import ipdb; ipdb.set_trace()
 
-        # std shape (n_moments, n_scales) -> (n_moments, n_scales, n_scaling_ranges, n_rep)
+        # std shape (n_moments, n_scales) ->
+        # (n_moments, n_scales, n_scaling_ranges, n_rep)
         if len(std.shape) == 2:
             w = np.tile(1 / std[:, :, None, None], (1, 1, n_ranges, 1))
-        # std shape (n_moments, n_scales, n_scaling_ranges) -> (n_moments, n_scales, n_scaling_ranges, n_rep)
+        # std shape (n_moments, n_scales, n_scaling_ranges)
+        # -> (n_moments, n_scales, n_scaling_ranges, n_rep)
         else:
             w = std[:, :, :, None]
 
     else:  # weighted is None
-        w = np.ones((1, j_max - j_min + 1, n_ranges, 1))
+        w = np.ones((1, int(j_max - j_min + 1), n_ranges, 1))
 
     for i, (j1, j2) in enumerate(scaling_ranges):
 
-        w[:, j2-j_min+1:, i, :] = 0
-        w[:, :j1-j_min, i, :] = 0
+        w[:, int(j2-j_min+1):, i, :] = 0
+        w[:, :int(j1-j_min), i, :] = 0
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     return w
@@ -37,9 +45,6 @@ def prepare_regression(scaling_ranges, j):
     n_ranges = len(scaling_ranges)
     j_min = min([sr[0] for sr in scaling_ranges])
     j_max = max([sr[1] for sr in scaling_ranges])
-
-    # j_min = j.min()
-    # j_max = j.max()
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     x = np.arange(j_min, j_max + 1)[None, :, None, None]

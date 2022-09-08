@@ -4,6 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, field, InitVar
+from multiprocessing.sharedctypes import Value
 from typing import List, Tuple
 
 import numpy as np
@@ -227,6 +228,17 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         self._compute(mrq, robust)
         self._compute_log_cumulants(mrq.n_rep)
 
+    def __repr__(self):
+
+        out = "Cumulants"
+        display_params = (
+            'formalism scaling_ranges weighted n_cumul').split(' ')
+
+        for param in display_params:
+            out += f" {param} = {getattr(self, param)}"
+
+        return out
+
     def _compute(self, mrq, robust):
 
         moments = np.zeros((len(self.m), len(self.j), mrq.n_rep))
@@ -238,7 +250,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
             log_T_X_j = np.log(T_X_j)
 
-            # dropping infinite coefs
+            # dropping infinite coefsx
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
             # log T_X_j shape (n_j, n_reps)
@@ -287,13 +299,13 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         self.var_log_cumulants = np.zeros_like(self.log_cumulants)
         self.slope = np.zeros_like(self.log_cumulants)
         self.intercept = np.zeros_like(self.log_cumulants)
-        self.weights = np.zeros((len(self.m), j_max - j_min + 1, n_ranges,
+        self.weights = np.zeros((len(self.m), int(j_max - j_min + 1), n_ranges,
                                  n_rep))
 
         log2_e = np.log2(np.exp(1))
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = self.values[:, j_min_idx:j_max_idx, None, :]
+        y = self.values[:, int(j_min_idx):int(j_max_idx), None, :]
 
         if self.weighted == 'bootstrap':
 
@@ -302,10 +314,21 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                 std = self.STD_values[:, j_min_idx:j_max_idx]
 
             else:
-                std = self.bootstrapped_mrq.STD_values[
-                    :,
-                    j_min - self.bootstrapped_mrq.j.min():
-                    j_max - self.bootstrapped_mrq.j.min() + 1]
+
+                if j_min < self.bootstrapped_mrq.j.min():
+                    raise ValueError(
+                        f"Bootstrap minimum scale "
+                        f"{self.bootstrapped_mrq.j.min()} inferior to minimum "
+                        f"scale {j_min} used in estimation")
+
+                start = int(j_min - self.bootstrapped_mrq.j.min())
+                end = int(j_max - self.bootstrapped_mrq.j.min()) + 1
+
+                std_slice = np.s_[
+                    int(j_min - self.bootstrapped_mrq.j.min()):
+                    int(j_max - self.bootstrapped_mrq.j.min() + 1)]
+
+                std = self.bootstrapped_mrq.STD_values[:, std_slice]
 
         else:
             std = None
@@ -316,6 +339,12 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         nan_weighting = np.ones_like(y)
         nan_weighting[np.isnan(y)] = np.nan
+
+        try:
+            self.weights * nan_weighting
+        except Exception:
+            print("")
+
         self.weights = self.weights * nan_weighting
 
         # pylint: disable=unbalanced-tuple-unpacking
@@ -339,6 +368,18 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         return super()._compute_R2(self.values, self.slope, self.intercept,
                                    self.weights)
 
+    def __getattribute__(self, __name: str):
+
+        if __name == 'n_sig' and super().__getattribute__('n_sig') is None:
+            return 1
+
+        # return self.__getattr__(__name)
+
+        # try:
+        return super().__getattribute__(__name)
+        # except AttributeError:
+        #     return self.__getattr__(__name)
+
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
@@ -361,13 +402,11 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         if name == 'n_rep':
             return self.log_cumulants.shape[-1]
 
-        if (super_attr := super().__getattr__(name)) is not None:
-            return super_attr
-
-        return self.__getattribute__(name)
+        return super().__getattr__(name)
 
     def plot(self, figsize=(8, 6), fignum=1, nrow=3, j1=None, filename=None,
-             scaling_range=0):
+             scaling_range=0, n_cumul=None, signal_idx=0):
 
         return plot_cumulants(
-            self, figsize, fignum, nrow, j1, filename, scaling_range)
+            self, figsize, fignum, nrow, j1, filename, scaling_range,
+            n_cumul=n_cumul, signal_idx=signal_idx)

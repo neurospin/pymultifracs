@@ -34,7 +34,7 @@ def test_bivariate():
         X = data[key]
         j1 = 3
         j2 = int(np.log2(X.shape[0]) - 3)
-        p_exp=2
+        p_exp = 2
         gamint = 1
 
         dwt, lwt = bivariate_analysis_full(X[:, 0], X[:, 1], p_exp=p_exp,

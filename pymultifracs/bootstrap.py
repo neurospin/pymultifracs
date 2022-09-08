@@ -6,6 +6,7 @@ https://github.com/InvestmentSystems/recombinator/
 """
 
 from typing import Tuple
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -171,17 +172,40 @@ def _get_align_slice(attribute, mrq, ref_mrq):
         different minimum j values
     """
 
-    if attribute.shape[0] == 1:
-        mrq_slice = np.s_[:]
-        ref_mrq_slice = np.s_[:]
-    elif mrq.j.min() > ref_mrq.j.min():
-        mrq_slice = np.s_[:]
-        ref_mrq_slice = np.s_[mrq.j.min()-ref_mrq.j.min():]
-    elif mrq.j.min() < ref_mrq.j.min():
-        mrq_slice = np.s_[ref_mrq.j.min()-mrq.j.min():]
-        ref_mrq_slice = np.s_[:]
+    # Case where not scaling function (no dependence on j)
+    if (attribute.shape[0] != mrq.j.shape[0]
+            and attribute.shape[0] == mrq.scaling_ranges.shape[0]):
+        return np.s_[:], np.s_[:]
 
-    return mrq_slice, ref_mrq_slice
+    assert attribute.shape[0] == mrq.j.shape[0]
+
+    mrq_start = 0
+    ref_mrq_start = 0
+
+    if (min_diff := mrq.j.min() - ref_mrq.j.min()) > 0:
+        # mrq_slice = np.s_[:]
+        # ref_mrq_slice = np.s_[mrq.j.min()-ref_mrq.j.min():]
+        ref_mrq_start = min_diff
+    elif min_diff < 0:
+        # mrq_slice = np.s_[ref_mrq.j.min()-mrq.j.min():]
+        # ref_mrq_slice = np.s_[:]
+        mrq_start = -min_diff
+
+    mrq_end = mrq.j.shape[0]
+    ref_mrq_end = ref_mrq.j.shape[0]
+
+    if (max_diff := mrq.j.max() - ref_mrq.j.max()) > 0:
+        mrq_end = -max_diff
+    elif max_diff < 0:
+        ref_mrq_end = max_diff
+
+    mrq_start = int(mrq_start)
+    mrq_end = int(mrq_end)
+    ref_mrq_start = int(ref_mrq_start)
+    ref_mrq_end = int(ref_mrq_end)
+
+    # return mrq_slice, ref_mrq_slice
+    return np.s_[mrq_start:mrq_end], np.s_[ref_mrq_start:ref_mrq_end]
 
 
 def get_empirical_CI(mrq, ref_mrq, name):
@@ -196,21 +220,22 @@ def get_empirical_CI(mrq, ref_mrq, name):
 
         def wrapper(*args, **kwargs):
 
-            # attr = attribute(*args, **kwargs)
-            # ref = ref_attribute(*args, **kwargs)
+            attr = attribute(*args, **kwargs)
+            ref = ref_attribute(*args, **kwargs)
 
-            # mrq_slice, ref_mrq_slice = _get_align_slice(attr, mrq, ref_mrq)
+            mrq_slice, ref_mrq_slice = _get_align_slice(attr, mrq, ref_mrq)
 
             CI = estimate_empirical_bootstrap(
-                attribute(*args, **kwargs), ref_attribute(*args, **kwargs))
+                attr[mrq_slice], ref[ref_mrq_slice])
 
             return CI
 
         return wrapper
 
-    # mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
+    mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
 
-    CI = estimate_empirical_bootstrap(attribute, ref_attribute)
+    CI = estimate_empirical_bootstrap(attribute[mrq_slice],
+                                      ref_attribute[ref_mrq_slice])
 
     return CI
 
@@ -354,70 +379,16 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
     return indices
 
 
-def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
-                              replications, sub_sample_length=None,
-                              link_rngs=True, double=False):
-    """
-    Returns double-bootstrapped multi-res quantities
-
-    Parameters
-    ----------
-    mrq: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
-        Multi-resolution quantity to bootstrap. Needs to only have 1 repetition
-
-    max_scale: int
-        Maximum scale at which to perform bootstrap. In the case where there
-        are not enough coefficients, bootstrap will be performed up to the
-        maximum scale possible instead.
-
-    block_length: int
-        Size of the support of the discrete wavelet function.
-
-    replications: int
-        Number of replications to perform.
-
-    sub_sample_length: int | None
-        length of the sub-samples to generate
-
-    link_rngs: bool
-        whether to synchronize the states of Numba's and Numpy's random number
-        generators
-
-    double: bool
-        whether to perform double bootstrapping
-
-    Returns
-    -------
-    bootstrap_mrq: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
-        A single MRQ that contains all the bootstrapped repetitions
-
-    double_mrq: dict(int,
-                     :class:`~pymultifracs.multiresquantity.MultiResQuantity`)
-        A dictionary that relates a repetition in the bootstrap_mrq to the
-        MRQ containing the double-bootstrapped repetitions
-        if `double` was passed as True
-    """
-
-    max_scale = min(max_scale_bootstrap(mrq), max_scale)
-
-    indices = _general_leader_bootstrap(mrq.values[1], max_scale, block_length,
-                                        replications, sub_sample_length,
-                                        link_rngs)
-
-    values = {}
-    nj = {}
+def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
+                             indices_double, replications):
 
     if double:
 
-        indices_double = {}
-
-        for rep in range(replications):
-            indices_double[rep] = _general_leader_bootstrap(
-                indices[1][rep][indices[1][rep] >= 0], max_scale, block_length,
-                replications, sub_sample_length, link_rngs)
-
         values_double = {rep: {} for rep in indices_double}
         nj_double = {rep: {} for rep in indices_double}
+
+    values = {}
+    nj = {}
 
     for scale, indices_scale in indices.items():
 
@@ -480,14 +451,11 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
             (replications, *mrq.values[1].shape),
             dtype=float) + np.nan
 
-        try:
-            out[indices_scale >= 0] = data[idx]
-        except Exception:
-            import ipdb; ipdb.set_trace()
+        out[indices_scale >= 0] = data[idx]
 
         compact_idx = np.all(np.isnan(out), axis=(0, 2))
         # print(compact_idx.shape, out.shape)
-        values[scale] = out[:, ~compact_idx].transpose(1, 0, 2)
+        values[scale] = out[:, ~compact_idx].transpose(1, 2, 0)
         values[scale] = values[scale].reshape(values[scale].shape[0], -1)
 
     new_mrq = mrq.from_dict({
@@ -512,3 +480,79 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
         return new_mrq, double_mrq
 
     return new_mrq
+
+
+def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
+                              replications, sub_sample_length=None,
+                              link_rngs=True, double=False):
+    """
+    Returns double-bootstrapped multi-res quantities
+
+    Parameters
+    ----------
+    mrq: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
+        Multi-resolution quantity to bootstrap. Needs to only have 1 repetition
+
+    max_scale: int
+        Maximum scale at which to perform bootstrap. In the case where there
+        are not enough coefficients, bootstrap will be performed up to the
+        maximum scale possible instead.
+
+    block_length: int
+        Size of the support of the discrete wavelet function.
+
+    replications: int
+        Number of replications to perform.
+
+    sub_sample_length: int | None
+        length of the sub-samples to generate
+
+    link_rngs: bool
+        whether to synchronize the states of Numba's and Numpy's random number
+        generators
+
+    double: bool
+        whether to perform double bootstrapping
+
+    Returns
+    -------
+    bootstrap_mrq: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
+        A single MRQ that contains all the bootstrapped repetitions
+
+    double_mrq: dict(int,
+                     :class:`~pymultifracs.multiresquantity.MultiResQuantity`)
+        A dictionary that relates a repetition in the bootstrap_mrq to the
+        MRQ containing the double-bootstrapped repetitions
+        if `double` was passed as True
+    """
+
+    if isinstance(mrq, Iterable):
+        reference_mrq = mrq[0]
+    else:
+        reference_mrq = mrq
+
+    max_scale = min(max_scale_bootstrap(reference_mrq), max_scale)
+
+    indices = _general_leader_bootstrap(reference_mrq.values[1], max_scale,
+                                        block_length, replications,
+                                        sub_sample_length, link_rngs)
+
+    indices_double = {}
+
+    if double:
+
+        for rep in range(replications):
+            indices_double[rep] = _general_leader_bootstrap(
+                indices[1][rep][indices[1][rep] >= 0], max_scale, block_length,
+                replications, sub_sample_length, link_rngs)
+
+    if isinstance(mrq, Iterable):
+
+        return [_create_bootstrapped_mrq(
+            m, indices, min_scale, block_length, double, indices_double,
+            replications)
+            for m in mrq]
+
+    else:
+        return _create_bootstrapped_mrq(mrq, indices, min_scale, block_length,
+                                        double, indices_double, replications)

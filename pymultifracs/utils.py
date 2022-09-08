@@ -34,6 +34,8 @@ hmin : float
     Estimated minimum value of h
 """
 
+MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
+
 
 def scale2freq(scale, sfreq):
     return (3/4) * sfreq * (2 ** -scale)

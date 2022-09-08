@@ -235,11 +235,14 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
             CI_Dq = CI_Dq.transpose(1, 2, 0)
             CI_hq = CI_hq.transpose(1, 2, 0)
 
+            CI_Dq = CI_Dq[:, scaling_range]
+            CI_hq = CI_hq[:, scaling_range]
+
         else:
             CI_Dq, CI_hq = None, None
 
         ax.errorbar(self.hq[:, scaling_range, 0], self.Dq[:, scaling_range, 0],
-                    CI_Dq[:, scaling_range], CI_hq[:, scaling_range], fmt,
+                    CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
         ax.set(xlabel='h', ylabel='D(h)', ylim=(0, 1.05), xlim=(0, 1.5))

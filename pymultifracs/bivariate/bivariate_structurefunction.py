@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field, InitVar
+from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from ..utils import MFractalBiVar
+from ..regression import prepare_regression, prepare_weights
 
 # For zeta(q1, q2) plot
 # from mpl_toolkits.mplot3d import axes3d
@@ -19,10 +23,10 @@ from ..multiresquantity import MultiResolutionQuantityBase, \
 class BiStructureFunction(MultiResolutionQuantityBase):
     mrq1: InitVar[MultiResolutionQuantity]
     mrq2: InitVar[MultiResolutionQuantity]
-    j1: int
-    j2: int
     q1: np.ndarray
     q2: np.ndarray
+    scaling_ranges: List[Tuple[int]]
+    bootstrapped_mfa: InitVar[MFractalBiVar] = None
     weighted: str = None
     j: np.ndarray = field(init=False)
     logvalues: np.ndarray = field(init=False)
@@ -31,7 +35,7 @@ class BiStructureFunction(MultiResolutionQuantityBase):
     gamint: float = field(init=False)
     coherence: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq1, mrq2):
+    def __post_init__(self, mrq1, mrq2, bootstrapped_mfa):
 
         self.n_rep = 1
 
@@ -41,9 +45,15 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         assert mrq1.gamint == mrq2.gamint
         self.gamint = mrq1.gamint
 
-        assert mrq1.nj == mrq2.nj
+        if any([(mrq1.nj[s] != mrq2.nj[s]).any() for s in mrq1.nj]):
+            raise ValueError("Mismatch in number of coefficients between the "
+                             "mrq")
+
         self.nj = mrq1.nj
         self.j = np.array(list(mrq1.values))
+
+        if bootstrapped_mfa is not None:
+            self.bootstrapped_mrq = bootstrapped_mfa.structure
 
         self._compute(mrq1, mrq2)
         self._compute_zeta()
@@ -53,9 +63,9 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         values = np.zeros((len(self.q1), len(self.q2), len(self.j)))
         abs_values = np.zeros(values.shape)
 
-        for ind_q1, q1 in enumerate(self.q1):
-            for ind_q2, q2 in enumerate(self.q2):
-                for ind_j, j in enumerate(self.j):
+        for ind_j, j in enumerate(self.j):
+            for ind_q1, q1 in enumerate(self.q1):
+                for ind_q2, q2 in enumerate(self.q2):
 
                     values[ind_q1, ind_q2, ind_j] = \
                         np.nanmean(fast_power(mrq1.values[j], q1)
@@ -76,28 +86,48 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         """
         Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
         """
-        self.zeta = np.zeros(self.logvalues.shape[:2])
-        self.intercept = np.zeros(self.zeta.shape)
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+            self.scaling_ranges, self.j)
 
-        x = np.arange(self.j1, self.j2+1)[:, None]
+        # x = x[:, :, :]  # No broadcasting repetitions for now
 
         # TODO adapt to new regression factorization
 
-        if self.weighted == 1:
-            nj = self.get_nj_interv(self.j1, self.j2)
+        n_j = self.logvalues.shape[2]
+
+        y = self.logvalues.reshape(-1, n_j)[:, j_min_idx:j_max_idx, None, None]
+
+        if self.weighted == 'bootstrap':
+
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_mrq is None:
+                std = self.STD_logvalues.reshape(-1, n_j)[
+                    :, j_min_idx:j_max_idx]
+
+            else:
+                std = self.bootstrapped_mrq.STD_logvalues.reshape(-1, n_j)[
+                    :,
+                    j_min - self.bootstrapped_mrq.j.min():
+                    j_max - self.bootstrapped_mrq.j.min() + 1]
+
         else:
-            nj = np.ones((len(x), 1))
+            std = None
 
-        ind_j1 = self.j1-1
-        ind_j2 = self.j2-1
+        weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                  self.scaling_ranges, std)[:, :, :, 0, None]
+        # No broadcasting repetitions for now
 
-        for ind_q1, _ in enumerate(self.q1):
-            for ind_q2, _ in enumerate(self.q2):
+        nan_weighting = np.ones_like(y)
+        nan_weighting[np.isnan(y)] = np.nan
+        weights = weights * nan_weighting
 
-                y = self.logvalues[ind_q1, ind_q2, ind_j1:ind_j2+1, None]
-                slope, intercept = linear_regression(x, y, nj)
-                self.zeta[ind_q1, ind_q2] = slope
-                self.intercept[ind_q1, ind_q2] = intercept
+        zeta, intercept = linear_regression(x, y, weights)
+
+        n1 = self.logvalues.shape[0]
+        n2 = self.logvalues.shape[1]
+
+        self.zeta = zeta.reshape(n1, n2, n_ranges)
+        self.intercept = intercept.reshape(n1, n2, n_ranges)
 
     def plot(self):
 

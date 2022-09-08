@@ -13,9 +13,9 @@ def test_wavelet_fbm(fbm_file):
 
         j2 = 7
         wt_coefs, _, j2_eff, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted='Nj')[0]
+        hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted=None)[0]
         hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else -hmin + 0.1
+        gamint = 0.0 if hmin >= 0 else 1
         wavelet_analysis(X, p_exp=np.inf, j2=j2)
         wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)
 
@@ -29,8 +29,8 @@ def test_wavelet_mrw(mrw_file):
 
         j2 = 8
         wt_coefs, _, j2_eff, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted='Nj')[0]
+        hmin = estimate_hmin(wt_coefs, j1=1, j2_eff=j2_eff, weighted=None)[0]
         hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else -hmin + 0.1
+        gamint = 0.0 if hmin >= 0 else 1
         wavelet_analysis(X, p_exp=np.inf, j2=j2)
         wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)

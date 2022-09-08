@@ -198,7 +198,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         return self.__getattribute__(name)
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True, figsize=None, scaling_range=0, plot_scales=None):
+             ignore_q0=True, figsize=None, scaling_range=0, plot_scales=None,
+             plot_CI=True):
         """
         Plots the structure functions.
         """
@@ -244,7 +245,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
             y = self.S_q(q)[idx]
 
-            if self.bootstrapped_mrq is not None:
+            if self.bootstrapped_mrq is not None and plot_CI is not None:
 
                 CI = self.CIE_S_q(q)[idx]
 

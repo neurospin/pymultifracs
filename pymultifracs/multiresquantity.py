@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from .utils import get_filter_length, max_scale_bootstrap
-from .bootstrap import bootstrap, circular_leader_bootstrap, get_empirical_CI,\
+from .bootstrap import circular_leader_bootstrap, get_empirical_CI,\
     get_confidence_interval, get_empirical_variance,\
     get_variance, get_std
 from .autorange import compute_Lambda, compute_R, find_max_lambda
@@ -238,23 +238,20 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
     def bootstrap(self, R, min_scale=1):
 
-        if self.formalism == 'wavelet coef':
-            # print("Using coef bootstrapping technique")
-            self.bootstrapped_mrq = bootstrap(self, R, self.wt_name, min_scale)
+        # if self.formalism == 'wavelet coef':
+        #     self.bootstrapped_mrq = bootstrap(self, R, self.wt_name, min_scale)
+        # elif 'leader' in self.formalism:
 
-        elif 'leader' in self.formalism:
-            # print("Using leader bootstrapping technique")
+        block_length = get_filter_length(self.wt_name)
+        max_scale = max_scale_bootstrap(self)
 
-            block_length = get_filter_length(self.wt_name)
-            max_scale = max_scale_bootstrap(self)
+        if max_scale < self.j2_eff():
+            raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
+                                f'inferior to the j2={self.j2_eff()} chosen '
+                                'when computing wavelet leaders.')
 
-            if max_scale < self.j2_eff():
-                raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
-                                 f'inferior to the j2={self.j2_eff()} chosen '
-                                 'when computing wavelet leaders.')
-
-            self.bootstrapped_mrq = circular_leader_bootstrap(
-                self, min_scale, max_scale, block_length, R)
+        self.bootstrapped_mrq = circular_leader_bootstrap(
+            self, min_scale, max_scale, block_length, R)
 
         # j = np.array([*self.values])
         #
@@ -266,6 +263,28 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         #                if scale >= min_scale}
 
         return self.bootstrapped_mrq
+
+    @classmethod
+    def bootstrap_multiple(cls, R, min_scale, mrq_list):
+
+        block_length = max([
+            get_filter_length(mrq.wt_name) for mrq in mrq_list
+        ])
+
+        max_scale = min([
+            max_scale_bootstrap(mrq) for mrq in mrq_list
+        ])
+
+        j2_eff = np.array([mrq.j2_eff() for mrq in mrq_list])
+        wrong_idx = max_scale < j2_eff
+
+        if wrong_idx.any():
+            raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
+                             f'inferior to the j2 chosen when computing '
+                             f'wavelet leaders for indices {wrong_idx}.')
+
+        return circular_leader_bootstrap(mrq_list, min_scale, max_scale,
+                                         block_length, R)
 
     def add_values(self, coeffs, j):
 
@@ -283,12 +302,11 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
     def __getattribute__(self, name: str) -> Any:
 
-        # if name == 'n_sig':
-        #     if (n_sig := super().__getattribute__('n_sig')) is not None:
-        #         return n_sig
-
         if name == 'filt_len':
             return get_filter_length(self.wt_name)
+
+        if name == 'n_sig' and super().__getattribute__('n_sig') is None:
+            return 1
 
         return super().__getattribute__(name)
 

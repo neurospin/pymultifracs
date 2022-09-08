@@ -439,6 +439,8 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
 
     sans_voisin = None
 
+
+
     for scale in range(1, max_level + 1):
 
         detail, approx = filtering(approx, high_filter, low_filter)
@@ -477,6 +479,9 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
             break
 
         wt_leaders.add_values(leaders, scale)
+
+    if max_level == 0:
+        return WaveletTransform(None, None, max_level, None)
 
     # "effective" j2, used in linear regression
     j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
