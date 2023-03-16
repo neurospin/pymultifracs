@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  linter-check:
+    name: Lint code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@v3
+      - name: Lint code
+        uses: github/super-linter/slim@v4
+        env:
+          LINTER_RULES_PATH: / 
+          VALIDATE_ALL_CODEBASE: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FILTER_REGEX_INCLUDE: ./pymultifracs/*.py
+          PYTHON_PYLINT_CONFIG_FILE: .pylintrc
+          VALIDATE_PYTHON_FLAKE8: true
+          VALIDATE_PYTHON_PYLINT: true
+        
+  test-suite:
+    defaults:
+      run:
+        shell: bash -el {0}
+    runs-on: ${{ matrix.os }}
+    needs: linter-check
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.9"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get Date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Chache conda
+        uses: actions/cache@v2
+        env:
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key:
+            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+            hashFiles('etc/example-environment.yml') }}
+      - name: Setup python ${{ matrix.python-version }} with conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          environment-file: env.yml
+          use-only-tar-bz2: true
+      - name: Testing
+        run: |
+          conda install -c conda-forge pytest
+          pytest -n auto -x
