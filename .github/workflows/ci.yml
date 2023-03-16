@@ -12,19 +12,23 @@ jobs:
     name: Lint code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 
+      - name: Checkout
         uses: actions/checkout@v3
+        with:
+          # Full git history is needed to get a proper
+          # list of changed files within `super-linter`
+          fetch-depth: 0
       - name: Lint code
         uses: github/super-linter/slim@v4
         env:
           LINTER_RULES_PATH: .
+          DEFAULT_BRANCH: master
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FILTER_REGEX_INCLUDE: ./pymultifracs/*.py
-          PYTHON_PYLINT_CONFIG_FILE: .pylintrc
           VALIDATE_PYTHON_FLAKE8: true
           VALIDATE_PYTHON_PYLINT: true
-        
+
   test-suite:
     defaults:
       run:
@@ -42,7 +46,7 @@ jobs:
         id: get-date
         run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Chache conda
+      - name: Cache conda
         uses: actions/cache@v2
         env:
           CACHE_NUMBER: 0
@@ -60,5 +64,5 @@ jobs:
           use-only-tar-bz2: true
       - name: Testing
         run: |
-          conda install -c conda-forge pytest
+          conda install -c conda-forge pytest pytest-xdist
           pytest -n auto -x

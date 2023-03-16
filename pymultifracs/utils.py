@@ -4,7 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import unicode_literals 
 import warnings
 
 import numpy as np
