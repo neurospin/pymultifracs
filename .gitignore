@@ -34,12 +34,11 @@ examples/Demo-mne.ipynb
 MF_Synthesis/
 
 notebooks/figures/
-notebooks/*.ipynb
 
 pymultifracs/todo.txt
 
 # example_data/
 .pytest_cache/
 notebooks/Dev*.ipynb
-.circleci
 coverage.xml
+notebooks/figures

@@ -39,7 +39,18 @@ Installing the package only
 
 .. code:: shell
 
-    pip install -U https://github.com/neurospin/pymultifracs/archive/master.zip
+    wget https://raw.githubusercontent.com/neurospin/pymultifracs/master/env.yml
+    conda env update -f env.yml --name $ENVNAME
+
+----
+
+Using pip
+---------
+
+.. code:: shell
+
+    pip install git+https://github.com/neurospin/pymultifracs
+
 
 
 Cloning the whole repository (including examples)
@@ -51,4 +62,4 @@ Cloning the whole repository (including examples)
     git clone https://github.com/neurospin/pymultifracs
     pip install -e pymultifracs
 
-To get started, look into the `example/` folder
+For examples to get started, look into the `example/` folder

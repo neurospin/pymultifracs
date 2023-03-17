@@ -3,11 +3,38 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals 
+from collections import namedtuple
 import warnings
 
 import numpy as np
+import pywt
+
+
+MFractalData = namedtuple('MFractalData', 'dwt lwt')
+"""Aggregates wavelet coef-based and wavelet-leader based outputs of mfa
+
+Attributes
+----------
+dwt : MFractalVar
+    Wavelet coef-based estimates
+lwt : MFractalVar
+    Wavelet leader-based estimates, if applicable (p_exp was not None)
+"""
+
+MFractalVar = namedtuple('MFractalVar',
+                         'structure cumulants spectrum hmin')
+"""Aggregates the output of multifractal analysis
+
+Attributes
+----------
+strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
+cumulants : :class:`~pymultifracs.cumulants.Cumulants`
+spectrum : :class:`~pymultifracs.mfspectrum.MultifractalSpectrum`
+hmin : float
+    Estimated minimum value of h
+"""
+
+MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
 
 
 def scale2freq(scale, sfreq):
@@ -60,54 +87,6 @@ def fast_power(array, exponent):
     return np.power(array, exponent)
 
 
-stat2fun = {
-    'mean': np.mean,
-    'median': np.median,
-    'min': np.nanmin,
-    'max': np.nanmax}
-
-
-def linear_regression(x, y, nj, return_variance=False):
-    """
-    Performs a (weighted or not) linear regression.
-    Finds 'a' that minimizes the error:
-        sum_j { n[j]*(y[j] - (a*x[j] + b))**2 }
-
-    Args:
-        x, y : regression variables
-        nj: list containg the weigths
-    Returns:
-        a, b: angular coefficient and intercept
-
-    (!!!!!!!!!!!!!)
-    IMPORTANT:
-
-    return_variance NOT DEBUGGED
-    (!!!!!!!!!!!!!)
-    """
-
-    # bj = np.array(nj, dtype=np.float)
-    assert isinstance(nj, np.ndarray)
-    assert len(nj) == len(x)
-
-    V_0 = np.sum(nj, axis=0)
-    V_1 = np.sum(nj * x, axis=0)
-    V_2 = np.sum(nj * (x**2), axis=0)
-
-    weights_slope = nj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
-    weights_intercept = nj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)
-
-    a = np.sum(weights_slope*y, axis=0)
-    b = np.sum(weights_intercept*y, axis=0)
-
-    var_a = np.sum((1/nj)*weights_slope*weights_slope, axis=0)
-
-    if not return_variance:
-        return a, b
-    else:
-        return a, b, var_a
-
-
 def build_q_log(q_min, q_max, n):
     """
     Build a convenient vector of q values for multifractal analysis
@@ -138,6 +117,13 @@ def build_q_log(q_min, q_max, n):
     return q
 
 
+stat2fun = {
+    'mean': np.mean,
+    'median': np.median,
+    'min': np.nanmin,
+    'max': np.nanmax}
+
+
 def fixednansum(a, **kwargs):
     mx = np.isnan(a).all(**kwargs)
     res = np.nansum(a, **kwargs)
@@ -150,3 +136,33 @@ def fixednanmax(a, **kwargs):
         warnings.simplefilter("ignore")
         a = np.nanmax(a, **kwargs)
     return a
+
+
+def get_filter_length(wt_name):
+
+    wt = pywt.Wavelet(wt_name)
+    return len(wt.dec_hi)
+
+
+def max_scale_bootstrap(mrq):
+    """
+    Determines maximum scale possible to perform bootstrapping
+
+    Parameters
+    ----------
+    mrq: :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+
+    """
+
+    filt_len = mrq.filt_len
+
+    for i, nj in mrq.nj.items():
+        if (nj < filt_len).any():
+            i -= 1
+            break
+
+    return i
+
+
+def isclose(a, b, rel_tol=1.98e-03):
+    return np.abs(a - b) <= rel_tol * max(np.max(np.abs(a)), np.max(np.abs(b)))

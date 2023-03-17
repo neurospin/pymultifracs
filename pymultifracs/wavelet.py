@@ -12,7 +12,7 @@ from scipy.signal import convolve
 
 from .structurefunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
-from .utils import fast_power, fixednansum, fixednanmax
+from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
 def _check_formalism(p_exp):
@@ -34,10 +34,10 @@ def _estimate_eta_p(wt_coefs, p_exp, j1, j2_eff, weighted):
 
     wavelet_structure = StructureFunction(wt_coefs,
                                           np.array([p_exp]),
-                                          j1, j2_eff,
+                                          [(j1, j2_eff)],
                                           weighted)
 
-    return wavelet_structure.zeta[0]
+    return wavelet_structure.zeta[0, 0]
 
 
 def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
@@ -52,7 +52,7 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
         warnings.warn(f"eta(p) = {eta_p} <= 0, p-Leaders correction was not\
                         applied. A smaller value of p (or larger value of\
                         gamint) should be selected.")
-        return wt_leaders
+        return wt_leaders, eta_p
 
     JJ = np.arange(1, max_level + 1)
     J1LF = 1
@@ -65,6 +65,8 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
                        / (1 - np.power(2., -eta_p[:, None])))
     ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
 
+    # import ipdb; ipdb.set_trace()
+
     # ZPJCorr shape (n_rep, n_level)
 
     for ind_j, j in enumerate(JJ):
@@ -72,6 +74,20 @@ def _correct_leaders(wt_coefs, wt_leaders, p_exp, j1, j2_eff,
             wt_leaders.values[j]*ZPJCorr[None, :, ind_j]
 
     return wt_leaders, eta_p
+
+
+def decomposition_level_bootstrap(X, wt_name):
+    """
+    Determines maximum scale possible to perform bootstrapping
+
+    Parameters
+    ----------
+    mrq: :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+
+    """
+
+    return max_scale_bootstrap(
+        wavelet_analysis(X, wt_name=wt_name, p_exp=None)[0])
 
 
 def decomposition_level(length, wt_name):
@@ -92,8 +108,7 @@ def decomposition_level(length, wt_name):
         The maximum scale
     """
 
-    wt = pywt.Wavelet(wt_name)
-    filter_len = len(wt.dec_hi)
+    filter_len = get_filter_length(wt_name)
 
     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
     max_level = min(int(np.floor(np.log2(length))), max_level)
@@ -110,12 +125,13 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
     max_level = min(int(np.floor(np.log2(length))), max_level)
 
-    # Warning if j2 is greater than max_level
-    if j2 is not None and j2 > max_level and warn is not False:
-        warnings.warn("Value of j2 is higher than the maximum allowed level. "
-                      f"Max level and j2 set to {max_level}", UserWarning)
+    if j2 is not None:
+        if j2 > max_level and warn is not False:
+            warnings.warn(
+                "Value of j2 is higher than the maximum allowed level. "
+                f"Max level and j2 set to {max_level}", UserWarning)
 
-    # max_level = min(max_level, self.j2)
+        max_level = min(j2, max_level)
 
     return max_level
 
@@ -129,8 +145,8 @@ def filtering(approx, high_filter, low_filter):
     # apply filters
     # note: 'direct' method MUST be used, since there are elements
     # that are np.inf inside `approx`
-    high = convolve(approx, high_filter, mode='same', method='direct')
-    low = convolve(approx, low_filter, mode='same', method='direct')
+    high = convolve(approx, high_filter, mode='full', method='direct')
+    low = convolve(approx, low_filter, mode='full', method='direct')
 
     # high[np.isnan(high)] = np.inf
     # low[np.isnan(low)] = np.inf
@@ -138,19 +154,26 @@ def filtering(approx, high_filter, low_filter):
     # index of first good value
     fp = len(high_filter) - 1
     # index of last good value
-    lp = nj_temp - len(high_filter)
+    lp = nj_temp  # len(high_filter)
 
     # replace border with nan
     high[0:fp] = np.nan
-    high[lp+1:] = np.nan
+    high[lp:] = np.nan
     low[0:fp] = np.nan
-    low[lp+1:] = np.nan
+    low[lp:] = np.nan
 
     # centering and subsampling
     # nwt = len(high_filter) // 2
     # nl = len(high_filter)
-    detail_idx = np.arange(1, nj_temp, 2)
-    approx_idx = np.arange(1, nj_temp, 2)
+    # detail_idx = np.arange(1, nj_temp + 1, 2)
+    # approx_idx = np.arange(1, nj_temp, 2) + 1
+
+    # x0 = 2
+    x0Appro = len(high_filter)  # 2*self.nb_vanishing_moments
+
+    # centering and subsampling
+    detail_idx = np.arange(0, nj_temp, 2) + 1
+    approx_idx = np.arange(0, nj_temp, 2) + x0Appro - 1
 
     detail = high[detail_idx]
     approx = low[approx_idx]
@@ -168,20 +191,24 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
         max_index = int(np.floor(len(sans_voisin) / 2))
         detail = detail[:max_index]
 
+        # print(detail[:2])
+
         sans_voisin = np.stack([detail,
                                 sans_voisin[0:2*max_index:2],
                                 sans_voisin[1:2*max_index:2]],
                                axis=0)
 
+        # print(sans_voisin[:, :2])
+
         if formalism == 'wavelet p-leader':
-            sans_voisin = fixednansum(sans_voisin, axis=0)
+            sans_voisin = np.sum(sans_voisin, axis=0)
         else:
-            sans_voisin = fixednanmax(sans_voisin, axis=0)
+            sans_voisin = np.max(sans_voisin, axis=0)
 
     return sans_voisin
 
 
-def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
+def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp, size=3):
     """
     Compute wavelet leaders
     """
@@ -193,19 +220,67 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp):
 
     sans_voisin = _find_sans_voisin(scale, detail, sans_voisin, formalism)
 
+    # print(sans_voisin[:2], detail[:2])
+
     len_sv = len(sans_voisin)
-    leaders = np.stack([sans_voisin[0:len_sv-2],
-                        sans_voisin[1:len_sv-1],
-                        sans_voisin[2:len_sv]],
-                       axis=0)
+
+    if size == 1:
+        leaders = sans_voisin[None, :]
+
+    elif size == 3:
+        leaders = np.stack([sans_voisin[0:len_sv-2],
+                            sans_voisin[1:len_sv-1],
+                            sans_voisin[2:len_sv]],
+                           axis=0)
 
     if formalism == 'wavelet p-leader':
-        leaders = fixednansum(leaders, axis=0)
+        # import ipdb; ipdb.set_trace()
+        leaders = np.sum(leaders, axis=0)
         leaders = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
     else:
-        leaders = fixednanmax(leaders, axis=0)
+        leaders = np.max(leaders, axis=0)
 
     return leaders, sans_voisin
+
+
+def compute_leaders(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3):
+
+    formalism = _check_formalism(p_exp)
+
+    sans_voisin = None
+    wt_leaders = MultiResolutionQuantity(formalism, gamint)
+
+    max_level = wt_coefs.j2_eff()
+
+    for scale in range(1, max_level + 1):
+
+        detail = wt_coefs.values[scale]
+
+        leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
+                                                scale, formalism, p_exp,
+                                                size=size)
+
+        # remove infinite values and store wavelet leaders
+        # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
+        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+        # leaders[~finite_idx_wl] = np.nan
+
+        if np.sum(finite_idx_wl, axis=0).min() < 3:
+            max_level = scale-1
+            break
+
+        wt_leaders.add_values(leaders, scale)
+
+    # "effective" j2, used in linear regression
+    j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
+
+    if formalism == 'wavelet p-leader':
+        wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
+                                             j1, j2_eff, None, max_level)
+    else:
+        eta_p = None
+
+    return wt_leaders, eta_p
 
 
 WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
@@ -228,9 +303,9 @@ eta_p : float
 
 
 def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
-                           normalization, gamint, j2):
+                           normalization, gamint, j2, wt_name):
 
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint)
+    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name)
     wt_leaders = None
 
     for scale in range(1, max_level + 1):
@@ -267,9 +342,9 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
                             eta_p=None)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
-                     gamint=0.0, normalization=1, weighted=True):
-    # TODO make function for coef only, use it when p_exp is None
+def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
+                     gamint=0.0, normalization=1, weighted=None,
+                     j2_reg=None):
     """
     Compute wavelet coefficient and wavelet leaders.
 
@@ -305,7 +380,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
     normalization : int
         Norm to use on the wavelet coefficients, see notes for more details.
 
-    weighted : bool
+    weighted : str | None
         Whether to perform weighted linear regression, used only when
         computing p-leaders for when estimating :math:`\\eta_p` in p-leader
         correction
@@ -353,13 +428,18 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
 
     if formalism == 'wavelet coef':
         return _wavelet_coef_analysis(approx, max_level, high_filter,
-                                      low_filter, normalization, gamint, j2)
+                                      low_filter, normalization, gamint, j2,
+                                      wt_name)
 
     # Initialize structures
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint)
-    wt_leaders = MultiResolutionQuantity(formalism, gamint)
+    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name,
+                                       n_sig=signal.shape[1])
+    wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
+                                         n_sig=signal.shape[1])
 
     sans_voisin = None
+
+
 
     for scale in range(1, max_level + 1):
 
@@ -400,12 +480,15 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
 
         wt_leaders.add_values(leaders, scale)
 
+    if max_level == 0:
+        return WaveletTransform(None, None, max_level, None)
+
     # "effective" j2, used in linear regression
-    j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
+    j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
 
     if formalism == 'wavelet p-leader':
         wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
-                                             j1, j2_eff, weighted, max_level)
+                                             j1, j2_eff, None, max_level)
     else:
         eta_p = None
 

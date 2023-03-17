@@ -253,7 +253,8 @@ class Signal:
         self._check_wt_transform()
 
         return compute_hurst(self.wt_transform.wt_coefs,
-                             self.wt_param.j1, self.wt_transform.j2_eff,
+                             self.wt_param.j1,
+                             self.wt_transform.wt_coefs.j2_eff(),
                              self.wt_param.weighted)
 
     def hmin(self):
@@ -263,7 +264,7 @@ class Signal:
 
         return estimate_hmin(self.wt_transform.wt_coefs,
                              j1=self.wt_param.j1,
-                             j2_eff=self.wt_transform.j2_eff,
+                             j2_eff=self.wt_transform.wt_coefs.j2_eff(),
                              weighted=self.wt_param.weighted)
 
     def mf_analysis_full(self, j1=1, j2=10, normalization=1, gamint=0.0,

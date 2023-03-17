@@ -25,7 +25,8 @@ setup(name='pymultifracs',
       license='MIT',
       packages=['pymultifracs'],
       install_requires=[
-          'numpy', 'scipy', 'scikit-learn', 'pywavelets', 'seaborn'
+          'numpy', 'scipy', 'scikit-learn', 'pywavelets', 'seaborn',
+          'recombinator', 'statsmodels',
       ],
       zip_safe=False,
       python_requires='>=3.7',
