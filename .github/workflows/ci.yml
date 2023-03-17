@@ -36,10 +36,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: linter-check
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11", "3.9"]
+        python-version: ["3.10", "3.8"]
     steps:
       - uses: actions/checkout@v3
       - name: Get Date
