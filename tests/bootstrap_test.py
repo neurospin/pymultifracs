@@ -73,7 +73,6 @@ def test_autorange(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        # j2 = decomposition_level(X.shape[0], 'db3')
         j2 = decomposition_level_bootstrap(X, 'db3')
         scaling_ranges = [(2, j2)]
 
@@ -84,16 +83,6 @@ def test_autorange(mrw_file):
         print(
             dwt.structure.S_q(2).shape,
             dwt.structure.bootstrapped_mrq.S_q(2).shape)
-
-        # dwt.structure.CIE_S_q(2)
-        # dwt.structure.CI_S_q(2)
-        # dwt.structure.CI_s_q(2)
-        # dwt.structure.CIE_s_q(2)
-
-        # lwt.cumulants.CI_c2
-        # lwt.cumulants.CIE_c2
-        # lwt.cumulants.CI_C2
-        # lwt.cumulants.CIE_C2
 
         lwt.cumulants.compute_Lambda()
         dwt.structure.compute_Lambda()

@@ -65,4 +65,6 @@ jobs:
       - name: Testing
         run: |
           conda install -c conda-forge pytest pytest-xdist
+          pip uninstall pymultifracs
+          pip install -e .
           pytest -n auto -x

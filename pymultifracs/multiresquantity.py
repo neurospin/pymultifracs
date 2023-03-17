@@ -99,11 +99,11 @@ class MultiResolutionQuantityBase:
 
     def _compute_R2(self, moment, slope, intercept, weights):
         return compute_R2(moment, slope, intercept, weights,
-                          *self._get_j_min_max())
+                          [self._get_j_min_max()], self.j)
 
     def _compute_R(self, moment, slope, intercept):
         return compute_R(moment, slope, intercept,
-                         *self._get_j_min_max())
+                         [self._get_j_min_max()], self.j)
 
     def compute_Lambda(self):
 
@@ -237,10 +237,6 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                              '"wavelet leader", "wavelet p-leader"')
 
     def bootstrap(self, R, min_scale=1):
-
-        # if self.formalism == 'wavelet coef':
-        #     self.bootstrapped_mrq = bootstrap(self, R, self.wt_name, min_scale)
-        # elif 'leader' in self.formalism:
 
         block_length = get_filter_length(self.wt_name)
         max_scale = max_scale_bootstrap(self)

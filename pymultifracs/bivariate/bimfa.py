@@ -12,7 +12,16 @@ from .bivariate_structurefunction import BiStructureFunction
 def bivariate_analysis(mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
                        bootstrap_weighted=None, R=1, estimates='sc'):
 
+    j1 = min([sr[0] for sr in scaling_ranges])
+
     if isinstance(mrq1, Iterable):
+
+        # for m1, m2 in zip(mrq1, mrq2):
+        #     if R > 1:
+        #         m1.bootstrapped_mrq, m2.bootstrapped_mrq = \
+        #             m1.bootstrap_multiple(R, j1, [m1, m2])
+        #     else:
+        #         m1.bootstrapped_mrq, m2.bootstrapped_mrq = None, None
 
         if isinstance(estimates, str):
             estimates = [estimates] * len(mrq1)
@@ -30,23 +39,27 @@ def bivariate_analysis(mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
                 )
 
             return [bivariate_analysis(m1, m2, scaling_ranges, weighted,
-                                       n_cumul, q1, q2, bootstrap_weighted, R,
-                                       estimates[i])
-                    for i, m1, m2 in enumerate(zip(mrq1, mrq2))]
+                                       n_cumul, q1, q2, bootstrap_weighted,
+                                       R=1, estimates=estimates[i])
+                    for i, (m1, m2) in enumerate(zip(mrq1, mrq2))]
 
         return [bivariate_analysis(m1, mrq2, scaling_ranges, weighted, n_cumul,
-                                   q1, q2, bootstrap_weighted, R, estimates[i])
+                                   q1, q2, bootstrap_weighted, R=1,
+                                   estimates=estimates[i])
                 for i, m1 in enumerate(mrq1)]
 
     if R > 1:
-        mrq1.bootstrap(R)
-        mrq2.bootstrap(R)
+        mrq1.bootstrap_multiple(R, j1, [mrq1, mrq2])
 
-    mfa_boot = None
+    # if R > 1:
+    #     mrq1.bootstrap(R)
+    #     mrq2.bootstrap(R)
 
-    if mrq1.boostrapped_mrq is not None:
+    bimfa_boot = None
 
-        mfa_boot = bivariate_analysis(
+    if mrq1.bootstrapped_mrq is not None:
+
+        bimfa_boot = bivariate_analysis(
             mrq1.bootstrapped_mrq, mrq2.bootsrapped_mrq, scaling_ranges,
             bootstrap_weighted, n_cumul, q1, q2, None, 1, estimates)
 
@@ -125,13 +138,6 @@ def bivariate_analysis_full(signal1, signal2, scaling_ranges, normalization=1,
     if WT2.wt_leaders is not None:
         mrq2 += [WT2.wt_leaders]
 
-    if R > 1:
-        for m1, m2 in zip(mrq1, mrq2):
-
-            m1.bootstrapped_mrq, m2.bootstrapped_mrq = m1.bootstrap_multiple(
-                R, j1, [m1, m2]
-            )
-
     return bivariate_analysis(
         mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
-        bootstrap_weighted, estimates)
+        bootstrap_weighted, R, estimates)

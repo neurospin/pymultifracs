@@ -201,7 +201,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         return super().__getattr__(name)
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
-             fmt='ko-', scaling_range=0, **plot_kwargs):
+             fmt='ko-', scaling_range=0, signal_idx=0, **plot_kwargs):
         """
         Plot the multifractal spectrum.
 

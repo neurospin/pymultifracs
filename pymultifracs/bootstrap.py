@@ -439,10 +439,6 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
                     [idx_final[rep2][idx_final[rep2] >= 0].shape[0]
                      for rep2 in range(replications)])
 
-        nj[scale] = np.array(
-            [indices_scale[rep, indices_scale[rep] >= 0].shape[0]
-             for rep in range(replications)])
-
         # out = np.zeros(
         #     (replications, mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
         #     dtype=float) + np.nan
@@ -457,6 +453,8 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
         # print(compact_idx.shape, out.shape)
         values[scale] = out[:, ~compact_idx].transpose(1, 2, 0)
         values[scale] = values[scale].reshape(values[scale].shape[0], -1)
+
+        nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq.from_dict({
         'formalism': mrq.formalism,

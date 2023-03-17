@@ -1,6 +1,7 @@
 import numpy as np
+from .regression import prepare_regression
 
-# def mf_analysis_ar(wt_coefs, wt_leaders, scaling_ranges, weighted,
+# def mf_analysis_ar(wt_coefs, wt_leaders, scaling_rangexs, weighted,
 #                    n_cumul, q):
 
 #     if q is None:
@@ -65,14 +66,16 @@ def find_max_lambda(L):
     return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
 
 
-def compute_R(moment, slope, intercept, j_min, j_max):
+def compute_R(moment, slope, intercept, j_min_max, j):
+
+    x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, B)
-    moment = moment[:, j_min-1:j_max, None, :]
+    moment = moment[:, j_min_idx:j_max_idx, None, :]
     slope = slope[:, None, :]
     intercept = intercept[:, None, :]
 
-    x = np.arange(j_min, j_max + 1)[None, :, None, None, None]
+    # x = np.arange(j_min, j_max + 1)[None, :, None, None, None]
     # j_mask = np.ones((1, x.shape[1], slope.shape[2], 1))
 
     # for i, (j1, j2) in enumerate(mrq.scaling_ranges):
