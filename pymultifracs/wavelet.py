@@ -342,7 +342,7 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
                             eta_p=None)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
+def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                      gamint=0.0, normalization=1, weighted=None,
                      j2_reg=None):
     """
@@ -438,8 +438,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
                                          n_sig=signal.shape[1])
 
     sans_voisin = None
-
-
 
     for scale in range(1, max_level + 1):
 

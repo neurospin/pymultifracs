@@ -4,7 +4,7 @@ import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.colors import CenteredNorm, Normalize
+from matplotlib.colors import CenteredNorm, Normalize, PowerNorm
 from matplotlib.ticker import AutoLocator
 import seaborn as sns
 import numpy as np
@@ -392,7 +392,8 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
-              leader_idx_correction=True, cbar=True, figsize=(20, 7)):
+              leader_idx_correction=True, cbar=True, figsize=(20, 7),
+              gamma=.3, nan_idx=None):
 
     min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
 
@@ -418,18 +419,31 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
 
         C = temp[:, None]
 
+        if not leader:
+            C = np.abs(C)
+
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
 
         if leader:
-            norm = Normalize(vmin=vmin, vmax=vmax)
+            norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
         else:
-            norm = CenteredNorm(halfrange=max([abs(vmin), abs(vmax)]))
+            norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
 
         cmap = mpl.cm.get_cmap('inferno').copy()
         cmap.set_bad('grey')
 
         qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm)
+
+        if nan_idx is not None:
+            idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
+
+            segments = np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
+
+            for seg in segments:
+
+                ax.pcolormesh(X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                              edgecolor='xkcd:blue')
 
     ax.set_ylim(j1-.5, j2+.5)
     ax.set_yticks(range(j1, j2+1))
