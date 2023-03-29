@@ -23,7 +23,7 @@ psd : ndarray
 
 
 def plot_psd(signal, fs, n_fft=4096, seg_size=None, n_moments=2,
-             log='log2', ax=None):
+             log='log2', ax=None, wt='db'):
     """
     Plot the superposition of Fourier-based Welch estimation and Wavelet-based
     estimation of PSD on a log-log graphic.
@@ -64,7 +64,7 @@ def plot_psd(signal, fs, n_fft=4096, seg_size=None, n_moments=2,
 
     freq_fourier, psd_fourier = welch_estimation(signal, fs, n_fft,
                                                  seg_size)
-    freq_wavelet, psd_wavelet = wavelet_estimation(signal, fs, n_moments)
+    freq_wavelet, psd_wavelet = wavelet_estimation(signal, fs, n_moments, wt=wt)
 
     # Plotting
 
@@ -227,7 +227,7 @@ def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
     return PSD(freq=freq, psd=psd)
 
 
-def wavelet_estimation(signal, fs, n_moments, j2=None):
+def wavelet_estimation(signal, fs, n_moments, j2=None, wt='db'):
     """
     PSD estimation based on Wavelet coefficients
 
@@ -251,7 +251,7 @@ def wavelet_estimation(signal, fs, n_moments, j2=None):
     # PSD
     transform = wavelet_analysis(signal, j1=1, j2=j2,
                                  normalization=1,
-                                 wt_name=f'db{n_moments}',
+                                 wt_name=f'{wt}{n_moments}',
                                  gamint=0.5,
                                  weighted=None,
                                  p_exp=None)

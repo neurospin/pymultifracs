@@ -5,12 +5,13 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from dataclasses import dataclass, field, InitVar
 from multiprocessing.sharedctypes import Value
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import numpy as np
 from scipy.special import binom as binomial_coefficient
 from scipy.stats import norm as Gaussian
-from statsmodels.robust.scale import qn_scale
+# from statsmodels.robust.scale import qn_scale
+# from .robust import qn
 from statsmodels.robust.norms import estimate_location, TukeyBiweight
 from statsmodels.tools.validation import array_like, float_like
 
@@ -20,9 +21,10 @@ from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
+from ._robust import _qn, limits
 
 
-def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
+def qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     """
     Computes the Qn robust estimator of scale
 
@@ -50,6 +52,8 @@ def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
         The Qn robust estimator of scale
     """
 
+    # arr, mask = _replace_nan(a, 0)
+
     a = array_like(
         a, "a", ndim=None, dtype=np.float64, contiguous=True, order="C"
     )
@@ -60,14 +64,16 @@ def nan_qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     elif a.size == 0:
         return np.nan
     else:
-        out = np.apply_along_axis(qn_scale, axis=axis, arr=a, c=c)
+        out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
         if out.ndim == 0:
             return float(out)
         return out
 
 
-def compute_robust_cumulants(X, alpha, m_array):
+def compute_robust_cumulants(X, m_array, alpha=1):
     # shape X (n_j, n_rep)
+
+    limits()
 
     n_j, n_rep = X.shape
     moments = np.zeros((len(m_array), n_rep))
@@ -204,7 +210,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     scaling_ranges: List[Tuple[int]]
     bootstrapped_mfa: InitVar[MFractalVar] = None
     weighted: str = None
-    alpha: float = 1  # 1.342
+    robust_kwargs: Dict[str, object] = field(default_factory=dict)
     robust: InitVar[bool] = False
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
@@ -253,12 +259,10 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             # dropping infinite coefsx
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-            # log T_X_j shape (n_j, n_reps)
-
-            if self.alpha > 1 or robust:
+            if robust:
 
                 values = compute_robust_cumulants(
-                    log_T_X_j, self.alpha, self.m)
+                    log_T_X_j, self.m, **self.robust_kwargs)
 
                 self.values[:, ind_j] = values
 
@@ -267,8 +271,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                 for ind_m, m in enumerate(self.m):
 
                     moments[ind_m, ind_j] = np.nanmean(
-                        fast_power(log_T_X_j, m),
-                        axis=0)
+                        fast_power(log_T_X_j, m), axis=0)
 
                     idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
                     moments[ind_m, ind_j, idx_unreliable] = np.nan

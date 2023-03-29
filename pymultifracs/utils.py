@@ -166,3 +166,29 @@ def max_scale_bootstrap(mrq):
 
 def isclose(a, b, rel_tol=1.98e-03):
     return np.abs(a - b) <= rel_tol * max(np.max(np.abs(a)), np.max(np.abs(b)))
+
+
+def scale_position(time, scale_min, scale_max, wt_leaders=None):
+    """
+    Returns indexes for wt coefs and optionally leaders to be set to nan \
+    for each scale between scale_min and scale_max
+    """
+
+    out_idx = {}
+    out_leader = {}
+
+    for scale in range(scale_min, scale_max + 1):
+
+        idx = np.unique(time // 2 ** scale)
+        out_idx[scale] = idx
+
+        if wt_leaders is not None:
+
+            n_leaders = wt_leaders.values[scale].shape[0]
+
+            out_leader[scale] = np.unique(np.concatenate([
+                idx[(idx - 1 >= 0) & (idx - 1 < n_leaders)] - 1,
+                idx[idx < n_leaders],
+                idx[(idx - 2 >= 0) & (idx - 2 < n_leaders)] - 2]))
+
+    return out_idx, out_leader

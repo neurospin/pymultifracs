@@ -3,6 +3,9 @@
 
 # Compiled python modules.
 *.pyc
+*.so
+*.c
+pymultifracs/*.html
 
 # Setuptools distribution folder.
 python_code/pymultifracs/dist/

@@ -55,7 +55,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
             )
 
         return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
-                             q, bootstrap_weighted, R, estimates[i])
+                             q, bootstrap_weighted, R, estimates[i], robust)
                  for i, m in enumerate(mrq)])
 
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())

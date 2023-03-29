@@ -207,7 +207,7 @@ def gen_estimate(N, gen_func, SNRgrid, covgrid, align_scale, n_jobs=10, n_rep=1)
         c3_df = pd.concat(c3_dfs).rename_axis(columns='SNR', index=['coverage'])
 
         df = pd.concat([c1_df, c2_df, c3_df], keys=['c1', 'c2', 'c3'], axis=1,
-                    names=['cumulant', 'SNR'])
+                        names=['cumulant', 'SNR'])
 
         df_list.append(df)
 
