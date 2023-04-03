@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import numpy as np
 from scipy.special import binom as binomial_coefficient
 from scipy.stats import norm as Gaussian
-# from statsmodels.robust.scale import qn_scale
+from statsmodels.robust.scale import qn_scale
 # from .robust import qn
 from statsmodels.robust.norms import estimate_location, TukeyBiweight
 from statsmodels.tools.validation import array_like, float_like
@@ -21,10 +21,11 @@ from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-from ._robust import _qn, limits
+from ._robust import _qn
+# from .robust import _qn
 
 
-def qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
+def qn_scale2(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     """
     Computes the Qn robust estimator of scale
 
@@ -73,8 +74,6 @@ def qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
 def compute_robust_cumulants(X, m_array, alpha=1):
     # shape X (n_j, n_rep)
 
-    limits()
-
     n_j, n_rep = X.shape
     moments = np.zeros((len(m_array), n_rep))
     values = np.zeros_like(moments)
@@ -90,7 +89,12 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 
         X_norm = X[~np.isinf(X[:, rep]) & ~np.isnan(X[:, rep]), rep]
 
+        if X_norm.shape[0] > 10000:
+            values[:, rep] = np.nan
+            continue
+
         q_est = qn_scale(X_norm)
+
 
         if np.isclose(q_est, 0):
             values[m_array == 1, rep] = np.median(X_norm, axis=0)
