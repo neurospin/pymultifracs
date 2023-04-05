@@ -442,6 +442,9 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
 
             for seg in segments:
 
+                if len(seg) == 0:
+                    continue
+
                 ax.pcolormesh(X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
                               edgecolor='xkcd:blue')
 

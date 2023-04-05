@@ -1,5 +1,9 @@
 import numpy as np
 
+from scipy.stats import gennorm
+from scipy.optimize import bisect
+from scipy.special import gamma
+
 
 def _high_weighted_median(a, weights):
     """
@@ -129,3 +133,183 @@ def _qn(a, c):
     k_new = k_new - (n_left + 1)
     output = c * np.sort(work[:j])[k_new]
     return output
+
+
+def C4_to_m4(C4, C2):
+    return C4 + 3 * C2 ** 2
+
+
+def C2_to_m2(C2):
+    return C2
+
+
+def get_location_scale_shape(cm):
+
+    slope_c1 = cm.slope[0][None, :]
+    intercept_c1 = cm.intercept[0][None, :]
+
+    slope_c2 = cm.slope[1][None, :]
+    intercept_c2 = cm.intercept[1][None, :]
+
+    slope_c4 = cm.slope[3][None, :]
+    intercept_c4 = cm.intercept[3][None, :]
+
+    j_array = np.arange(1, cm.j.max() + 1)
+
+    C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
+    C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
+    C4_array = slope_c4 * j_array[:, None, None] + intercept_c4
+
+    m2 = C2_to_m2(C2_array)
+    m4_array = C4_to_m4(C4_array, m2)
+
+    # m2[m2 < 0] = 0
+    # m4[m2 < 0] = 0
+    # m4[m4 < 0] = 0
+
+    alpha = np.zeros_like(C2_array)
+    beta = np.zeros_like(C4_array)
+
+    for i, (C2, m4) in enumerate(zip(C2_array, m4_array)):
+
+        for k, l in np.ndindex(beta[i].shape):
+
+            if C2[k, l] <= 0:
+                alpha[i, k, l] = 0
+                beta[i, k, l] = 1
+                continue
+
+            f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4
+
+            beta[i, k, l] = bisect(f_beta, .1, 100)
+            alpha[i, k, l] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
+
+    return j_array, C1_array, alpha, beta
+
+
+def sample_p_leaders(p_exp, *gennorm_args):
+
+    # normal args:
+    # 0 - beta / shape
+    # 1 - location
+    # 2 - alpha / scale
+    # 3 - array size
+
+    # if gennorm_args[2] == 0:
+    #     return (np.e ** gennorm_args[1] * np.ones(gennorm_args[3])) ** p_exp
+
+    sim = (np.e ** gennorm.rvs(*gennorm_args)) ** p_exp
+
+    idx_zero = gennorm_args[2] == 0
+
+    # print(gennorm_args[1][idx_zero][None, :].shape, sim[:, idx_zero].shape,
+    #       np.ones_like(sim[:, idx_zero]).shape)
+
+    sim[:, idx_zero] = (np.e ** gennorm_args[1][idx_zero][None, :]
+                        * np.ones_like(sim[:, idx_zero])) ** p_exp
+
+    return sim
+
+
+def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
+
+    j_array, location, scale, shape = get_location_scale_shape(cm)
+
+    idx_reject = {}
+    samples_scale_j = None
+
+    for j in range(j_array.max(), 0, -1):
+
+        idx = (j_array == j).squeeze()
+        idx_below = (j_array == j-1).squeeze()
+
+        if samples_scale_j is None:
+            samples_scale_j = sample_p_leaders(p_exp, shape[idx],
+                                               location[idx], scale[idx],
+                                               (n_samples, *shape[idx].shape))
+
+        if j == 1:
+            diff_element = np.zeros(shape[idx].shape)
+        else:
+            samples_scales_below = [
+                sample_p_leaders(p_exp, shape[idx_below], location[idx_below],
+                                 scale[idx_below], (n_samples, *shape[idx].shape)),
+                sample_p_leaders(p_exp, shape[idx_below], location[idx_below],
+                                 scale[idx_below], (n_samples, *shape[idx].shape))
+            ]
+            diff_element = .5 * (samples_scales_below[0]
+                                 + samples_scales_below[1])
+
+        idx_reject[j] = np.zeros((*shape[idx].shape[1:], wt_coefs.values[j].shape[0] - 2), dtype=bool)
+
+        for _, k, l in np.ndindex(shape[idx].shape):
+
+            diff_samples = samples_scale_j[:, k, l] - diff_element[:, k, l]
+
+            if j > 1:
+                diff_samples = diff_samples[diff_samples > 0]
+
+            ci = [np.percentile(diff_samples, .1),
+                  np.percentile(diff_samples, 99.9)]
+
+            vals = np.abs(wt_coefs.values[j]) ** p_exp
+
+            v = np.sum(np.c_[vals[:-2], vals[1:-1], vals[2:]], axis=1)
+
+            check = (v < ci[0]) | (v > ci[1])
+
+            idx_reject[j][k, l] = check
+
+        if j == 6 and verbose:
+
+            print(v > ci[1])
+
+            plt.figure()
+            plt.scatter(diff_element, np.sort(samples_scale_j))
+
+            vals = WT.wt_leaders.values[j-1] ** p
+            lower_vals =  1/2 * np.sum(np.c_[
+                vals[:-3:2],
+                vals[3::2]
+            ], axis=1)
+
+            plt.scatter(lower_vals, WT.wt_leaders.values[j].squeeze() ** p)
+
+        if verbose and j == 6:
+            plt.figure()
+            sns.histplot({0: diff_samples, 1: v[~np.isnan(v)]}, stat='percent',
+                         log_scale=True, common_norm=False)
+            ylim = plt.ylim()
+            plt.vlines(ci, *ylim, color='k')
+            plt.ylim(*ylim)
+
+            print(ylim[1])
+            plt.figure()
+            plt.hist(v[v < .025])
+
+        samples_scale_j = samples_scales_below[0]
+
+    return idx_reject
+
+
+def iterate_analysis(WT, n_iter=10):
+
+    lwt = mf_analysis([WT.wt_leaders], scaling_ranges=[(6, WT.wt_leaders.j2_eff() - 2)], n_cumul=4)[0]
+
+    c_trace = np.zeros((4, n_iter+1))
+
+    c_trace[:, 0] = lwt.cumulants.log_cumulants.squeeze()
+
+    for i in range(n_iter):
+
+        idx_reject = reject_coefs(WT.wt_coefs, lwt.cumulants, 2, 1000000,
+                                  verbose=False)
+        new_leaders, _ = compute_leaders2(WT.wt_coefs, gamint=1, p_exp=2, j1=6,
+                                          j2_reg=12, idx_reject=idx_reject)
+        lwt = mf_analysis([new_leaders],
+                          scaling_ranges=[(6, WT.wt_leaders.j2_eff() - 2)],
+                          n_cumul=4)[0]
+
+        c_trace[:, i+1] = lwt.cumulants.log_cumulants.squeeze()
+
+    return c_trace, new_leaders, idx_reject, lwt

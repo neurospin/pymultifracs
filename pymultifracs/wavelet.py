@@ -299,27 +299,27 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
         # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]), p_exp)
         coefs = fast_power(np.abs(wt_coefs.values[scale]), p_exp)
 
-        if (idx_reject is not None and idx_reject[scale].sum() > 0
-                and scale >= j1 and scale <= j2_reg):
+        # if (idx_reject is not None and idx_reject[scale].sum() > 0
+        #         and scale >= j1 and scale <= j2_reg):
 
-            idx = idx_reject[scale]
+        #     idx = idx_reject[scale]
 
-            coefs[idx] = np.nan
+        #     # coefs[idx] = np.nan
 
-            scale_contrib_reject_count = np.sum(np.r_[
-                idx[2:],
-                idx[1:-1],
-                idx[:-2]
-            ])
-
-            # print(scale_contrib_reject_count)
-            print(idx.sum())
+        #     # print(scale_contrib_reject_count)
+        #     print(idx.sum())
 
         scale_contribution = np.stack([
             coefs[2:],
             coefs[1:-1],
             coefs[:-2]
         ], axis=0)
+
+        if (idx_reject is not None and idx_reject[scale].sum() > 0
+                and scale >= j1 and scale <= j2_reg):
+
+            idx = idx_reject[scale]
+            scale_contribution[:, idx] = np.nan
 
         if scale == 1:
 
