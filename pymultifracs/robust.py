@@ -1,5 +1,8 @@
 import numpy as np
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 from scipy.stats import gennorm
 from scipy.optimize import bisect
 from scipy.special import gamma
@@ -175,14 +178,20 @@ def get_location_scale_shape(cm):
         for k, l in np.ndindex(beta[i].shape):
 
             if C2[k, l] <= 0:
-                alpha[i, k, l] = 0
                 beta[i, k, l] = 1
                 continue
 
-            f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4
+            f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4[k, l]
+
+            # if f_beta(.1) * f_beta(100) <= 0:
+            #     print(f_beta(.1), f_beta(100))
 
             beta[i, k, l] = bisect(f_beta, .1, 100)
-            alpha[i, k, l] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
+
+        alpha[i] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
+
+        idx_zero = C2 <= 0
+        alpha[i, idx_zero] = 0
 
     return j_array, C1_array, alpha, beta
 
@@ -220,8 +229,13 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
 
     for j in range(j_array.max(), 0, -1):
 
-        idx = (j_array == j).squeeze()
-        idx_below = (j_array == j-1).squeeze()
+        # idx = (j_array == j).squeeze()
+        # idx_below = (j_array == j-1).squeeze()
+
+        # print(shape[idx].shape)
+
+        idx = j-1
+        idx_below = j-2
 
         if samples_scale_j is None:
             samples_scale_j = sample_p_leaders(p_exp, shape[idx],
@@ -229,7 +243,7 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
                                                (n_samples, *shape[idx].shape))
 
         if j == 1:
-            diff_element = np.zeros(shape[idx].shape)
+            diff_element = np.zeros((1, *shape[idx].shape))
         else:
             samples_scales_below = [
                 sample_p_leaders(p_exp, shape[idx_below], location[idx_below],
@@ -240,52 +254,65 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
             diff_element = .5 * (samples_scales_below[0]
                                  + samples_scales_below[1])
 
-        idx_reject[j] = np.zeros((*shape[idx].shape[1:], wt_coefs.values[j].shape[0] - 2), dtype=bool)
+        # N leaders = n_coefs - 2
+        idx_reject[j] = np.zeros((*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
 
-        for _, k, l in np.ndindex(shape[idx].shape):
+        diff_samples = samples_scale_j - diff_element
 
-            diff_samples = samples_scale_j[:, k, l] - diff_element[:, k, l]
+        # print(samples_scale_j.mean(axis=0), samples_scale_j.std(axis=0))
+
+        for k, l in np.ndindex(shape[idx].shape):
+
+            temp_diff = diff_samples[:, k, l]
 
             if j > 1:
-                diff_samples = diff_samples[diff_samples > 0]
+                temp_diff = temp_diff[temp_diff >= 0]
 
-            ci = [np.percentile(diff_samples, .1),
-                  np.percentile(diff_samples, 99.9)]
+            # try:
+            ci = [np.percentile(temp_diff, .1),
+                  np.percentile(temp_diff, 99.9)]
 
-            vals = np.abs(wt_coefs.values[j]) ** p_exp
+            # except IndexError:
+            #     print(k, l)
+            #     print(1/0)
 
-            v = np.sum(np.c_[vals[:-2], vals[1:-1], vals[2:]], axis=1)
+            # print(k, l)
+
+            vals = np.abs(wt_coefs.values[j][:, l]) ** p_exp
+
+            v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
+                       axis=1)
 
             check = (v < ci[0]) | (v > ci[1])
+
+            # print(j, check.sum())
 
             idx_reject[j][k, l] = check
 
         if j == 6 and verbose:
 
-            print(v > ci[1])
-
             plt.figure()
-            plt.scatter(diff_element, np.sort(samples_scale_j))
+            plt.scatter(diff_element[:, -1, -1], samples_scale_j[:, -1, -1])
 
-            vals = WT.wt_leaders.values[j-1] ** p
-            lower_vals =  1/2 * np.sum(np.c_[
-                vals[:-3:2],
-                vals[3::2]
-            ], axis=1)
+            # vals = WT.wt_leaders.values[j-1] ** p
+            # lower_vals =  1/2 * np.sum(np.c_[
+            #     vals[:-3:2],
+            #     vals[3::2]
+            # ], axis=1)
 
-            plt.scatter(lower_vals, WT.wt_leaders.values[j].squeeze() ** p)
+            # plt.scatter(lower_vals, WT.wt_leaders.values[j].squeeze() ** p)
 
         if verbose and j == 6:
             plt.figure()
-            sns.histplot({0: diff_samples, 1: v[~np.isnan(v)]}, stat='percent',
+            sns.histplot({0: diff_samples[:, -1, -1], 1: v[~np.isnan(v)]}, stat='percent',
                          log_scale=True, common_norm=False)
             ylim = plt.ylim()
             plt.vlines(ci, *ylim, color='k')
             plt.ylim(*ylim)
 
-            print(ylim[1])
             plt.figure()
             plt.hist(v[v < .025])
+            plt.show()
 
         samples_scale_j = samples_scales_below[0]
 

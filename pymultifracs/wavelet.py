@@ -319,7 +319,8 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
                 and scale >= j1 and scale <= j2_reg):
 
             idx = idx_reject[scale]
-            scale_contribution[:, idx] = np.nan
+            # print(scale_contribution.shape, idx.shape, idx.transpose(0, 1, 2).shape)
+            scale_contribution[:, idx.squeeze().transpose()] = np.nan
 
         if scale == 1:
 
