@@ -4,6 +4,7 @@ from scipy.signal import butter, lfilter
 from joblib import Parallel, delayed
 
 from .fbm import fbm
+from .mrw import mrw
 from ..mfa import mf_analysis
 from ..wavelet import wavelet_analysis
 
@@ -148,9 +149,12 @@ def generate_simuls(N):
     return X_diff
 
 
-def generate_simuls_bb(N):
+def generate_simuls_bb(N, lambd=None):
 
-    X = fbm(shape=N, H=.8)
+    if lambd is None:
+        X = fbm(shape=N, H=.8)
+    else:
+        X = mrw(N, H, lambd, lambd)
     X_noise = fbm(shape=X.shape[0], H=.9)
 
     return np.diff(X), np.diff(X_noise)
