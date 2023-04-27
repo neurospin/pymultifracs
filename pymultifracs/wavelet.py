@@ -349,11 +349,27 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
         # print(max_index, coefs.shape[0], pleader_p[scale-1].shape[0],
         #       scale_contribution[:, :max_index // 2].shape)
 
+        max_index = lower_contribution.shape[1]
+
+        # print(scale_contribution.shape, lower_contribution.shape)
+
         leaders = np.sum(np.r_[
-            scale_contribution,
+            scale_contribution[:, :max_index],
             .5 * lower_contribution
         ], axis=0)
         pleader_p[scale] = leaders
+
+        # if scale == 12:
+            # import matplotlib.pyplot as plt
+            # plt.plot(leaders.squeeze())
+            # plt.plot(scale_contribution.squeeze().transpose())
+            # plt.plot(lower_contribution.squeeze().transpose())
+            # plt.plot(scale_contribution[0])
+            # plt.plot(lower_contribution[1])
+            # plt.plot(lower_contribution[0])
+            # print(np.isnan(leaders).sum())
+
+            # print(leaders.shape, lower_contribution.shape, scale_contribution.shape)
 
         finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
         # leaders[~finite_idx_wl] = np.nan

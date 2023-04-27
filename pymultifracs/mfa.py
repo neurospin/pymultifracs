@@ -17,7 +17,8 @@ from .utils import MFractalVar
 
 
 def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
-                bootstrap_weighted=None, R=1, estimates="scm", robust=False):
+                bootstrap_weighted=None, R=1, estimates="scm", robust=False,
+                robust_kwargs=None):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -55,7 +56,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
             )
 
         return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
-                             q, bootstrap_weighted, R, estimates[i], robust)
+                             q, bootstrap_weighted, R, estimates[i], robust,
+                             robust_kwargs)
                  for i, m in enumerate(mrq)])
 
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
@@ -74,7 +76,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
 
         mfa_boot = mf_analysis(
             mrq.bootstrapped_mrq, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None, 1, estimates)
+            bootstrap_weighted, n_cumul, q, None, 1, estimates, robust,
+            robust_kwargs)
 
     else:
         mfa_boot = None
@@ -98,6 +101,9 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
         'bootstrapped_mfa': mfa_boot,
         'robust': robust
     }
+
+    if robust_kwargs is not None:
+        parameters['robust_kwargs'] = robust_kwargs
 
     struct, cumul, spec = None, None, None
 

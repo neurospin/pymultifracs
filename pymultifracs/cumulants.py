@@ -21,7 +21,7 @@ from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-from ._robust import _qn
+# from ._robust import _qn
 # from .robust import _qn
 
 
@@ -95,7 +95,6 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 
         q_est = qn_scale(X_norm)
 
-
         if np.isclose(q_est, 0):
             values[m_array == 1, rep] = np.median(X_norm, axis=0)
             continue
@@ -117,6 +116,11 @@ def compute_robust_cumulants(X, m_array, alpha=1):
         X_norm -= m_est
         X_norm /= q_est
 
+        # X_norm -= X_norm.mean()
+        # X_norm /= X_norm.std()
+
+        # print(X_norm.mean(), X_norm.std())
+
         for ind_m, m in enumerate(m_array):
 
             decaying_factor = (alpha
@@ -137,16 +141,16 @@ def compute_robust_cumulants(X, m_array, alpha=1):
                     if m_array[ind_m - ind_n - 1] > 2:
                         temp_moment = moments[ind_m - ind_n - 1, rep]
                     elif m_array[ind_m - ind_n - 1] == 2:
-                        temp_moment = 1
+                        temp_moment = X_norm.var()
                     elif m_array[ind_m - ind_n - 1] == 1:
-                        temp_moment = 0
+                        temp_moment = X_norm.mean()
 
                     if m_array[ind_n] > 2:
                         temp_value = values[ind_n, rep]
                     elif m_array[ind_n] == 2:
-                        temp_value = 1
+                        temp_value = X_norm.var()
                     elif m_array[ind_n] == 1:
-                        temp_value = 0
+                        temp_value = X_norm.mean()
 
                     aux += (binomial_coefficient(m-1, n-1)
                             * temp_value * temp_moment)

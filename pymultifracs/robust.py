@@ -154,6 +154,12 @@ def get_location_scale_shape(cm):
     slope_c2 = cm.slope[1][None, :]
     intercept_c2 = cm.intercept[1][None, :]
 
+    if slope_c2 > 0:
+        slope_c2[:] = 0
+        for k, range in enumerate(cm.scaling_ranges):
+            j_min = cm.j.min()
+            intercept_c2[:, k] = cm.C2[np.s_[range[0]-j_min:range[1]-j_min]].mean()
+
     slope_c4 = cm.slope[3][None, :]
     intercept_c4 = cm.intercept[3][None, :]
 
@@ -165,6 +171,7 @@ def get_location_scale_shape(cm):
 
     m2 = C2_to_m2(C2_array)
     m4_array = C4_to_m4(C4_array, m2)
+    # print(C2_array, m4_array)
 
     # m2[m2 < 0] = 0
     # m4[m2 < 0] = 0
@@ -174,6 +181,8 @@ def get_location_scale_shape(cm):
     beta = np.zeros_like(C4_array)
 
     for i, (C2, m4) in enumerate(zip(C2_array, m4_array)):
+
+        # print(C2, m4)
 
         for k, l in np.ndindex(beta[i].shape):
 
@@ -186,7 +195,16 @@ def get_location_scale_shape(cm):
             # if f_beta(.1) * f_beta(100) <= 0:
             #     print(f_beta(.1), f_beta(100))
 
-            beta[i, k, l] = bisect(f_beta, .1, 100)
+            # print(m4[k, l])
+            # print(f_beta(.1), f_beta(10))
+
+            if f_beta(.1) > 0 and f_beta(10) > 0:
+                beta[i, k, l] = 10
+            elif f_beta(.1) < 0 and f_beta(10) < 0:
+                beta[i, k, l] = .1
+            else:
+                # print(f_beta(.1), f_beta(5), m4[k, l])
+                beta[i, k, l] = bisect(f_beta, .1, 10)
 
         alpha[i] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
 
@@ -220,7 +238,7 @@ def sample_p_leaders(p_exp, *gennorm_args):
     return sim
 
 
-def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
+def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, verbose=False):
 
     j_array, location, scale, shape = get_location_scale_shape(cm)
 
@@ -269,14 +287,9 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
                 temp_diff = temp_diff[temp_diff >= 0]
 
             # try:
-            ci = [np.percentile(temp_diff, .1),
-                  np.percentile(temp_diff, 99.9)]
-
-            # except IndexError:
-            #     print(k, l)
-            #     print(1/0)
-
-            # print(k, l)
+            # print(alpha / 2, 100 - alpha / 2)
+            ci = [np.percentile(temp_diff, alpha / 2),
+                  np.percentile(temp_diff, 100 - (alpha / 2))]
 
             vals = np.abs(wt_coefs.values[j][:, l]) ** p_exp
 
@@ -285,11 +298,13 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
 
             check = (v < ci[0]) | (v > ci[1])
 
-            # print(j, check.sum())
-
             idx_reject[j][k, l] = check
 
         if j == 6 and verbose:
+
+            print(scale[idx], shape[idx])
+
+            # print(v[check], ci[0], ci[1])
 
             plt.figure()
             plt.scatter(diff_element[:, -1, -1], samples_scale_j[:, -1, -1])
@@ -304,7 +319,8 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, verbose=False):
 
         if verbose and j == 6:
             plt.figure()
-            sns.histplot({0: diff_samples[:, -1, -1], 1: v[~np.isnan(v)]}, stat='percent',
+
+            sns.histplot({0: diff_samples[:, k, l], 1: v[~np.isnan(v) & (v > 0)]}, stat='percent',
                          log_scale=True, common_norm=False)
             ylim = plt.ylim()
             plt.vlines(ci, *ylim, color='k')

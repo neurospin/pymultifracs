@@ -154,7 +154,7 @@ def generate_simuls_bb(N, lambd=None):
     if lambd is None:
         X = fbm(shape=N, H=.8)
     else:
-        X = mrw(N, H, lambd, lambd)
+        X = mrw(N, .8, lambd, N)
     X_noise = fbm(shape=X.shape[0], H=.9)
 
     return np.diff(X), np.diff(X_noise)

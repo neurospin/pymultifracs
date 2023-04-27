@@ -45,3 +45,5 @@ pymultifracs/todo.txt
 notebooks/Dev*.ipynb
 coverage.xml
 notebooks/figures
+
+data/
