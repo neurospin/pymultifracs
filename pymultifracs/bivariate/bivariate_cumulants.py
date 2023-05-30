@@ -2,15 +2,17 @@
 # from __future__ import unicode_literals
 
 from dataclasses import dataclass, field, InitVar
+from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from scipy.special import binom as binomial_coefficient
 
-from ..utils import fast_power, linear_regression
+from ..regression import linear_regression, prepare_regression, prepare_weights
+from ..utils import MFractalVar, fast_power
 from ..multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
+from ..viz import plot_bicm
 
 
 @dataclass
@@ -18,9 +20,9 @@ class BiCumulants(MultiResolutionQuantityBase):
     mrq1: InitVar[MultiResolutionQuantity]
     mrq2: InitVar[MultiResolutionQuantity]
     n_cumul: int
-    j1: int
-    j2: int
-    weighted: bool
+    scaling_ranges: List[Tuple[int]]
+    weighted: str = None
+    bootstrapped_mfa: InitVar[MFractalVar] = None
     j: np.array = field(init=False)
     m: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
@@ -30,14 +32,21 @@ class BiCumulants(MultiResolutionQuantityBase):
     RHO_MF: np.ndarray = field(init=False)
     rho_mf: float = field(init=False)
 
-    def __post_init__(self, mrq1, mrq2):
+    def __post_init__(self, mrq1, mrq2, bootstrapped_mfa):
 
-        self.nrep = 1
+        # self.n_rep = 1
+        self.n_sig = 1
 
         assert mrq1.formalism == mrq2.formalism
         self.formalism = mrq1.formalism
 
-        assert mrq1.nj == mrq2.nj
+        if bootstrapped_mfa is not None:
+            self.bootstrapped_mrq = bootstrapped_mfa.cumulants
+
+        if any([(mrq1.nj[s] != mrq2.nj[s]).any() for s in mrq1.nj]):
+            raise ValueError("Mismatch in number of coefficients between the "
+                             "mrq")
+
         self.nj = mrq1.nj
         self.j = np.array(list(mrq1.values))
 
@@ -106,30 +115,54 @@ class BiCumulants(MultiResolutionQuantityBase):
         Compute the log-cumulants
         (angular coefficients of the curves j->log[C_p(j)])
         """
-        self.log_cumulants = np.zeros(self.values.shape[:2])
-        self.slope = np.zeros(self.log_cumulants.shape)
-        self.intercept = np.zeros(self.log_cumulants.shape)
+
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+            self.scaling_ranges, self.j
+        )
+
+        # self.log_cumulants = np.zeros(self.values.shape[:2])
+        # self.slope = np.zeros(self.log_cumulants.shape)
+        # self.intercept = np.zeros(self.log_cumulants.shape)
 
         log2_e = np.log2(np.exp(1))
-        x = np.arange(self.j1, self.j2+1)[:, None]
+        # x = np.arange(self.j1, self.j2+1)[:, None]
 
-        if self.weighted:
-            nj = self.get_nj_interv(self.j1, self.j2)
+        n_j = self.values.shape[2]
+
+        y = self.values.reshape(-1, n_j)[:, j_min_idx:j_max_idx, None, None]
+
+        if self.weighted == 'bootstrap':
+
+            # case where self is the bootstrapped mrq
+            if self.bootstrapped_cm is None:
+                std = self.STD_values.reshape(-1, n_j)[:, j_min_idx:j_max_idx]
+
+            else:
+                std = self.bootstrapped_cm.STD_values.reshape(-1, n_j)[
+                    :,
+                    j_min - self.bootstrapped_cm.j.min():
+                    j_max - self.bootstrapped_cm.j.min() + 1]
+
         else:
-            nj = np.ones((len(x), 1))
+            std = None
 
-        ind_j1 = self.j1-1
-        ind_j2 = self.j2-1
+        weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
+                                  self.scaling_ranges, std)[:, :, :, 0, None]
+        # No broadcasting repetitions for now
 
-        for ind_m1, _ in enumerate(self.m):
-            for ind_m2, _ in enumerate(self.m):
+        nan_weighting = np.ones_like(y)
+        nan_weighting[np.isnan(y)] = np.nan
+        weights = weights * nan_weighting
 
-                y = self.values[ind_m1, ind_m2, ind_j1:ind_j2+1, None]
-                slope, intercept = \
-                    linear_regression(x, y, nj, return_variance=False)
-                self.log_cumulants[ind_m1, ind_m2] = slope*log2_e
-                self.slope[ind_m1, ind_m2] = slope
-                self.intercept[ind_m1, ind_m2] = intercept
+        self.slope, self.intercept = linear_regression(x, y, weights)
+
+        n1 = self.values.shape[0]
+        n2 = self.values.shape[1]
+
+        self.slope = self.slope.reshape(n1, n2, n_ranges)
+        self.intercept = self.intercept.reshape(n1, n2, n_ranges)
+
+        self.log_cumulants = log2_e * self.slope
 
     def _compute_rho(self):
 
@@ -137,76 +170,63 @@ class BiCumulants(MultiResolutionQuantityBase):
             self.RHO_MF = None
             self.rho_mf = None
         else:
-            self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))[0]
+            self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))
             self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
 
-    def plot(self):
+    def plot(self, figsize=(6, 4), j1=None, scaling_range=0, filename=None):
 
-        fig_m, ax = plt.subplots(self.n_cumul, 2, sharex=True, figsize=(12, 7))
+        if j1 is None:
+            j1 = self.j.min()
 
-        j_support = np.arange(self.j1, self.j2 + 1)
+        if self.j.min() > j1:
+            raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+                             f"{self.j.min()} instead")
 
-        slope_param = {
-            'c': 'black',
-            'linestyle': '--',
-            'linewidth': 1.25
-        }
+        ncol = len(self.m)
 
-        plot_param = {
-            'linewidth': 2.5
-        }
+        fig, axes = plt.subplots(ncol,
+                                 ncol,
+                                 squeeze=False,
+                                 figsize=figsize,
+                                 sharex=True)
 
-        for i in range(self.n_cumul):
+        fig.suptitle(self.formalism + r" - bivariate cumulants $C_{m, m'}(j)$")
 
-            ax[i, 0].plot(self.j, self.values[i+1, 0, :], **plot_param)
-            ax[i, 0].set_ylabel(rf'$C{i+1}0$(j)', size='large')
+        for ind_m1, m1 in enumerate(self.m):
+            for ind_m2, m2 in enumerate(self.m):
 
-            ax[i, 0].plot(j_support, ((j_support * self.slope[i+1, 0])
-                                      + self.intercept[i+1, 0]),
-                          **slope_param,
-                          label=f'c{i+1}0: {self.log_cumulants[i+1, 0]:.2f}')
-            ax[i, 0].legend()
+                plot_bicm(self, ind_m1, ind_m2, j1, None, scaling_range,
+                          axes[ind_m1][ind_m2], plot_legend=True)
 
-            ax[i, 1].plot(self.j, self.values[0, i+1, :], **plot_param)
-            ax[i, 1].set_ylabel(rf'$C0{i+1}$(j)', size='large')
+        # for j in range(ind_m1):
+        #     axes[j % ncol][j // ncol].xaxis.set_visible(False)
 
-            ax[i, 1].plot(j_support, ((j_support * self.slope[0, i+1])
-                                      + self.intercept[0, i+1]),
-                          **slope_param,
-                          label=f'c0{i+1}: {self.log_cumulants[0, i+1]:.2f}')
-            ax[i, 1].legend()
+        # for j in range(ind_m1 + 1, len(axes.flat)):
+        #     fig.delaxes(axes[j % ncol][j // ncol])
 
-        ax[0, 0].set_title('X1', size='large')
-        ax[0, 1].set_title('X2', size='large')
-        ax[-1, 0].set_xlabel('j', size='large')
+        plt.tight_layout()
 
-        sns.despine()
-
-        fig_c = plt.figure()
-        plt.plot(self.j, self.values[1, 1, :], **plot_param)
-        plt.plot(j_support, ((j_support * self.slope[1, 1])
-                             + self.intercept[1, 1]),
-                 **slope_param,
-                 label=f'c11: {self.slope[1, 1]:.2f}')
-        plt.legend()
-        plt.ylabel('$C11$(j)', size='large')
-        plt.xlabel('j', size='large')
-
-        sns.despine()
-
-        return fig_m, fig_c
+        if filename is not None:
+            plt.savefig(filename)
 
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 3 and name[1:].isdigit():
             return self.log_cumulants[self.m == int(name[1]),
-                                      self.m == int(name[2])]
+                                      self.m == int(name[2])][0]
 
         if name[0] == 'C' and len(name) == 3 and name[1:].isdigit():
             return self.values[self.m == int(name[1]),
-                               self.m == int(name[2])]
+                               self.m == int(name[2])][0]
 
-        return self.__getattribute__(name)
+        # if name == 'n_rep':
+        #     return self.log_cumulants.shape[-1]
+        #     return 1
+
+        if (super_attr := super().__getattr__(name)) is not None:
+            return super_attr
+
+        return super().__getattribute__(name)
 
     def compute_legendre(self, h_support=(0, 1.5), resolution=100):
 
