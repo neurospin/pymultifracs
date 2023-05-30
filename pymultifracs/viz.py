@@ -287,7 +287,8 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
 
 
 def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
-                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0):
+                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0,
+                   **kw):
     """
     Plots the cumulants.
     Args:
@@ -324,7 +325,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
         ax = axes[ind_m % nrow][ind_m // nrow]
 
         plot_cm(cm, ind_m, j1, None, scaling_range, ax, plot_legend=True,
-                signal_idx=signal_idx)
+                signal_idx=signal_idx, **kw)
 
         # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 

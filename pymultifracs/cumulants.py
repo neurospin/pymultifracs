@@ -416,8 +416,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         return super().__getattr__(name)
 
     def plot(self, figsize=(8, 6), fignum=1, nrow=3, j1=None, filename=None,
-             scaling_range=0, n_cumul=None, signal_idx=0):
+             scaling_range=0, n_cumul=None, signal_idx=0, **kwargs):
 
         return plot_cumulants(
             self, figsize, fignum, nrow, j1, filename, scaling_range,
-            n_cumul=n_cumul, signal_idx=signal_idx)
+            n_cumul=n_cumul, signal_idx=signal_idx, **kwargs)
