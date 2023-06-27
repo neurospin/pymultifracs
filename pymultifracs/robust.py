@@ -211,11 +211,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
         idx_zero = C2 < 0
         alpha[i, idx_zero] = 0
 
-<<<<<<< HEAD
         idx_zero = beta[i] < 1e-10
-=======
-        idx_zero = m4 < 1e-10
->>>>>>> fix edge case
         beta[i, idx_zero] = 1e-10
 
     return j_array, C1_array, alpha, beta
@@ -277,6 +273,9 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             diff_element = .5 * (samples_scales_below[0]
                                  + samples_scales_below[1])
 
+        # N leaders = n_coefs - 2
+        idx_reject[j] = np.zeros((*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
+
         diff_samples = samples_scale_j - diff_element
 
         # print(samples_scale_j.mean(axis=0), samples_scale_j.std(axis=0))
@@ -297,7 +296,7 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
         v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
                     axis=1)
-        
+
         check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
 
         if previous_reject is not None:
@@ -324,11 +323,11 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
             # Small values are associated to more extreme quantiles
             idx_v = np.arange(diff_samples.shape[0], combined_quantiles.shape[0])
-            
+
             # Set quantiles from carried over rejected values to zero so they
             # Don't appear at the end of the sorted array
             combined_quantiles[idx_v][prev_kept] = 0
-            
+
             order_v = np.argsort(combined_quantiles[idx_v])
 
             # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
@@ -380,7 +379,7 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
     return {(k, l): idx_reject}
 
-   
+
 
 
 def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
@@ -398,7 +397,7 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
     j2 = j_array.max()
 
     for k, l in np.ndindex(location.shape[1:]):
-      
+
         if not (converged[k, l] or error[k, l]):
 
             try:
@@ -406,20 +405,20 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
                 idx_reject |= sample_reject(
                     k, l, j2, min_scale, p_exp, shape[:, k, l], location[:, k, l], scale[:, k, l], n_samples,
                     wt_coefs, alpha, previous_reject, max_reject_share, verbose)
-            
+
             except Exception:
                 idx_reject[(k, l)] = None
                 error[k, l] = True
 
         else:
-            idx_reject[(k, l)] = None    
+            idx_reject[(k, l)] = None
 
     out = {}
-    
+
     for scale in range(min_scale, j2+1):
-        
+
         out[scale] = np.zeros((*location.shape[1:], wt_coefs.values[scale].shape[0] - 2), dtype=bool)
-        
+
         for k, l in np.ndindex(location.shape[1:]):
             if not (converged[k, l] or error[k, l]):
                 out[scale][k, l] = idx_reject[(k, l)][scale]
@@ -484,7 +483,7 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
 
         #     v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
         #                axis=1)
-            
+
         #     check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
 
         #     if previous_reject is not None:
@@ -511,11 +510,11 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
         #         # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
         #         # Small values are associated to more extreme quantiles
         #         idx_v = np.arange(temp_diff.shape[0], combined_quantiles.shape[0])
-                
+
         #         # Set quantiles from carried over rejected values to zero so they
         #         # Don't appear at the end of the sorted array
         #         combined_quantiles[idx_v][prev_kept] = 0
-                
+
         #         order_v = np.argsort(combined_quantiles[idx_v])
 
         #         # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
