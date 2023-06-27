@@ -211,7 +211,11 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
         idx_zero = C2 < 0
         alpha[i, idx_zero] = 0
 
+<<<<<<< HEAD
         idx_zero = beta[i] < 1e-10
+=======
+        idx_zero = m4 < 1e-10
+>>>>>>> fix edge case
         beta[i, idx_zero] = 1e-10
 
     return j_array, C1_array, alpha, beta
