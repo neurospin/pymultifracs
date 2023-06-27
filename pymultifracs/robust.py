@@ -276,7 +276,8 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, verbose=False):
                                  + samples_scales_below[1])
 
         # N leaders = n_coefs - 2
-        idx_reject[j] = np.zeros((*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
+        idx_reject[j] = np.zeros(
+            (*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
 
         diff_samples = samples_scale_j - diff_element
 
