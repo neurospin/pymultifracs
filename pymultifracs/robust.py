@@ -208,8 +208,11 @@ def get_location_scale_shape(cm):
 
         alpha[i] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
 
-        idx_zero = C2 <= 0
+        idx_zero = C2 < 0
         alpha[i, idx_zero] = 0
+
+        idx_zero = m4 < 1e-10
+        beta[i, idx_zero] = 1e-10
 
     return j_array, C1_array, alpha, beta
 
