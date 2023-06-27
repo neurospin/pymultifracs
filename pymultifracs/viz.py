@@ -397,7 +397,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
               leader_idx_correction=True, cbar=True, figsize=(20, 7),
               gamma=.3, nan_idx=None):
 
-    min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
+    min_all = min([np.nanmin(np.abs(mrq[s])) for s in range(j1, j2+1) if s in mrq])
 
     if vmax is None:
         vmax = max([np.nanmax(mrq[s]) for s in range(j1, j2+1) if s in mrq])
@@ -407,10 +407,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')#, width_ratios=[20, 1])
 
-    if leader:
-        norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
-    else:
-        norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
+    norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
 
     # ax = axes[0]
 
@@ -442,7 +439,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
         if nan_idx is not None:
             idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
 
-            segments = np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
+            segments = np.split(idx, np.where(np.diff(idx) != 1)[0] + 1)
 
             for seg in segments:
 
