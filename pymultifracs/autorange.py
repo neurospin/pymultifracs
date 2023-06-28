@@ -75,15 +75,6 @@ def compute_R(moment, slope, intercept, j_min_max, j):
     slope = slope[:, None, :]
     intercept = intercept[:, None, :]
 
-    # x = np.arange(j_min, j_max + 1)[None, :, None, None, None]
-    # j_mask = np.ones((1, x.shape[1], slope.shape[2], 1))
-
-    # for i, (j1, j2) in enumerate(mrq.scaling_ranges):
-    #     j_mask[:, j2-j_min+1:, i] = 0
-    #     j_mask[:, :j1-j_min, i] = 0
-
-    # shape (n_scales, n_scaling_ranges, n_rep) -> (n_moments, n_scales, n_scaling)
-
     return ((moment - x * slope - intercept) ** 2).sum(axis=1)
 
 
