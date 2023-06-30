@@ -204,7 +204,6 @@ def _get_align_slice(attribute, mrq, ref_mrq):
     ref_mrq_start = int(ref_mrq_start)
     ref_mrq_end = int(ref_mrq_end)
 
-    # return mrq_slice, ref_mrq_slice
     return np.s_[mrq_start:mrq_end], np.s_[ref_mrq_start:ref_mrq_end]
 
 
@@ -279,17 +278,11 @@ def _general_leader_bootstrap_loop(indices, block_length, max_scale):
 
     indices_out = {}
 
-#     mask_block_end = np.zeros_like(indices[0], dtype=bool)
-#     mask_block_end[block_start_indices[1:] - 1] = True
-
     indices_out[1] = indices
 
     for scale in range(2, max_scale + 1):
 
         index = indices / (2 ** (scale - 2))
-#             index2 = (indices + 1) / (2 ** (scale - 2))
-
-#             idx_int = index == index.astype(int)
 
         idx_int = (indices % (2 ** (scale - 2))) == 0
 
@@ -297,29 +290,6 @@ def _general_leader_bootstrap_loop(indices, block_length, max_scale):
 
         rep_indices = np.zeros_like(idx_int, dtype=int) - 1
         rep_indices[idx_int] = (index[idx_int].astype(int) - 1) / 2
-
-        # for rep in range(indices.shape[0]):
-
-        #     idx_int = index[rep] == index[rep].astype(int)
-        #     idx_int[idx_int] &= (
-        #         index[rep, idx_int].astype(int) % 2).astype(bool)
-
-        #     idx_int2 = index2[rep] == index2[rep].astype(int)
-        #     idx_int2 &= mask_block_end
-        #     idx_int2[idx_int2] &= (
-        #         index2[rep, idx_int2].astype(int) % 2).astype(bool)
-
-        #     if rep == 0:
-        #         print(f"{scale=} {idx_int.sum()=} {idx_int2.sum()=}")
-
-        #     rep_indices = np.zeros_like(idx_int, dtype=int) - 1
-        #     rep_indices[idx_int] = (
-        #         index[rep, idx_int].astype(int) - 1) / 2
-
-        #     rep_indices[idx_int2] = (
-        #         index2[rep, idx_int2].astype(int) - 1) / 2
-
-        #     indices_out[scale].append(rep_indices)
 
         indices_out[scale] = rep_indices
 
@@ -396,7 +366,6 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
             continue
 
         data = mrq.values[scale]
-        # data = data[~np.isnan(data)]
 
         if data.ndim == 1:
             data = np.hstack((data, data[:block_length]))
@@ -438,10 +407,6 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
                 nj_double[rep][scale] = np.array(
                     [idx_final[rep2][idx_final[rep2] >= 0].shape[0]
                      for rep2 in range(replications)])
-
-        # out = np.zeros(
-        #     (replications, mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
-        #     dtype=float) + np.nan
 
         out = np.zeros(
             (replications, *mrq.values[1].shape),

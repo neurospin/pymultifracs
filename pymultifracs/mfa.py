@@ -174,10 +174,10 @@ def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
                                     normalization=normalization,
                                     weighted=weighted)
 
-    mrq = [wt_transform.wt_coefs]
+    mrq = wt_transform.wt_coefs
 
     if wt_transform.wt_leaders is not None:
-        mrq += [wt_transform.wt_leaders]
+        mrq = [mrq, wt_transform.wt_leaders]
 
     mf_data = mf_analysis(
         mrq,

@@ -163,7 +163,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
     ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
 
     ax.set_xlabel('j')
-    ax.set_ylabel(f'$C_{m1}{m2}(j)$')
+    ax.set_ylabel(f'$C_{{{m1}{m2}}}(j)$')
     # ax.grid()
     # plt.draw()
 
@@ -189,7 +189,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
                   + CI_legend)
 
         ax.plot([x0, x1], [y0, y1], color=fit_color,
-                linestyle='-', linewidth=lw_fit, label=legend, zorder=0)
+                linestyle='-', linewidth=lw_fit, label=legend, zorder=2)
         if plot_legend:
             ax.legend()
 
