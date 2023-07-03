@@ -22,26 +22,32 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
 
     Parameters
     ----------
-    wt_coefs : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-        Wavelet coefs
-    wt_leaders : \
-        :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity` | None
-        Wavelet leaders. Set to None if using wavelet coef formalism.
-    j2_eff : int
-        Effective maximum scale
-    j1 : int
-        Minimum scale
+    mrq: :class:`MultiResolutionQuantity` | List[MultiResolutionQuantity]
+        Multi-resolution quantity to analyze, or list of MRQs.
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis    
     weighted : str | None
         Whether the linear regressions will be weighted
     n_cumul : int
         Number of cumulants computed
     q : ndarray, shape (n_exponents,)
         List of q values used in the multifractal analysis
+    bootstrap_weighted: str | None
+        Whether the boostrapped mrqs will have weighted regressions
+    R: int
+        Number of bootstrapped repetitions
+    estimates: str
+        Quantities to estimate: string containing a character for each of:
+            - "m": multifractal spectrum
+            - "s": structure function
+            - "c": cumulants
+    robust: bool
+        Use robust estimates of cumulants
 
     Returns
     -------
     :class:`~pymultifracs.mf_analysis.MFractalData`
-        The output of the multifractal analysis
+        The output of the multifractal analysis, is a list if `mrq` was passed as an Iterable
     """
 
     if isinstance(mrq, Iterable):

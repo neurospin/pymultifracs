@@ -27,12 +27,12 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
     ----------
     mrq : MultiResolutionQuantity
         Multi resolution quantity to analyze.
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis
     q : ndarray, shape (n_exponents,)
         Exponents used construct the multifractal spectrum
-    j1 : int
-        Lower-bound of the scale support for the linear regressions.
-    j2 : int
-        Upper-bound of the scale support for the linear regressions.
+    boostrapped_mfa: MFractalVar | None
+        Output of the MFA of bootstrapped MRQs.
     weighted : str | None
         Whether to used weighted linear regressions.
 
@@ -41,17 +41,12 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    nj : dict(ndarray)
-        Number of coefficients at scale j.
-        Arrays are of the shape (n_rep,)
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
-    j1 : int
-        Lower-bound of the scale support for the linear regressions.
-    j2 : int
-        Upper-bound of the scale support for the linear regressions.
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis
     weighted : str | None
-        Whether weighted regression was performed.
+        If not None, indicates the weighting approach used for regression
     q : ndarray, shape(n_exponents,)
         Exponents used construct the multifractal spectrum
     Dq : ndarray, shape (n_exponents, n_rep)
@@ -62,8 +57,6 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         :math:`U(j, q)`
     V : ndarray, shape (n_scales, n_exponents, n_rep)
         :math:`V(j, q)`
-    n_rep : int
-        Number of realisations
 
     References
     ----------

@@ -342,7 +342,7 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
                             eta_p=None)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
+def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                      gamint=0.0, normalization=1, weighted=None,
                      j2_reg=None):
     """
@@ -384,6 +384,9 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=10,
         Whether to perform weighted linear regression, used only when
         computing p-leaders for when estimating :math:`\\eta_p` in p-leader
         correction
+
+    j2_reg: int
+        Upper bound of the scale range on which to estimate :math:`\\eta_p' in p-leader correction
 
     Returns
     -------
