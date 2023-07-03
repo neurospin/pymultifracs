@@ -283,6 +283,119 @@ def compute_leaders(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3):
     return wt_leaders, eta_p
 
 
+def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
+                     idx_reject=None):
+
+    formalism = _check_formalism(p_exp)
+
+    wt_leaders = MultiResolutionQuantity(formalism, gamint)
+
+    max_level = wt_coefs.j2_eff()
+
+    pleader_p = {}
+
+    for scale in range(1, max_level + 1):
+
+        # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]), p_exp)
+        coefs = fast_power(np.abs(wt_coefs.values[scale]), p_exp)
+
+        # if (idx_reject is not None and idx_reject[scale].sum() > 0
+        #         and scale >= j1 and scale <= j2_reg):
+
+        #     idx = idx_reject[scale]
+
+        #     # coefs[idx] = np.nan
+
+        #     # print(scale_contrib_reject_count)
+        #     print(idx.sum())
+
+        scale_contribution = np.stack([
+            coefs[2:],
+            coefs[1:-1],
+            coefs[:-2]
+        ], axis=0)
+
+        if (idx_reject is not None and idx_reject[scale].sum() > 0
+                and scale >= j1 and scale <= j2_reg):
+
+            idx = idx_reject[scale]
+            # print(scale_contribution.shape, idx.shape, idx.transpose(0, 1, 2).shape)
+            scale_contribution[:, idx.squeeze().transpose()] = np.nan
+
+        if scale == 1:
+
+            leaders = np.sum(scale_contribution, axis=0)
+            pleader_p[scale] = leaders
+            # pleader_p[scale] = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
+            # print(pleader_p[scale].shape)
+            continue
+
+        # max_index = int(np.floor(len(coefs) / 2))
+
+        # max_index = (pleader_p[scale-1].shape[0] - 3) // 2 * 2
+
+        # print(pleader_p[scale-1][:-3:2].shape,
+        #       pleader_p[scale-1][3::2].shape)
+
+        lower_contribution = np.stack([
+            pleader_p[scale-1][:-3:2],
+            pleader_p[scale-1][3::2]
+        ], axis=0)
+
+        # assert scale_contribution.shape[1] == lower_contribution.shape[1],\
+        #     print(scale_contribution.shape, lower_contribution.shape, scale)
+        #     print(pleader_p[scale-1].shape, coefs.shape, max_index)
+
+        # print(max_index, coefs.shape[0], pleader_p[scale-1].shape[0],
+        #       scale_contribution[:, :max_index // 2].shape)
+
+        max_index = lower_contribution.shape[1]
+
+        # print(scale_contribution.shape, lower_contribution.shape)
+
+        leaders = np.sum(np.r_[
+            scale_contribution[:, :max_index],
+            .5 * lower_contribution
+        ], axis=0)
+        pleader_p[scale] = leaders
+
+        # if scale == 12:
+            # import matplotlib.pyplot as plt
+            # plt.plot(leaders.squeeze())
+            # plt.plot(scale_contribution.squeeze().transpose())
+            # plt.plot(lower_contribution.squeeze().transpose())
+            # plt.plot(scale_contribution[0])
+            # plt.plot(lower_contribution[1])
+            # plt.plot(lower_contribution[0])
+            # print(np.isnan(leaders).sum())
+
+            # print(leaders.shape, lower_contribution.shape, scale_contribution.shape)
+
+        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+        # leaders[~finite_idx_wl] = np.nan
+
+        # if np.sum(finite_idx_wl, axis=0).min() < 3:
+        #     break
+            # max_level = scale-1
+
+    for scale in range(1, max_level + 1):
+
+        leaders = fast_power(pleader_p[scale], 1/p_exp)
+        # leaders = fast_power(2 ** 1-scale * pleader_p[scale], 1/p_exp)
+        wt_leaders.add_values(leaders, scale)
+
+    # "effective" j2, used in linear regression
+    j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
+
+    if formalism == 'wavelet p-leader':
+        wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
+                                             j1, j2_eff, None, max_level)
+    else:
+        eta_p = None
+
+    return wt_leaders, eta_p
+
+
 WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
                                                    'wt_leaders',
                                                    'j2_eff',
@@ -441,8 +554,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                                          n_sig=signal.shape[1])
 
     sans_voisin = None
-
-
 
     for scale in range(1, max_level + 1):
 
