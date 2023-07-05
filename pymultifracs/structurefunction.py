@@ -159,7 +159,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                                    self.weights)
 
     def _get_H(self):
-        return (self.zeta[self.q == 2][0] / 2) - self.gamint
+        return (self.zeta[self.q == 2][0] / 2)
 
     def S_q(self, q):
 

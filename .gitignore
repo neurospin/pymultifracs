@@ -48,3 +48,4 @@ notebooks/figures
 
 examples/*.html
 data/
+examples/*.mat

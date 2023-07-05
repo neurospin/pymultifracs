@@ -16,7 +16,7 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
+def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
                 bootstrap_weighted=None, R=1, estimates="scm", robust=False,
                 robust_kwargs=None):
     """Perform multifractal analysis, given wavelet coefficients.
