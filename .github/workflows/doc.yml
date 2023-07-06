@@ -9,6 +9,9 @@ on:
 
 jobs:
   build-docs:
+    defaults:
+      run:
+        shell: bash -el {0}
     if: github.repository == 'neurospin/pymultifracs'
     runs-on: ubuntu-latest
     steps:
@@ -31,10 +34,10 @@ jobs:
           environment-file: meta.yml
           use-only-tar-bz2: true
       - name: Build doc
+        shell: bash -el {0}
         run: |
-          conda install -c conda-forge sphinx numpydoc pydata-sphinx-theme
-          which pip
-          pip install -e .
+          conda install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme
+          python -m pip install .
           cd doc
           ls $CONDA/envs
           export SPHINXBUILD=$CONDA/test/bin/sphinx-build
