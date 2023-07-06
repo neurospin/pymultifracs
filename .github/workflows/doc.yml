@@ -32,6 +32,8 @@ jobs:
       - name: Build doc
         run: |
           conda install -c conda-forge sphinx numpydoc pydata-sphinx-theme
+          which conda
+          which python
           pip install -e .
           cd doc
           export SPHINXBUILD=$CONDA/envs/test/bin/sphinx-build
