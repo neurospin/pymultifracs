@@ -60,12 +60,11 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          environment-file: env.yml
+          environment-file: meta.yml
           use-only-tar-bz2: true
       - name: Testing
         run: |
           conda install -c conda-forge pytest pytest-xdist pytest-cov
-          pip uninstall pymultifracs
           pip install -e .
           pytest -n auto -x --cov=./ --cov-report=xml
 
@@ -142,5 +141,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2.0.2 # or the latest "vX.X.X" version tag for this action
-
       
