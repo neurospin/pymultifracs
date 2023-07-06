@@ -35,7 +35,7 @@ def test_mfa_fbm(fbm_file):
         dwt, lwt = mf_analysis_full(X, scaling_ranges, gamint=gamint,
                                     p_exp=np.inf, n_cumul=3, q=q)
         if config_list[i]['H'] != 0.01:
-            assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1,\
+            assert abs(dwt.structure.H.mean() - gamint - config_list[i]['H']) < 0.1,\
                 print(f'{dwt.structure.H.mean()=}, {config_list[i]["H"]=}, '
                       f'{gamint=}')
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()) < 0.01
@@ -74,7 +74,7 @@ def test_mfa_mrw(mrw_file):
 
         dwt, lwt = mf_analysis_full(X, scaling_ranges, gamint=gamint,
                                     p_exp=np.inf, n_cumul=3, q=q)
-        assert abs(dwt.structure.H.mean() - config_list[i]['H']) < 0.1
+        assert abs(dwt.structure.H.mean() - gamint - config_list[i]['H']) < 0.1
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()
                    + (config_list[i]['lam'] ** 2)) < 0.025
 

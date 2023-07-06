@@ -3,6 +3,9 @@
 
 # Compiled python modules.
 *.pyc
+*.so
+*.c
+pymultifracs/*.html
 
 # Setuptools distribution folder.
 python_code/pymultifracs/dist/
@@ -42,3 +45,7 @@ pymultifracs/todo.txt
 notebooks/Dev*.ipynb
 coverage.xml
 notebooks/figures
+
+examples/*.html
+data/
+examples/*.mat

@@ -4,7 +4,8 @@ import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.colors import CenteredNorm, Normalize
+from matplotlib.colors import CenteredNorm, Normalize, PowerNorm
+import matplotlib.cm as cm
 from matplotlib.ticker import AutoLocator
 import seaborn as sns
 import numpy as np
@@ -163,7 +164,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
     ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
 
     ax.set_xlabel('j')
-    ax.set_ylabel(f'$C_{m1}{m2}(j)$')
+    ax.set_ylabel(f'$C_{{{m1}{m2}}}(j)$')
     # ax.grid()
     # plt.draw()
 
@@ -189,7 +190,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
                   + CI_legend)
 
         ax.plot([x0, x1], [y0, y1], color=fit_color,
-                linestyle='-', linewidth=lw_fit, label=legend, zorder=0)
+                linestyle='-', linewidth=lw_fit, label=legend, zorder=2)
         if plot_legend:
             ax.legend()
 
@@ -286,7 +287,8 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
 
 
 def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
-                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0):
+                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0,
+                   **kw):
     """
     Plots the cumulants.
     Args:
@@ -323,7 +325,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
         ax = axes[ind_m % nrow][ind_m // nrow]
 
         plot_cm(cm, ind_m, j1, None, scaling_range, ax, plot_legend=True,
-                signal_idx=signal_idx)
+                signal_idx=signal_idx, **kw)
 
         # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 
@@ -392,7 +394,8 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
-              leader_idx_correction=True, cbar=True, figsize=(20, 7)):
+              leader_idx_correction=True, cbar=True, figsize=(20, 7),
+              gamma=.3, nan_idx=None):
 
     min_all = min([np.nanmin(mrq[s]) for s in range(j1, j2+1) if s in mrq])
 
@@ -402,7 +405,17 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
         vmin = min_all
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')#, width_ratios=[20, 1])
+
+    if leader:
+        norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
+    else:
+        norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
+
+    # ax = axes[0]
+
+    cmap = mpl.cm.get_cmap('inferno').copy()
+    cmap.set_bad('grey')
 
     for i, scale in enumerate(range(j1, j2 + 1)):
 
@@ -418,30 +431,48 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
 
         C = temp[:, None]
 
+        if not leader:
+            C = np.abs(C)
+
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
 
-        if leader:
-            norm = Normalize(vmin=vmin, vmax=vmax)
-        else:
-            norm = CenteredNorm(halfrange=max([abs(vmin), abs(vmax)]))
+        qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm, rasterized=True)
 
-        cmap = mpl.cm.get_cmap('inferno').copy()
-        cmap.set_bad('grey')
+        if nan_idx is not None:
+            idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
 
-        qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm)
+            segments = np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
 
-    ax.set_ylim(j1-.5, j2+.5)
-    ax.set_yticks(range(j1, j2+1))
+            for seg in segments:
 
-    ax.set_xlabel('shift')
-    ax.set_ylabel('scale')
-    ax.set_facecolor('grey')
+                if len(seg) == 0:
+                    continue
+
+                ax.pcolormesh(X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                              edgecolor='xkcd:blue')
+
+    ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
+           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey', xlim=(0, mrq[j1].shape[0]*2))
+
+    ax.tick_params(which='minor', left=True, right=False, top=False, color='w')
+    ax.yaxis.set_minor_locator(mpl.ticker.IndexLocator(base=1, offset=.5))
+    ax.tick_params(which='major', right=False, top=False, color='w')
+
+    # ax.set_yticks(range(j1, j2+1))
+    # ax.set_xlabel('shift')
+    # ax.set_ylabel('scale')
+    # ax.set_facecolor('grey')
 
     if cbar:
-        formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
-        locator = mpl.ticker.MaxNLocator(5, symmetric=not leader, steps=[1, 5, 10])
-        plt.colorbar(qm, ax=ax, format=formatter, ticks=locator)
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        locator = mpl.ticker.MaxNLocator(4, symmetric=False)
+        cb = plt.colorbar(qm, ax=ax, ticks=locator, fraction=.1, aspect=8)
+        # plt.colorbar(qm, ax=ax    es[0], ticks=locator, aspect=1)
+        cb.ax.tick_params(which='major', size=3)
+        cb.ax.tick_params(which='minor', right=False)
+
 
 
 # From pyvista, since https://github.com/pyvista/pyvista/issues/1125 is not yet

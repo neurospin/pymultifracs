@@ -16,32 +16,39 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
-                bootstrap_weighted=None, R=1, estimates="scm", robust=False):
+def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
+                bootstrap_weighted=None, R=1, estimates="scm", robust=False,
+                robust_kwargs=None):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
     ----------
-    wt_coefs : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-        Wavelet coefs
-    wt_leaders : \
-        :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity` | None
-        Wavelet leaders. Set to None if using wavelet coef formalism.
-    j2_eff : int
-        Effective maximum scale
-    j1 : int
-        Minimum scale
+    mrq: :class:`MultiResolutionQuantity` | List[MultiResolutionQuantity]
+        Multi-resolution quantity to analyze, or list of MRQs.
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis    
     weighted : str | None
         Whether the linear regressions will be weighted
     n_cumul : int
         Number of cumulants computed
     q : ndarray, shape (n_exponents,)
         List of q values used in the multifractal analysis
+    bootstrap_weighted: str | None
+        Whether the boostrapped mrqs will have weighted regressions
+    R: int
+        Number of bootstrapped repetitions
+    estimates: str
+        Quantities to estimate: string containing a character for each of:
+            - "m": multifractal spectrum
+            - "s": structure function
+            - "c": cumulants
+    robust: bool
+        Use robust estimates of cumulants
 
     Returns
     -------
     :class:`~pymultifracs.mf_analysis.MFractalData`
-        The output of the multifractal analysis
+        The output of the multifractal analysis, is a list if `mrq` was passed as an Iterable
     """
 
     if isinstance(mrq, Iterable):
@@ -55,7 +62,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
             )
 
         return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
-                             q, bootstrap_weighted, R, estimates[i])
+                             q, bootstrap_weighted, R, estimates[i], robust,
+                             robust_kwargs)
                  for i, m in enumerate(mrq)])
 
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
@@ -74,7 +82,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
 
         mfa_boot = mf_analysis(
             mrq.bootstrapped_mrq, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None, 1, estimates)
+            bootstrap_weighted, n_cumul, q, None, 1, estimates, robust,
+            robust_kwargs)
 
     else:
         mfa_boot = None
@@ -98,6 +107,9 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=3, q=None,
         'bootstrapped_mfa': mfa_boot,
         'robust': robust
     }
+
+    if robust_kwargs is not None:
+        parameters['robust_kwargs'] = robust_kwargs
 
     struct, cumul, spec = None, None, None
 
@@ -174,10 +186,10 @@ def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
                                     normalization=normalization,
                                     weighted=weighted)
 
-    mrq = [wt_transform.wt_coefs]
+    mrq = wt_transform.wt_coefs
 
     if wt_transform.wt_leaders is not None:
-        mrq += [wt_transform.wt_leaders]
+        mrq = [mrq, wt_transform.wt_leaders]
 
     mf_data = mf_analysis(
         mrq,

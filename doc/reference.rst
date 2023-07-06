@@ -13,17 +13,6 @@ Multifractal Analysis
     :toctree: _autosummary
 
     mf_analysis
-    mf_analysis_full
-    minimal_mf_analysis
-
-Classes gathering the output of multifractal analysis
-
-.. autosummary::
-    :toctree: _autosummary
-    :template: namedtuple.rst
-
-    MFractalData
-    MFractalVar
 
 Dataclasses
 ```````````
@@ -40,6 +29,13 @@ Used to compute and store intermediary results
     structurefunction.StructureFunction
     mfspectrum.MultifractalSpectrum
 
+Storing the multifractal analysis output
+
+.. autosummary::
+    :toctree: _autosummary
+
+    utils.MFractalVar
+
 Wavelet Analysis
 ----------------
 
@@ -55,7 +51,6 @@ Wavelet Analysis
 
 .. autosummary::
     :toctree: _autosummary
-    :template: namedtuple.rst
 
     WaveletTransform
 
@@ -90,6 +85,19 @@ Computing and Plotting PSDs
 
 .. autosummary::
     :toctree: _autosummary
-    :template: namedtuple.rst
 
     PSD
+
+
+Utility functions
+-----------------
+
+.. currentmodule:: pymultifracs.utils
+
+:py:mod:`pymultifracs.utils`:
+
+.. autosummary::
+    :toctree: _autosummary
+
+    scale2freq
+    freq2scale
