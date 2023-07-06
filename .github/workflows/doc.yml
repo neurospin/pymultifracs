@@ -61,12 +61,6 @@ jobs:
           path: ${{ runner.temp }}/artifact.tar
           retention-days: 1
           if-no-files-found: error
-          
-  upload-docs:
-    if: github.repository == 'neurospin/pymultifracs'
-    runs-on: ubuntu-latest
-    needs: [build-docs]
-    steps:
 
   deploy-docs:
     needs: upload-docs
