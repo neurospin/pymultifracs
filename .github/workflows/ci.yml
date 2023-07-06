@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: linter-check
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.8"]
@@ -64,10 +64,10 @@ jobs:
           use-only-tar-bz2: true
       - name: Testing
         run: |
-          conda install -c conda-forge pytest pytest-xdist
+          conda install -c conda-forge pytest pytest-xdist pytest-cov
           pip uninstall pymultifracs
           pip install -e .
-          pytest -n auto -x
+          pytest -n auto -x --cov=./ --cov-report=xml
 
   build-docs:
     if: github.repository == 'neurospin/pymultifracs'
@@ -142,3 +142,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2.0.2 # or the latest "vX.X.X" version tag for this action
+
+      

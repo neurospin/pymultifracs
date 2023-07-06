@@ -542,7 +542,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
     max_level = _decomposition_level(signal, len(high_filter), j2)
     approx = signal
 
-    if j2_reg > max_level:
+    if j2_reg is not None and j2_reg > max_level:
 
         warnings.warn(
             f'j2_reg={j2_reg} is larger than maximum decomposition scale, '
