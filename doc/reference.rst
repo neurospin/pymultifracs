@@ -13,7 +13,6 @@ Multifractal Analysis
     :toctree: _autosummary
 
     mf_analysis
-    mf_analysis_full
 
 Dataclasses
 ```````````
@@ -88,3 +87,17 @@ Computing and Plotting PSDs
     :toctree: _autosummary
 
     PSD
+
+
+Utility functions
+-----------------
+
+.. currentmodule:: pymultifracs.utils
+
+:py:mod:`pymultifracs.utils`:
+
+.. autosummary::
+    :toctree: _autosummary
+
+    scale2freq
+    freq2scale

@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|Codecov|_ |Binder|_ |CircleCI|_
+|Codecov|_ |Binder|_
 
 .. |Codecov| image:: https://codecov.io/gh/neurospin/pymultifracs/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/neurospin/pymultifracs
