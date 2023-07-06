@@ -54,7 +54,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key:
             ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('etc/example-environment.yml') }}
+            hashFiles('env.yml') }}
       - name: Setup python ${{ matrix.python-version }} with conda
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -71,7 +71,6 @@ jobs:
   build-docs:
     if: github.repository == 'neurospin/pymultifracs'
     runs-on: ubuntu-latest
-    needs: [linter-check, test-suite]
     steps:
       - uses: actions/checkout@v3
       - name: Cache conda
@@ -82,7 +81,7 @@ jobs:
           path: ~/conda_pkgs_dir
           key:
             doc-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('etc/example-environment.yml') }}
+            hashFiles('meta.yml') }}
       - name: Setup python with conda
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -93,7 +92,6 @@ jobs:
       - name: Build doc
         run: |
           conda install -c conda-forge sphinx numpydoc pydata-sphinx-theme
-          pip uninstall pymultifracs
           pip install -e .
           cd doc
           make html
