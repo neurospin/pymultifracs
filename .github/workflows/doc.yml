@@ -26,17 +26,18 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
+          activate-environment: test
           python-version: 3.11
           environment-file: meta.yml
           use-only-tar-bz2: true
       - name: Build doc
         run: |
-          conda activate test
           conda install -c conda-forge sphinx numpydoc pydata-sphinx-theme
           which pip
           pip install -e .
           cd doc
           ls $CONDA/envs
+          export SPHINXBUILD=$CONDA/test/bin/sphinx-build
           export SPHINXBUILD=/usr/share/miniconda/envs/test/bin/sphinx-build
           make html
       
