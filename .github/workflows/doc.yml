@@ -60,7 +60,7 @@ jobs:
             --exclude=.github \
             .
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v2
         with:
           name: github-pages
           path: ${{ runner.temp }}/artifact.tar
