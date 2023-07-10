@@ -46,9 +46,10 @@ jobs:
         shell: sh
         if: runner.os == 'Linux'
         run: |
+          cd doc/_build
           tar \
             --dereference --hard-dereference \
-            --directory doc/_build/ \
+            --directory . \
             -cvf "$RUNNER_TEMP/artifact.tar" \
             --exclude=.git \
             --exclude=.github \
