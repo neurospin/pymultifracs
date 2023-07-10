@@ -42,6 +42,11 @@ jobs:
           export SPHINXBUILD=/usr/share/miniconda/envs/test/bin/sphinx-build
           make html
           touch _build/.nojekyll
+      - name: Fix permissions
+        run: |
+          chmod -c -R +rX "doc/_build" | while read line; do
+            echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
       - name: Archive artifact
         shell: sh
         if: runner.os == 'Linux'
@@ -55,7 +60,7 @@ jobs:
             --exclude=.github \
             .
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
           path: ${{ runner.temp }}/artifact.tar
