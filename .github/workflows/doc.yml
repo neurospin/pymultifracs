@@ -63,7 +63,7 @@ jobs:
           if-no-files-found: error
 
   deploy-docs:
-    needs: upload-docs
+    needs: build-docs
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:
