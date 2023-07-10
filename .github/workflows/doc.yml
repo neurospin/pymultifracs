@@ -41,7 +41,7 @@ jobs:
           export SPHINXBUILD=$CONDA/test/bin/sphinx-build
           export SPHINXBUILD=/usr/share/miniconda/envs/test/bin/sphinx-build
           make html
-          touch doc/_build/.nojekyll
+          touch _build/.nojekyll
       - name: Archive artifact
         shell: sh
         if: runner.os == 'Linux'
