@@ -3,8 +3,6 @@ name: doc
 on:
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -80,6 +78,6 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2.0.2 # or the latest "vX.X.X" version tag for this action
+        uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
