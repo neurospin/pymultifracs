@@ -81,3 +81,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2.0.2 # or the latest "vX.X.X" version tag for this action
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
