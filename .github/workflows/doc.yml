@@ -47,19 +47,7 @@ jobs:
           chmod -c -R +rX "doc/_build" | while read line; do
             echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
-      - name: Archive artifact
-        shell: sh
-        if: runner.os == 'Linux'
-        run: |
-          cd doc/_build
-          tar \
-            --dereference --hard-dereference \
-            --directory . \
-            -cvf "$RUNNER_TEMP/artifact.tar" \
-            --exclude=.git \
-            --exclude=.github \
-            .
-      - name: Upload artifact
+      - name: Upload gh page artifact
         uses: actions/upload-pages-artifact@v2
         with:
           name: github-pages
