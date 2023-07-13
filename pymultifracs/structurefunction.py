@@ -89,7 +89,6 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         self._compute(mrq)
         self._compute_zeta(mrq.n_rep)
-        #self.H = self._get_H()
 
     def _compute(self, mrq):
 
@@ -184,6 +183,9 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         return None
 
     def __getattr__(self, name):
+
+        if name == 'H':
+            return self._get_H()
 
         if name == 'S2':
             out = self.logvalues[self.q == 2]
