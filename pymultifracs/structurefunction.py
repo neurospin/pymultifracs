@@ -89,7 +89,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         self._compute(mrq)
         self._compute_zeta(mrq.n_rep)
-        self.H = self._get_H()
+        #self.H = self._get_H()
 
     def _compute(self, mrq):
 

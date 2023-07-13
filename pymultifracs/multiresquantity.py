@@ -232,7 +232,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     def __post_init__(self):
 
         if self.formalism not in ['wavelet coef', 'wavelet leader',
-                                  'wavelet p-leader']:
+                                  'wavelet p-leader', 'weak scaling exponent']:
             raise ValueError('formalism needs to be one of : "wavelet coef", '
                              '"wavelet leader", "wavelet p-leader"')
 
