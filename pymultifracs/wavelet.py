@@ -618,3 +618,35 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j1=1, j2=None,
                             wt_coefs=wt_coefs,
                             j2_eff=j2_eff,
                             eta_p=eta_p)
+
+
+def compute_wse(wt_coefs, theta=0.5):
+
+    wse_coef = MultiResolutionQuantity('weak scaling exponent', wt_coefs.gamint, wt_coefs.wt_name)
+
+    for scale, dwt in wt_coefs.values.items():
+        lower_scale = max(1,int(scale-scale**(theta))) # On définit une tranche d'échelle J/sqrt(J)
+        # lower_scale = np.min(lower_scale,scale)  # On prend en compte où on dépasse le nombre d'échelle max
+        # J2 = 1  # Dans les cas des leaders J2=1
+
+        wse = np.zeros_like(dwt)  # On initialise le max à 0
+        for k in range(dwt.shape[0]): # On calcule les coefficient l(J1,k)
+            
+            for j in range(scale,lower_scale-1,-1): # On parcourt les tranches d'échelle allant de J2 à J1
+                packet_size = (scale-j)+1  # On prend des paquets de coefficients qui varie
+                # packet_size = 1  # Pour calculer les leaders
+
+                cwav = wt_coefs.values[j] # On stock tous les coefs en ondelettes
+                nwav = cwav.shape[0]  # On compte le nombre de coefs
+
+                left_bound = int(max(1, 2^(scale-j) * (k-packet_size)))-1 # On calcule la borne de gauche
+                right_bound = int(min(nwav,2^(scale-j) * (k+packet_size)))-1 # On calcule la borne de droite
+
+                if right_bound <= left_bound:
+                    continue
+
+                wse[k] = np.nanmax(np.r_[wse[k], np.nanmax(abs(cwav[left_bound:right_bound]), axis=0)], axis=0) # On détermine le WSE
+
+        wse_coef.add_values(wse, scale)
+
+    return wse_coef
