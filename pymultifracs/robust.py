@@ -273,9 +273,12 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             diff_element = .5 * (samples_scales_below[0]
                                  + samples_scales_below[1])
 
+<<<<<<< HEAD
         # N leaders = n_coefs - 2
         idx_reject[j] = np.zeros((*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
 
+=======
+>>>>>>> Improved robust algorithm
         diff_samples = samples_scale_j - diff_element
 
         # print(samples_scale_j.mean(axis=0), samples_scale_j.std(axis=0))
@@ -296,6 +299,7 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
         v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
                     axis=1)
+<<<<<<< HEAD
 
         check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
 
@@ -328,6 +332,40 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             # Don't appear at the end of the sorted array
             combined_quantiles[idx_v][prev_kept] = 0
 
+=======
+        
+        check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
+
+        if previous_reject is not None:
+            prev = previous_reject[j][k, l]
+        else:
+            prev = np.zeros_like(check, dtype=bool)
+
+        prev_kept = check & prev
+        nan = np.isnan(v)
+        N_available = check.shape[0] - (prev_kept|nan).sum()
+
+        N_new_remove = (check&~prev&~nan).sum()
+        Max_new_reject = int(np.ceil(max_reject_share * N_available))
+
+        # print(N_new_remove, Max_new_reject)
+
+        if N_new_remove > Max_new_reject + 1:
+
+            # pseudo_quantiles = np.argsort(temp_diff) / temp_diff.shape[0]
+            combined_quantiles = np.argsort(np.argsort(np.r_[diff_samples, v])) / (diff_samples.shape[0] + v.shape[0])
+
+            combined_quantiles = 2 * abs(combined_quantiles - .5)
+
+            # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
+            # Small values are associated to more extreme quantiles
+            idx_v = np.arange(diff_samples.shape[0], combined_quantiles.shape[0])
+            
+            # Set quantiles from carried over rejected values to zero so they
+            # Don't appear at the end of the sorted array
+            combined_quantiles[idx_v][prev_kept] = 0
+            
+>>>>>>> Improved robust algorithm
             order_v = np.argsort(combined_quantiles[idx_v])
 
             # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
@@ -379,7 +417,11 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
     return {(k, l): idx_reject}
 
+<<<<<<< HEAD
 
+=======
+   
+>>>>>>> Improved robust algorithm
 
 
 def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
@@ -397,7 +439,11 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
     j2 = j_array.max()
 
     for k, l in np.ndindex(location.shape[1:]):
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> Improved robust algorithm
         if not (converged[k, l] or error[k, l]):
 
             try:
@@ -405,12 +451,17 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
                 idx_reject |= sample_reject(
                     k, l, j2, min_scale, p_exp, shape[:, k, l], location[:, k, l], scale[:, k, l], n_samples,
                     wt_coefs, alpha, previous_reject, max_reject_share, verbose)
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> Improved robust algorithm
             except Exception:
                 idx_reject[(k, l)] = None
                 error[k, l] = True
 
         else:
+<<<<<<< HEAD
             idx_reject[(k, l)] = None
 
     out = {}
@@ -419,6 +470,16 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
 
         out[scale] = np.zeros((*location.shape[1:], wt_coefs.values[scale].shape[0] - 2), dtype=bool)
 
+=======
+            idx_reject[(k, l)] = None    
+
+    out = {}
+    
+    for scale in range(min_scale, j2+1):
+        
+        out[scale] = np.zeros((*location.shape[1:], wt_coefs.values[scale].shape[0] - 2), dtype=bool)
+        
+>>>>>>> Improved robust algorithm
         for k, l in np.ndindex(location.shape[1:]):
             if not (converged[k, l] or error[k, l]):
                 out[scale][k, l] = idx_reject[(k, l)][scale]
@@ -483,7 +544,11 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
 
         #     v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
         #                axis=1)
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> Improved robust algorithm
         #     check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
 
         #     if previous_reject is not None:
@@ -510,11 +575,19 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
         #         # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
         #         # Small values are associated to more extreme quantiles
         #         idx_v = np.arange(temp_diff.shape[0], combined_quantiles.shape[0])
+<<<<<<< HEAD
 
         #         # Set quantiles from carried over rejected values to zero so they
         #         # Don't appear at the end of the sorted array
         #         combined_quantiles[idx_v][prev_kept] = 0
 
+=======
+                
+        #         # Set quantiles from carried over rejected values to zero so they
+        #         # Don't appear at the end of the sorted array
+        #         combined_quantiles[idx_v][prev_kept] = 0
+                
+>>>>>>> Improved robust algorithm
         #         order_v = np.argsort(combined_quantiles[idx_v])
 
         #         # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
