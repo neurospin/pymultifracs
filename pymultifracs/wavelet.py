@@ -5,6 +5,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 import warnings
 from collections import namedtuple
+from copy import deepcopy
 
 import pywt
 import numpy as np
@@ -288,7 +289,8 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
 
     formalism = _check_formalism(p_exp)
 
-    wt_leaders = MultiResolutionQuantity(formalism, gamint)
+    wt_leaders = MultiResolutionQuantity(formalism, gamint,
+                                         n_sig=wt_coefs.n_sig)
 
     max_level = wt_coefs.j2_eff()
 
@@ -315,8 +317,10 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
             coefs[:-2]
         ], axis=0)
 
-        if (idx_reject is not None and idx_reject[scale].sum() > 0
-                and scale >= j1 and scale <= j2_reg):
+        if (idx_reject is not None
+            and scale in idx_reject
+            and idx_reject[scale].sum() > 0
+            and scale >= j1 and scale <= j2_reg):
 
             idx = idx_reject[scale]
             # print(scale_contribution.shape, idx.shape, idx.transpose(0, 1, 2).shape)
@@ -388,7 +392,14 @@ def compute_leaders2(wt_coefs, gamint, p_exp, j1=1, j2_reg=None, size=3,
     j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
 
     if formalism == 'wavelet p-leader':
-        wt_leaders, eta_p = _correct_leaders(wt_coefs, wt_leaders, p_exp,
+
+        working_coefs = deepcopy(wt_coefs)
+
+        if idx_reject is not None:
+            for scale in range(j1, j2_eff+1):
+                working_coefs.values[scale][1:-1][idx_reject[scale][0].squeeze().transpose()] = np.nan
+
+        wt_leaders, eta_p = _correct_leaders(working_coefs, wt_leaders, p_exp,
                                              j1, j2_eff, None, max_level)
     else:
         eta_p = None
