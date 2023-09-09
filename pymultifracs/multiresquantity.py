@@ -9,9 +9,9 @@ from typing import Any
 
 import numpy as np
 
-from .utils import get_filter_length, max_scale_bootstrap
-from .bootstrap import circular_leader_bootstrap, get_empirical_CI,\
-    get_confidence_interval, get_empirical_variance,\
+from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders
+from .bootstrap import circular_leader_bootstrap, get_empirical_CI, \
+    get_confidence_interval, get_empirical_variance, \
     get_variance, get_std
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .regression import compute_R2
@@ -25,6 +25,7 @@ class MultiResolutionQuantityBase:
     nj: dict = field(init=False, default_factory=dict)
     n_sig: int = field(init=False, default=None)
     bootstrapped_mrq: Any = field(init=False, default=None)
+    origin_mrq: Any = field(init=False, default=None)
 
     def get_nj(self):
         """
@@ -224,8 +225,12 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     gamint: float
     wt_name: str
     n_sig: int = None
+    p_exp: float = None
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
+    origin_mrq: MultiResolutionQuantityBase = None
+    eta_p: np.ndarray = field(init=False, default=None)
+    ZPJCorr: np.ndarray = field(init=False, default=None)
     bootstrapped_mrq: MultiResolutionQuantityBase = field(init=False,
                                                           default=None)
 
@@ -287,14 +292,12 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         self.values[j] = coeffs
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
-    # def __getattr__(self, name):
-    #     if name == 'n_rep':
-    #         if self.n_rep is not None:
-    #             return self.n_rep
-    #         if len(self.values) > 0:
-    #             return self.values[[*self.values][0]].shape[1]
+    def correct_pleaders(self, min_scale, max_scale):
 
-    #     return self.__getattribute__(name)
+        self.ZPJCorr = _correct_pleaders(
+            self, self.p_exp, min_scale, max_scale)
+
+        return self.ZPJCorr
 
     def __getattribute__(self, name: str) -> Any:
 

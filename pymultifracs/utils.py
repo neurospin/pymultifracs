@@ -192,3 +192,37 @@ def scale_position(time, scale_min, scale_max, wt_leaders=None):
                 idx[(idx - 2 >= 0) & (idx - 2 < n_leaders)] - 2]))
 
     return out_idx, out_leader
+
+
+def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
+    """
+    Return p-leader correction factor for finite resolution
+    """
+
+    JJ = np.arange(min_level, max_level + 1)
+    J1LF = 1
+    JJ0 = JJ - J1LF + 1
+
+    # eta_p shape (n_ranges, n_rep)
+    # JJ0 shape (n_level,)
+
+    JJ0 = JJ0[None, None, :]
+    eta_p = wt_leaders.eta_p[:, :, None]
+
+    zqhqcorr = np.log2((1 - np.power(2., -JJ0 * eta_p))
+                       / (1 - np.power(2., -eta_p)))
+    ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
+
+    # import ipdb; ipdb.set_trace()
+
+    # ZPJCorr shape (n_ranges, n_rep, n_level)
+    # wt_leaders shape (n_coef_j, n_rep)
+    # for ind_j, j in enumerate(JJ):
+    #     wt_leaders.values[j] = \
+    #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
+
+    eta_negative = eta_p <= 0
+    ZPJCorr[eta_negative[..., 0], :] = 1
+
+    # ZPJCorr shape (n_ranges, n_rep, n_level)
+    return ZPJCorr

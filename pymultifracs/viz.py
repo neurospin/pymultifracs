@@ -1,17 +1,15 @@
-from distutils.log import error
 import time
 import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.colors import CenteredNorm, Normalize, PowerNorm
-import matplotlib.cm as cm
-from matplotlib.ticker import AutoLocator
+from matplotlib.colors import PowerNorm
 import seaborn as sns
 import numpy as np
 import pandas as pd
 
 from .psd import log_plot
+from .wavelet import _estimate_eta_p
 
 
 def plot_multiscale(results, seg2color, ax=None):
@@ -395,12 +393,12 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
               leader_idx_correction=True, cbar=True, figsize=(20, 7),
-              gamma=.3, nan_idx=None):
+              gamma=.3, nan_idx=None, signal_idx=0):
 
-    min_all = min([np.nanmin(np.abs(mrq[s])) for s in range(j1, j2+1) if s in mrq])
+    min_all = min([np.nanmin(np.abs(mrq.values[s])) for s in range(j1, j2+1) if s in mrq.values])
 
     if vmax is None:
-        vmax = max([np.nanmax(mrq[s]) for s in range(j1, j2+1) if s in mrq])
+        vmax = max([np.nanmax(mrq.values[s]) for s in range(j1, j2+1) if s in mrq.values])
     if vmin is None:
         vmin = min_all
 
@@ -414,22 +412,36 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
     cmap = mpl.cm.get_cmap('inferno').copy()
     cmap.set_bad('grey')
 
+    if mrq.formalism == 'wavelet p-leader':
+
+        if mrq.eta_p is None:
+
+            mrq.eta_p = _estimate_eta_p(
+                mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False
+            )
+
+        ZPJCorr = mrq.correct_pleaders(j1, j2)[None, 0, signal_idx, ]
+
     for i, scale in enumerate(range(j1, j2 + 1)):
 
-        if scale not in mrq:
+        if scale not in mrq.values:
             continue
 
-        temp = mrq[scale][:, 0]
+        temp = mrq.values[scale][:, signal_idx]
 
         X = ((np.arange(temp.shape[0] + 1)
               + (1 if leader and leader_idx_correction else 0))
              * (2 ** (scale - j1 + 1)))
         X = np.tile(X[:, None], (1, 2))
 
-        C = temp[:, None]
+        C = np.copy(temp[:, None])
 
         if not leader:
             C = np.abs(C)
+
+        # Correcting potential p_leaders
+        if mrq.formalism == 'wavelet p-leader':
+            C *= ZPJCorr[:, scale - j1]
 
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
@@ -446,11 +458,12 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
                 if len(seg) == 0:
                     continue
 
-                ax.pcolormesh(X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
-                              edgecolor='xkcd:blue')
+                ax.pcolormesh(
+                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                    edgecolor='xkcd:blue')
 
     ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
-           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey', xlim=(0, mrq[j1].shape[0]*2))
+           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey', xlim=(0, mrq.values[j1].shape[0]*2))
 
     ax.tick_params(which='minor', left=True, right=False, top=False, color='w')
     ax.yaxis.set_minor_locator(mpl.ticker.IndexLocator(base=1, offset=.5))

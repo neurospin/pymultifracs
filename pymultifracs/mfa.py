@@ -4,13 +4,14 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from collections.abc import Iterable
+import warnings
 
 import numpy as np
 
 from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
-from .wavelet import wavelet_analysis
+from .wavelet import wavelet_analysis, _estimate_eta_p
 from .estimation import estimate_hmin
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
@@ -26,7 +27,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     mrq: :class:`MultiResolutionQuantity` | List[MultiResolutionQuantity]
         Multi-resolution quantity to analyze, or list of MRQs.
     scaling_ranges: List[Tuple[int]]
-        List of pairs of (j1, j2) ranges of scales for the analysis    
+        List of pairs of (j1, j2) ranges of scales for the analysis
     weighted : str | None
         Whether the linear regressions will be weighted
     n_cumul : int
@@ -71,6 +72,42 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. "
                          f"Effective max scale is {mrq.j2_eff()}")
+
+    if mrq.formalism == 'wavelet p-leader':
+
+        eta_p = _estimate_eta_p(
+            mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted)
+
+        if eta_p.max() <= 0:
+            raise ValueError(
+                f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
+                "analyzed. A smaller value of p (or larger value of gamint) "
+                "should be selected.")
+
+        if eta_p.min() <= 0:
+            warnings.warn(
+                f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
+                "cannot be applied. A smaller value of p (or larger value of "
+                "gamint) should be selected.")
+
+        mrq.eta_p = eta_p
+        mrq.correct_pleaders(min([*mrq.values]), max([*mrq.values]))
+
+    else:
+
+        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted)
+
+        if hmin.max() <= 0:
+            raise ValueError(
+                f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
+                "analyzed. A larger value of gamint or different scaling range"
+                " should be selected.")
+
+        if hmin.min() <= 0:
+            warnings.warn(
+                f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
+                "cannot be applied. A larger value of gamint) should be "
+                "selected.")
 
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])

@@ -92,12 +92,21 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
     def _compute(self, mrq):
 
-        values = np.zeros((len(self.q), len(self.j), mrq.n_rep))
+        if self.formalism == 'wavelet p-leader':
+            self.values = values = np.zeros(
+                (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
+            # ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+
+        else:
+            values = np.zeros((len(self.q), len(self.j), 1, mrq.n_rep))
 
         for ind_j, j in enumerate(self.j):
 
-            c_j = mrq.values[j]
-            s_j = np.zeros((values.shape[0], mrq.n_rep))
+            c_j = mrq.values[j][:, None, :] * (
+                mrq.ZPJCorr[None, :, :, ind_j] if self.formalism == 'wavelet p-leader' else 1
+            )
+
+            s_j = np.zeros((values.shape[0], values.shape[2], mrq.n_rep))
 
             for ind_q, q in enumerate(self.q):
                 s_j[ind_q, :] = np.nanmean(fast_power(np.abs(c_j), q), axis=0)
@@ -121,7 +130,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         self.intercept = np.zeros_like(self.zeta)
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = self.logvalues[:, j_min_idx:j_max_idx, None, :]
+        y = self.logvalues[:, j_min_idx:j_max_idx, :, :]
 
         if self.weighted == 'bootstrap':
 
