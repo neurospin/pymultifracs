@@ -97,14 +97,22 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
 
         # 1. Compute U(j,q) and V(j, q)
 
+        if self.formalism == 'wavelet p-leader':
+            # ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+            U = np.zeros((len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
+        else:
+            U = np.zeros((len(self.q), len(self.j), 1, mrq.n_rep))
+
         # shape (n_q, n_scales, n_rep)
-        U = np.zeros((len(self.q), len(self.j), mrq.n_rep))
         V = np.zeros_like(U)
 
         for ind_j, j in enumerate(self.j):
 
             nj = mrq.nj[j]
-            mrq_values_j = np.abs(mrq.values[j])
+            mrq_values_j = np.abs(mrq.values[j])[:, None, :]
+
+            if self.formalism == 'wavelet p-leader':
+                mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             idx_nan = np.isnan(mrq_values_j)
             temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
@@ -115,9 +123,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
             Z = np.nansum(temp, axis=1)[:, None, :]
             Z[Z == 0] = np.nan
             R_j = temp / Z
-            V[:, ind_j, :] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
-            U[:, ind_j, :] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
-                                                       axis=1)
+            V[:, ind_j] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
+            U[:, ind_j] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
+                                                    axis=1)
 
         U[np.isinf(U)] = np.nan
         V[np.isinf(V)] = np.nan

@@ -18,7 +18,7 @@ from statsmodels.tools.validation import array_like, float_like
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power, MFractalVar
+from .utils import fast_power, MFractalVar, _correct_pleaders
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 # from ._robust import _qn
@@ -72,10 +72,10 @@ def qn_scale2(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
 
 
 def compute_robust_cumulants(X, m_array, alpha=1):
-    # shape X (n_j, n_rep)
+    # shape X (n_j, n_ranges, n_rep)
 
     n_j, n_rep = X.shape
-    moments = np.zeros((len(m_array), n_rep))
+    moments = np.zeros((len(m_array), X.shape[1], n_rep))
     values = np.zeros_like(moments)
 
     idx_unreliable = (~np.isnan(X)).sum(axis=0) < 3
@@ -84,19 +84,19 @@ def compute_robust_cumulants(X, m_array, alpha=1):
     for rep in range(n_rep):
 
         if idx_unreliable[rep]:
-            values[:, rep] = np.nan
+            values[..., rep] = np.nan
             continue
 
-        X_norm = X[~np.isinf(X[:, rep]) & ~np.isnan(X[:, rep]), rep]
+        X_norm = X[~np.isinf(X[..., rep]) & ~np.isnan(X[..., rep]), rep]
 
         if X_norm.shape[0] > 10000:
-            values[:, rep] = np.nan
+            values[..., rep] = np.nan
             continue
 
         q_est = qn_scale(X_norm)
 
         if np.isclose(q_est, 0):
-            values[m_array == 1, rep] = np.median(X_norm, axis=0)
+            values[m_array == 1, :, rep] = np.median(X_norm, axis=0)
             continue
 
         try:
@@ -105,7 +105,7 @@ def compute_robust_cumulants(X, m_array, alpha=1):
         except ValueError:
 
             if X_norm.shape[0] < 20:
-                values[:, rep] = np.nan
+                values[..., rep] = np.nan
                 continue
 
             print(q_est, X_norm.shape)
@@ -126,27 +126,27 @@ def compute_robust_cumulants(X, m_array, alpha=1):
             decaying_factor = (alpha
                                * np.exp(-.5 * (alpha ** 2 - 1) * X_norm ** 2))
 
-            moments[ind_m, rep] = np.mean(
+            moments[ind_m, :, rep] = np.mean(
                 fast_power(alpha * X_norm, m) * decaying_factor, axis=0)
 
             if m == 1:
-                values[ind_m, rep] = m_est
+                values[ind_m, :, rep] = m_est
             elif m == 2:
-                values[ind_m, rep] = q_est ** 2
+                values[ind_m, :, rep] = q_est ** 2
             else:
                 aux = 0
 
                 for ind_n, n in enumerate(np.arange(1, m)):
 
                     if m_array[ind_m - ind_n - 1] > 2:
-                        temp_moment = moments[ind_m - ind_n - 1, rep]
+                        temp_moment = moments[ind_m - ind_n - 1, :, rep]
                     elif m_array[ind_m - ind_n - 1] == 2:
                         temp_moment = X_norm.var()
                     elif m_array[ind_m - ind_n - 1] == 1:
                         temp_moment = X_norm.mean()
 
                     if m_array[ind_n] > 2:
-                        temp_value = values[ind_n, rep]
+                        temp_value = values[ind_n, :, rep]
                     elif m_array[ind_n] == 2:
                         temp_value = X_norm.var()
                     elif m_array[ind_n] == 1:
@@ -155,7 +155,7 @@ def compute_robust_cumulants(X, m_array, alpha=1):
                     aux += (binomial_coefficient(m-1, n-1)
                             * temp_value * temp_moment)
 
-                values[ind_m, rep] = moments[ind_m, rep] - aux
+                values[ind_m, :, rep] = moments[ind_m, :, rep] - aux
 
     return values
 
@@ -237,7 +237,12 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             self.bootstrapped_mrq = bootstrapped_mfa.cumulants
 
         self.m = np.arange(1, self.n_cumul+1)
-        self.values = np.zeros((len(self.m), len(self.j), mrq.n_rep))
+
+        if self.formalism == 'wavelet p-leader':
+            self.values = np.zeros(
+                (len(self.m), len(self.j), len(self.scaling_ranges), mrq.n_rep))
+        else:
+            self.values = np.zeros((len(self.m), len(self.j), 1, mrq.n_rep))
 
         self._compute(mrq, robust)
         self._compute_log_cumulants(mrq.n_rep)
@@ -255,12 +260,19 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
     def _compute(self, mrq, robust):
 
-        moments = np.zeros((len(self.m), len(self.j), mrq.n_rep))
+        # if self.formalism == 'wavelet p-leader':
+        #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+
+        moments = np.zeros_like(self.values)
         aux = np.zeros_like(moments)
 
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.values[j])
+            T_X_j = T_X_j[:, None, :]
+
+            if self.formalism == 'wavelet p-leader':
+                T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             log_T_X_j = np.log(T_X_j)
 
@@ -316,7 +328,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         log2_e = np.log2(np.exp(1))
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = self.values[:, int(j_min_idx):int(j_max_idx), None, :]
+        y = self.values[:, int(j_min_idx):int(j_max_idx), :, :]
 
         if self.weighted == 'bootstrap':
 
@@ -332,8 +344,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                         f"{self.bootstrapped_mrq.j.min()} inferior to minimum "
                         f"scale {j_min} used in estimation")
 
-                start = int(j_min - self.bootstrapped_mrq.j.min())
-                end = int(j_max - self.bootstrapped_mrq.j.min()) + 1
+                # start = int(j_min - self.bootstrapped_mrq.j.min())
+                # end = int(j_max - self.bootstrapped_mrq.j.min()) + 1
 
                 std_slice = np.s_[
                     int(j_min - self.bootstrapped_mrq.j.min()):
