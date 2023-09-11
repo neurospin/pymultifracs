@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -215,19 +217,19 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
                 continue
 
             f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4[k, l]
-
-            # if f_beta(.1) * f_beta(100) <= 0:
-            #     print(f_beta(.1), f_beta(100))
-
-            # print(m4[k, l])
-            # print(f_beta(.1), f_beta(10))
+            # f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - C4[k, l] / C2[k, l] ** 2
 
             if f_beta(.1) > 0 and f_beta(10) > 0:
+
+                warnings.warn("Very high value of beta estimated")
                 beta[i, k, l] = 10
+
             elif f_beta(.1) < 0 and f_beta(10) < 0:
+
+                warnings.warn("Very low value of beta estimated")
                 beta[i, k, l] = .1
+
             else:
-                # print(f_beta(.1), f_beta(5), m4[k, l])
                 beta[i, k, l] = bisect(f_beta, .1, 10)
 
         alpha[i] = np.sqrt(C2 * gamma(1/beta[i]) / gamma(3/beta[i]))
@@ -235,8 +237,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
         idx_zero = C2 < 0
         alpha[i, idx_zero] = 0
 
-        idx_zero = beta[i] < 1e-10
-        beta[i, idx_zero] = 1e-10
+        idx_zero = beta[i] < .1
+        beta[i, idx_zero] = .1
 
     return j_array, C1_array, alpha, beta
 
