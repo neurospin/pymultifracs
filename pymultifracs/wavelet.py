@@ -288,9 +288,10 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
         #     print(idx.sum())
 
         scale_contribution = np.stack([
-            coefs[2:],
-            coefs[1:-1],
-            coefs[:-2]
+            # coefs[2:],
+            # coefs[1:-1],
+            # coefs[:-2]
+            coefs[size-i:-(i-1) or None] for i in range(1, size+1)
         ], axis=0)
 
         if (idx_reject is not None
@@ -317,8 +318,8 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
         #       pleader_p[scale-1][3::2].shape)
 
         lower_contribution = np.stack([
-            pleader_p[scale-1][:-3:2],
-            pleader_p[scale-1][3::2]
+            pleader_p[scale-1][:-size:2],
+            pleader_p[scale-1][size::2]
         ], axis=0)
 
         # assert scale_contribution.shape[1] == lower_contribution.shape[1],\

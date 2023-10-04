@@ -19,7 +19,7 @@ from .utils import MFractalVar
 
 def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
                 bootstrap_weighted=None, R=1, estimates="scm", robust=False,
-                robust_kwargs=None):
+                robust_kwargs=None, idx_reject=None):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -73,6 +73,9 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         raise ValueError("No valid scaling range provided. "
                          f"Effective max scale is {mrq.j2_eff()}")
 
+    j1 = min([sr[0] for sr in scaling_ranges])
+    j2 = max([sr[1] for sr in scaling_ranges])
+
     if mrq.formalism == 'wavelet p-leader':
 
         eta_p = _estimate_eta_p(
@@ -109,9 +112,6 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
                 "cannot be applied. A larger value of gamint) should be "
                 "selected.")
 
-    j1 = min([sr[0] for sr in scaling_ranges])
-    j2 = max([sr[1] for sr in scaling_ranges])
-
     if R > 1:
         mrq.bootstrap(R, j1)
 
@@ -142,7 +142,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         'scaling_ranges': scaling_ranges,
         'mrq': mrq,
         'bootstrapped_mfa': mfa_boot,
-        'robust': robust
+        'robust': robust,
+        'idx_reject': idx_reject,
     }
 
     if robust_kwargs is not None:

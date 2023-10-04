@@ -220,13 +220,14 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     weighted: str = None
     robust_kwargs: Dict[str, object] = field(default_factory=dict)
     robust: InitVar[bool] = False
+    idx_reject: InitVar[Dict[int, np.ndarray]] = field(default=None)
     m: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
     values: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
     var_log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq, bootstrapped_mfa, robust):
+    def __post_init__(self, mrq, bootstrapped_mfa, robust, idx_reject):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
@@ -244,7 +245,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         else:
             self.values = np.zeros((len(self.m), len(self.j), 1, mrq.n_rep))
 
-        self._compute(mrq, robust)
+        self._compute(mrq, robust, idx_reject)
         self._compute_log_cumulants(mrq.n_rep)
 
     def __repr__(self):
@@ -258,7 +259,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         return out
 
-    def _compute(self, mrq, robust):
+    def _compute(self, mrq, robust, idx_reject):
 
         # if self.formalism == 'wavelet p-leader':
         #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
@@ -278,6 +279,14 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
             # dropping infinite coefsx
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+
+            if idx_reject is not None and j in idx_reject:
+                # dropping rejected coefs
+
+                mask = np.ones_like(idx_reject[j], dtype=float)
+                mask[idx_reject[j]] = np.nan
+
+                log_T_X_j *= mask
 
             if robust:
 

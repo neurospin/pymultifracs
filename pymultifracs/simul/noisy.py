@@ -177,10 +177,11 @@ def estimate(gen_func, **gen_func_kwargs):
 
     noisy_X = gen_func(**gen_func_kwargs)
 
-    WT = wavelet_analysis(noisy_X.reshape(noisy_X.shape[0], -1), p_exp=2, j1=8, j2_reg=14, gamint=1)
+    WT = wavelet_analysis(noisy_X.reshape(noisy_X.shape[0], -1), p_exp=2, gamint=1)
 
     dwt, lwt = mf_analysis([WT.wt_coefs, WT.wt_leaders],
-                           scaling_ranges=[(8, WT.wt_leaders.j2_eff()-2)])
+                           scaling_ranges=[(8, WT.wt_leaders.j2_eff()-2)],
+                           n_cumul=4)
 
     return lwt.cumulants
 

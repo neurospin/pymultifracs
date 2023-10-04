@@ -383,7 +383,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
     for j in range(ind_m + 1, len(axes.flat)):
         fig.delaxes(axes[j % nrow][j // nrow])
 
-    plt.tight_layout()
+    # plt.tight_layout()
 
     if filename is not None:
         plt.savefig(filename)
@@ -395,10 +395,10 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
               leader_idx_correction=True, cbar=True, figsize=(20, 7),
               gamma=.3, nan_idx=None, signal_idx=0):
 
-    min_all = min([np.nanmin(np.abs(mrq.values[s])) for s in range(j1, j2+1) if s in mrq.values])
+    min_all = min([np.nanmin(np.abs(mrq.values[s][:, signal_idx])) for s in range(j1, j2+1) if s in mrq.values])
 
     if vmax is None:
-        vmax = max([np.nanmax(mrq.values[s]) for s in range(j1, j2+1) if s in mrq.values])
+        vmax = max([np.nanmax(mrq.values[s][:, signal_idx]) for s in range(j1, j2+1) if s in mrq.values])
     if vmin is None:
         vmin = min_all
 
@@ -448,7 +448,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
 
         qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm, rasterized=True)
 
-        if nan_idx is not None:
+        if nan_idx is not None and scale in nan_idx:
             idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
 
             segments = np.split(idx, np.where(np.diff(idx) != 1)[0] + 1)
