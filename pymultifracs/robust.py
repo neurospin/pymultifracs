@@ -206,7 +206,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
     alpha = np.zeros_like(C2_array)
     beta = np.zeros_like(C4_array)
 
-    for i, (C2, m4) in enumerate(zip(C2_array, m4_array)):
+    for i, (C2, C4) in enumerate(zip(C2_array, C4_array)):
 
         # print(C2, m4)
 
@@ -216,7 +216,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
                 beta[i, k, l] = 1
                 continue
 
-            f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4[k, l]
+            # f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4[k, l]
+            f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - C4[k, l]
             # f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - C4[k, l] / C2[k, l] ** 2
 
             if f_beta(.1) > 0 and f_beta(10) > 0:
