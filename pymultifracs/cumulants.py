@@ -286,7 +286,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                 mask = np.ones_like(idx_reject[j], dtype=float)
                 mask[idx_reject[j]] = np.nan
 
-                log_T_X_j *= mask
+                log_T_X_j = log_T_X_j * mask
 
             if robust:
 
