@@ -37,21 +37,18 @@ jobs:
           conda install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme
           python -m pip install .
           cd doc
-          ls $CONDA/envs
-          export SPHINXBUILD=$CONDA/test/bin/sphinx-build
-          export SPHINXBUILD=/usr/share/miniconda/envs/test/bin/sphinx-build
           make html
-          touch _build/.nojekyll
+          touch _build/html/.nojekyll
       - name: Fix permissions
         run: |
-          chmod -c -R +rX "doc/_build" | while read line; do
+          chmod -c -R +rX "doc/_build/html" | while read line; do
             echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
       - name: Upload gh page artifact
         uses: actions/upload-pages-artifact@v2
         with:
           name: github-pages
-          path: doc/_build
+          path: doc/_build/html/
           retention-days: 1
 
   deploy-docs:
