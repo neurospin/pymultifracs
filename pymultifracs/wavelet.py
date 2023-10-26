@@ -450,9 +450,8 @@ def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
                             j2_eff=j2_eff)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', eta_p_srange=None,
-                     eta_p_weighted=None, j2=None, gamint=0.0, normalization=1,
-                     weighted=None):
+def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
+                     gamint=0.0, normalization=1):
     """
     Compute wavelet coefficient and wavelet leaders.
 
@@ -591,7 +590,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', eta_p_srange=None,
         wt_leaders.add_values(leaders, scale)
 
     if max_level == 0:
-        return WaveletTransform(None, None, max_level, None)
+        return WaveletTransform(None, None, max_level)
 
     # if formalism == 'wavelet p-leader':
 

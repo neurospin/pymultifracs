@@ -114,17 +114,11 @@ def bivariate_analysis_full(signal1, signal2, scaling_ranges, normalization=1,
                             p_exp=None, q1=None, q2=None, n_cumul=3,
                             bootstrap_weighted=None, R=1, estimates='sc'):
 
-    j1 = min([sr[0] for sr in scaling_ranges])
-    j2 = max([sr[1] for sr in scaling_ranges])
-
     wt_param = {
         'p_exp': p_exp,
         'wt_name': wt_name,
-        'j1': j1,
-        'j2': j2,
         'gamint': gamint,
         'normalization': normalization,
-        'weighted': weighted
     }
 
     WT1 = wavelet_analysis(signal1, **wt_param)

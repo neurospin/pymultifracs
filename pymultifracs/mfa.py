@@ -76,6 +76,9 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
 
+    if R > 1:
+        mrq.bootstrap(R, j1)
+
     if mrq.formalism == 'wavelet p-leader':
 
         eta_p = _estimate_eta_p(
@@ -111,9 +114,6 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
                 f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
                 "cannot be applied. A larger value of gamint) should be "
                 "selected.")
-
-    if R > 1:
-        mrq.bootstrap(R, j1)
 
     if mrq.bootstrapped_mrq is not None:
 
@@ -216,13 +216,11 @@ def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
     :obj:`~pymultifracs.wavelet.wavelet_analysis`
     """
 
-    j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
 
     wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
-                                    j1=j1, j2=j2, gamint=gamint, j2_reg=j2,
-                                    normalization=normalization,
-                                    weighted=weighted)
+                                    j2=j2, gamint=gamint,
+                                    normalization=normalization)
 
     mrq = wt_transform.wt_coefs
 

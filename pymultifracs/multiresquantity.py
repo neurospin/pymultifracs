@@ -133,6 +133,8 @@ class MultiResolutionQuantityBase:
         else:
             bootstrapped_mrq = self.bootstrapped_mrq
 
+        print(bootstrapped_mrq.n_rep, bootstrapped_mrq.S2.shape)
+
         bootstrapped_mrq._check_enough_rep_bootstrap()
 
         return bootstrapped_mrq
@@ -245,11 +247,6 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
         block_length = get_filter_length(self.wt_name)
         max_scale = max_scale_bootstrap(self)
-
-        if max_scale < self.j2_eff():
-            raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
-                                f'inferior to the j2={self.j2_eff()} chosen '
-                                'when computing wavelet leaders.')
 
         self.bootstrapped_mrq = circular_leader_bootstrap(
             self, min_scale, max_scale, block_length, R)
