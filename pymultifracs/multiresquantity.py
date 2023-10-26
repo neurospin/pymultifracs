@@ -290,10 +290,17 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
     def correct_pleaders(self, min_scale, max_scale):
+<<<<<<< HEAD
 
         self.ZPJCorr = _correct_pleaders(
             self, self.p_exp, min_scale, max_scale)
 
+=======
+
+        self.ZPJCorr = _correct_pleaders(
+            self, self.p_exp, min_scale, max_scale)
+
+>>>>>>> f707405b0e7cea21c0eee248f00f172034eb1f06
         return self.ZPJCorr
 
     def __getattribute__(self, name: str) -> Any:

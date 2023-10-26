@@ -300,12 +300,9 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             diff_element = .5 * (samples_scales_below[0]
                                  + samples_scales_below[1])
 
-<<<<<<< HEAD
         # N leaders = n_coefs - 2
         idx_reject[j] = np.zeros((*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
 
-=======
->>>>>>> Improved robust algorithm
         diff_samples = samples_scale_j - diff_element
 
         # print(samples_scale_j.mean(axis=0), samples_scale_j.std(axis=0))
@@ -326,8 +323,6 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
         v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
                     axis=1)
-<<<<<<< HEAD
-<<<<<<< HEAD
 
         check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
 
@@ -360,47 +355,6 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
             # Don't appear at the end of the sorted array
             combined_quantiles[idx_v][prev_kept] = 0
 
-=======
-        
-=======
-
->>>>>>> EURASIP modifs
-        check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
-
-        if previous_reject is not None:
-            prev = previous_reject[j][k, l]
-        else:
-            prev = np.zeros_like(check, dtype=bool)
-
-        prev_kept = check & prev
-        nan = np.isnan(v)
-        N_available = check.shape[0] - (prev_kept|nan).sum()
-
-        N_new_remove = (check&~prev&~nan).sum()
-        Max_new_reject = int(np.ceil(max_reject_share * N_available))
-
-        # print(N_new_remove, Max_new_reject)
-
-        if N_new_remove > Max_new_reject + 1:
-
-            # pseudo_quantiles = np.argsort(temp_diff) / temp_diff.shape[0]
-            combined_quantiles = np.argsort(np.argsort(np.r_[diff_samples, v])) / (diff_samples.shape[0] + v.shape[0])
-
-            combined_quantiles = 2 * abs(combined_quantiles - .5)
-
-            # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
-            # Small values are associated to more extreme quantiles
-            idx_v = np.arange(diff_samples.shape[0], combined_quantiles.shape[0])
-
-            # Set quantiles from carried over rejected values to zero so they
-            # Don't appear at the end of the sorted array
-            combined_quantiles[idx_v][prev_kept] = 0
-<<<<<<< HEAD
-            
->>>>>>> Improved robust algorithm
-=======
-
->>>>>>> EURASIP modifs
             order_v = np.argsort(combined_quantiles[idx_v])
 
             # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
@@ -452,15 +406,6 @@ def sample_reject(k, l, j2, min_scale, p_exp, shape, location, scale, n_samples,
 
     return {(k, l): idx_reject}
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-   
->>>>>>> Improved robust algorithm
-=======
->>>>>>> EURASIP modifs
-
 
 def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
                  fix_c2_slope=False, previous_reject=None, verbose=False,
@@ -477,15 +422,6 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
     j2 = j_array.max()
 
     for k, l in np.ndindex(location.shape[1:]):
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> Improved robust algorithm
-=======
-
->>>>>>> EURASIP modifs
         if not (converged[k, l] or error[k, l]):
 
             try:
@@ -493,22 +429,11 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
                 idx_reject |= sample_reject(
                     k, l, j2, min_scale, p_exp, shape[:, k, l], location[:, k, l], scale[:, k, l], n_samples,
                     wt_coefs, alpha, previous_reject, max_reject_share, verbose)
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> Improved robust algorithm
-=======
-
->>>>>>> EURASIP modifs
             except Exception:
                 idx_reject[(k, l)] = None
                 error[k, l] = True
 
         else:
-<<<<<<< HEAD
-<<<<<<< HEAD
             idx_reject[(k, l)] = None
 
     out = {}
@@ -516,192 +441,11 @@ def reject_coefs(wt_coefs, cm, p_exp, n_samples, alpha, converged, error,
     for scale in range(min_scale, j2+1):
 
         out[scale] = np.zeros((*location.shape[1:], wt_coefs.values[scale].shape[0] - 2), dtype=bool)
-
-=======
-            idx_reject[(k, l)] = None    
-=======
-            idx_reject[(k, l)] = None
->>>>>>> EURASIP modifs
-
-    out = {}
-
-    for scale in range(min_scale, j2+1):
-
-        out[scale] = np.zeros((*location.shape[1:], wt_coefs.values[scale].shape[0] - 2), dtype=bool)
-<<<<<<< HEAD
-        
->>>>>>> Improved robust algorithm
-=======
-
->>>>>>> EURASIP modifs
         for k, l in np.ndindex(location.shape[1:]):
             if not (converged[k, l] or error[k, l]):
                 out[scale][k, l] = idx_reject[(k, l)][scale]
 
     return out, error
-
-    # for j in range(j2, min_scale-1, -1):
-
-    #     print(j)
-
-    #     # idx = (j_array == j).squeeze()
-    #     # idx_below = (j_array == j-1).squeeze()
-
-    #     # print(shape[idx].shape)
-
-    #     idx = j-1
-    #     idx_below = j-2
-
-    #     if samples_scale_j is None:
-    #         samples_scale_j = sample_p_leaders(p_exp, shape[idx],
-    #                                            location[idx], scale[idx],
-    #                                            (n_samples, *shape[idx].shape))
-
-    #     if j == 1:
-    #         diff_element = np.zeros((1, *shape[idx].shape))
-    #     else:
-    #         samples_scales_below = [
-    #             sample_p_leaders(p_exp, shape[idx_below], location[idx_below],
-    #                              scale[idx_below], (n_samples, *shape[idx].shape)),
-    #             sample_p_leaders(p_exp, shape[idx_below], location[idx_below],
-    #                              scale[idx_below], (n_samples, *shape[idx].shape))
-    #         ]
-    #         diff_element = .5 * (samples_scales_below[0]
-    #                              + samples_scales_below[1])
-
-    #     # N leaders = n_coefs - 2
-    #     idx_reject[j] = np.zeros(
-    #         (*shape[idx].shape, wt_coefs.values[j].shape[0] - 2), dtype=bool)
-
-    #     diff_samples = samples_scale_j - diff_element
-
-        # print(samples_scale_j.mean(axis=0), samples_scale_j.std(axis=0))
-
-        # for k, l in np.ndindex(shape[idx].shape):
-
-        #     # if scale[idx, k, l] == 0:
-        #     #     continue  # Already initialized at zero
-
-        #     temp_diff = diff_samples[:, k, l]
-
-        #     if j > 1:
-        #         temp_diff = temp_diff[temp_diff >= 0]
-
-        #     # print(f"{j}, {temp_diff.shape=}")
-
-        #     # try:
-        #     # print(alpha / 2, 100 - alpha / 2)
-        #     ci = [np.percentile(temp_diff, (alpha / 2 ** (1))),
-        #           np.percentile(temp_diff, 100 - (alpha / 2 ** (1)))]
-
-        #     vals = np.abs(wt_coefs.values[j][:, l]) ** p_exp
-
-        #     v = np.sum(np.stack([vals[:-2], vals[1:-1], vals[2:]], axis=1),
-        #                axis=1)
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> Improved robust algorithm
-=======
-
->>>>>>> EURASIP modifs
-        #     check = ((v < ci[0]) | (v > ci[1])) & ~(np.isnan(v))
-
-        #     if previous_reject is not None:
-        #         prev = previous_reject[j][k, l]
-        #     else:
-        #         prev = np.zeros_like(check, dtype=bool)
-
-        #     prev_kept = check & prev
-        #     nan = np.isnan(v)
-        #     N_available = check.shape[0] - (prev_kept|nan).sum()
-
-        #     N_new_remove = (check&~prev&~nan).sum()
-        #     Max_new_reject = int(np.ceil(max_reject_share * N_available))
-
-        #     # print(N_new_remove, Max_new_reject)
-
-        #     if N_new_remove > Max_new_reject + 1:
-
-        #         # pseudo_quantiles = np.argsort(temp_diff) / temp_diff.shape[0]
-        #         combined_quantiles = np.argsort(np.argsort(np.r_[temp_diff, v])) / (temp_diff.shape[0] + v.shape[0])
-
-        #         combined_quantiles = 2 * abs(combined_quantiles - .5)
-
-        #         # Same shape as v, associates to every element its position in the sorted set of quantiles of {temp_diff U v}
-        #         # Small values are associated to more extreme quantiles
-        #         idx_v = np.arange(temp_diff.shape[0], combined_quantiles.shape[0])
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-        #         # Set quantiles from carried over rejected values to zero so they
-        #         # Don't appear at the end of the sorted array
-        #         combined_quantiles[idx_v][prev_kept] = 0
-
-=======
-                
-        #         # Set quantiles from carried over rejected values to zero so they
-        #         # Don't appear at the end of the sorted array
-        #         combined_quantiles[idx_v][prev_kept] = 0
-                
->>>>>>> Improved robust algorithm
-=======
-
-        #         # Set quantiles from carried over rejected values to zero so they
-        #         # Don't appear at the end of the sorted array
-        #         combined_quantiles[idx_v][prev_kept] = 0
-
->>>>>>> EURASIP modifs
-        #         order_v = np.argsort(combined_quantiles[idx_v])
-
-        #         # Renormalize order_v values from [0, N_v + N_tempdiff[ to [0, N_v]
-        #         # order_v = np.argsort(np.argsort(order_v))
-
-        #         # Nans end up at the end of the argsorted array so need to remove them
-        #         N_nans = np.isnan(v).sum()
-
-        #         # Remove only first [(1-alpha) * N] highest quantile observations
-        #         check[:] = False
-        #         check[order_v[-Max_new_reject-N_nans-1:-N_nans]] = True
-
-        #         # Add previously rejected values still kept in
-        #         check |= prev_kept
-
-        #     idx_reject[j][k, l] = check
-
-        # if j == 15 and verbose:
-
-        #     print(scale[idx], shape[idx])
-
-        #     # print(v[check], ci[0], ci[1])
-
-        #     plt.figure()
-        #     plt.scatter(diff_element[:, -1, -1], samples_scale_j[:, -1, -1])
-
-        #     # vals = WT.wt_leaders.values[j-1] ** p
-        #     # lower_vals =  1/2 * np.sum(np.c_[
-        #     #     vals[:-3:2],
-        #     #     vals[3::2]
-        #     # ], axis=1)
-
-        #     # plt.scatter(lower_vals, WT.wt_leaders.values[j].squeeze() ** p)
-
-        # if verbose and j == 15:
-        #     plt.figure()
-
-        #     sns.histplot({0: diff_samples[:, k, l][~np.isinf(diff_samples[:, k, l])], 1: v[~np.isnan(v) & (v > 0)]}, stat='percent',
-        #                  log_scale=True, common_norm=False)
-        #     ylim = plt.ylim()
-        #     plt.vlines(ci, *ylim, color='k')
-        #     plt.ylim(*ylim)
-
-        #     plt.figure()
-        #     plt.hist(v[v < .025])
-        #     plt.show()
-
-        # samples_scale_j = samples_scales_below[0]
 
 
 def iterate_analysis(WT, n_iter=10):

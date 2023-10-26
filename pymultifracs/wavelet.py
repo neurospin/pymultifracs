@@ -210,14 +210,14 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp,
     return leaders, sans_voisin
 
 
-def compute_leaders(wt_coefs, gamint, p_exp, eta_p_srange=None,
-                    eta_p_weighted=None, size=3):
+def compute_leaders(wt_coefs, gamint, p_exp, size=3):
     # TODO: call from wavelet_analysis
 
     formalism = _check_formalism(p_exp)
 
     sans_voisin = None
-    wt_leaders = MultiResolutionQuantity(formalism, gamint, p_exp=p_exp)
+    wt_leaders = MultiResolutionQuantity(formalism, gamint, p_exp=p_exp,
+                                         origin_mrq=wt_coefs)
 
     max_level = wt_coefs.j2_eff()
 
@@ -240,24 +240,7 @@ def compute_leaders(wt_coefs, gamint, p_exp, eta_p_srange=None,
 
         wt_leaders.add_values(leaders, scale)
 
-    # "effective" j2, used in linear regression
-    j2_reg = max([s[1] for s in eta_p_srange]) if eta_p_srange is not None else None
-    j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
-
-    if formalism == 'wavelet p-leader':
-
-        eta_p = _estimate_eta_p(wt_coefs, p_exp, eta_p_srange, eta_p_weighted)
-
-        if eta_p.min() <= 0:
-            warnings.warn(
-                f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
-                "cannot be applied. A smaller value of p (or larger value of "
-                "gamint) should be selected.")
-
-    else:
-        eta_p = None
-
-    return wt_leaders, eta_p
+    return wt_leaders
 
 
 def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
@@ -288,9 +271,6 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
         #     print(idx.sum())
 
         scale_contribution = np.stack([
-            # coefs[2:],
-            # coefs[1:-1],
-            # coefs[:-2]
             coefs[size-i:-(i-1) or None] for i in range(1, size+1)
         ], axis=0)
 
@@ -299,7 +279,6 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
                 and idx_reject[scale].sum() > 0):
 
             idx = idx_reject[scale]
-            # print(scale_contribution.shape, idx.shape, idx.squeeze().transpose().shape)
             scale_contribution[:, idx.squeeze().transpose()] = np.nan
 
         if scale == 1:
@@ -339,19 +318,7 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
         ], axis=0)
         pleader_p[scale] = leaders
 
-        # if scale == 12:
-        #     import matplotlib.pyplot as plt
-        #     plt.plot(leaders.squeeze())
-        #     plt.plot(scale_contribution.squeeze().transpose())
-        #     plt.plot(lower_contribution.squeeze().transpose())
-        #     plt.plot(scale_contribution[0])
-        #     plt.plot(lower_contribution[1])
-        #     plt.plot(lower_contribution[0])
-        #     print(np.isnan(leaders).sum())
-
-        #     print(leaders.shape, lower_contribution.shape, scale_contribution.shape)
-
-        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+        # finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
         # leaders[~finite_idx_wl] = np.nan
 
         # if np.sum(finite_idx_wl, axis=0).min() < 3:
@@ -361,11 +328,7 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
     for scale in range(1, max_level + 1):
 
         leaders = fast_power(pleader_p[scale], 1/p_exp)
-        # leaders = fast_power(2 ** 1-scale * pleader_p[scale], 1/p_exp)
         wt_leaders.add_values(leaders, scale)
-
-    # "effective" j2, used in linear regression
-    # j2_eff = int(min(max_level, j2_reg) if j2_reg is not None else max_level)
 
     if formalism == 'wavelet p-leader':
 
@@ -375,22 +338,7 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
             for scale in idx_reject:
                 working_coefs.values[scale][1:-1][idx_reject[scale][0].squeeze().transpose()] = np.nan
 
-        # wt_leaders, eta_p = _correct_leaders(working_coefs, wt_leaders, p_exp,
-        #                                      j1, j2_eff, None, max_level)
-
-    # if formalism == 'wavelet p-leader':
-
-    #     eta_p = _estimate_eta_p(wt_coefs, p_exp, eta_p_srange, eta_p_weighted)
-
-    #     if eta_p.min() <= 0:
-    #         warnings.warn(
-    #             f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
-    #             "cannot be applied. A smaller value of p (or larger value of "
-    #             "gamint) should be selected.")
-
-    #     wt_leaders.eta_p = eta_p
-
-    return wt_leaders  # , eta_p
+    return wt_leaders
 
 
 WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
@@ -591,18 +539,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
     if max_level == 0:
         return WaveletTransform(None, None, max_level)
-
-    # if formalism == 'wavelet p-leader':
-
-    #     eta_p = _estimate_eta_p(wt_coefs, p_exp, eta_p_srange, eta_p_weighted)
-
-    #     if eta_p.min() <= 0:
-    #         warnings.warn(
-    #             f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
-    #             "cannot be applied. A smaller value of p (or larger value of "
-    #             "gamint) should be selected.")
-
-    #     wt_leaders.eta_p = eta_p
 
     return WaveletTransform(wt_leaders=wt_leaders,
                             wt_coefs=wt_coefs,
