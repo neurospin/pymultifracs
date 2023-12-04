@@ -79,7 +79,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if mrq.formalism == 'wavelet p-leader':
 
         eta_p = _estimate_eta_p(
-            mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted)
+            mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted, idx_reject)
 
         if eta_p.max() <= 0:
             raise ValueError(
@@ -98,7 +98,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     else:
 
-        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted)
+        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted, idx_reject)
 
         if hmin.max() <= 0:
             raise ValueError(
@@ -114,50 +114,6 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     if R > 1:
         mrq.bootstrap(R, j1)
-
-    if mrq.formalism == 'wavelet p-leader':
-
-        eta_p = _estimate_eta_p(
-            mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted)
-
-        if eta_p.max() <= 0:
-            raise ValueError(
-                f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
-                "analyzed. A smaller value of p (or larger value of gamint) "
-                "should be selected.")
-
-        if eta_p.min() <= 0:
-            warnings.warn(
-                f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
-                "cannot be applied. A smaller value of p (or larger value of "
-                "gamint) should be selected.")
-
-        mrq.eta_p = eta_p
-        mrq.correct_pleaders(min([*mrq.values]), max([*mrq.values]))
-
-    else:
-
-        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted)
-
-        if hmin.max() <= 0:
-            raise ValueError(
-                f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
-                "analyzed. A larger value of gamint or different scaling range"
-                " should be selected.")
-
-        if hmin.min() <= 0:
-            warnings.warn(
-                f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
-                "cannot be applied. A larger value of gamint) should be "
-                "selected.")
-
-    if mrq.bootstrapped_mrq is not None:
-
-        mfa_boot = mf_analysis(
-            mrq.bootstrapped_mrq, scaling_ranges,
-            bootstrap_weighted, n_cumul, q, None, 1, estimates, robust,
-            robust_kwargs)
-
     else:
         mfa_boot = None
 
@@ -194,13 +150,7 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if 'm' in estimates:
         spec = MultifractalSpectrum.from_dict(parameters)
 
-    # pylint: disable=unbalanced-tuple-unpacking
-    if mrq.formalism == 'wavelet coef':
-        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted)
-    else:
-        hmin = None
-
-    return MFractalVar(struct, cumul, spec, hmin)
+    return MFractalVar(struct, cumul, spec)
 
 
 def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,

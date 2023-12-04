@@ -283,6 +283,8 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         if plot_legend:
             ax.legend()
 
+        ax.set(xlim=(j1-.5, j2+.5))
+
 
 def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
                    scaling_range=0, legend=True, n_cumul=None, signal_idx=0,
@@ -307,6 +309,11 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
         plot_dim_1 = 1
         plot_dim_2 = 1
 
+    if figsize is None:
+        figsize = (3.3 * plot_dim_2, 1 * plot_dim_1)
+        # figsize = (20 * plot_dim_1, 3.3 * plot_dim_2)
+        # print(figsize)
+
     fig, axes = plt.subplots(plot_dim_1,
                              plot_dim_2,
                              num=fignum,
@@ -324,7 +331,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
         plot_cm(cm, ind_m, j1, None, scaling_range, ax, plot_legend=True,
                 signal_idx=signal_idx, **kw)
-
+        
         # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
 
         # if cm.bootstrapped_mrq is not None:
@@ -392,7 +399,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
 
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
-              leader_idx_correction=True, cbar=True, figsize=(20, 7),
+              leader_idx_correction=True, cbar=True, figsize=(2.5, 1),
               gamma=.3, nan_idx=None, signal_idx=0):
 
     min_all = min([np.nanmin(np.abs(mrq.values[s][:, signal_idx])) for s in range(j1, j2+1) if s in mrq.values])
@@ -417,7 +424,7 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
         if mrq.eta_p is None:
 
             mrq.eta_p = _estimate_eta_p(
-                mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False
+                mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
             )
 
         ZPJCorr = mrq.correct_pleaders(j1, j2)[None, 0, signal_idx, ]

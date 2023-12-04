@@ -18,7 +18,7 @@ from statsmodels.tools.validation import array_like, float_like
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power, MFractalVar, _correct_pleaders
+from .utils import fast_power, MFractalVar, _correct_pleaders, mask_reject
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
 # from ._robust import _qn
@@ -280,13 +280,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             # dropping infinite coefsx
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-            if idx_reject is not None and j in idx_reject:
-                # dropping rejected coefs
-
-                mask = np.ones_like(idx_reject[j], dtype=float)
-                mask[idx_reject[j]] = np.nan
-
-                log_T_X_j = log_T_X_j * mask
+            log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
 
             if robust:
 
@@ -436,7 +430,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
         return super().__getattr__(name)
 
-    def plot(self, figsize=(8, 6), fignum=1, nrow=3, j1=None, filename=None,
+    def plot(self, figsize=None, fignum=1, nrow=3, j1=None, filename=None,
              scaling_range=0, n_cumul=None, signal_idx=0, **kwargs):
 
         return plot_cumulants(

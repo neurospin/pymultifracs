@@ -1,13 +1,20 @@
 import warnings
+from tqdm.auto import tqdm
 
 import numpy as np
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from scipy.stats import gennorm
+from scipy import stats
+from scipy import ndimage
 from scipy.optimize import bisect
-from scipy.special import gamma
+from scipy.special import gamma, erf, gammaincc
+
+import hdbscan
+import umap
 
 
 def _high_weighted_median(a, weights):
@@ -469,3 +476,334 @@ def iterate_analysis(WT, n_iter=10):
         c_trace[:, i+1] = lwt.cumulants.log_cumulants.squeeze()
 
     return c_trace, new_leaders, idx_reject, lwt
+
+
+def compute_aggregate(cdf, j1, j2, leader=False):
+
+    out = {}
+
+    for j in range(j1, j2+1):
+
+        out[j] = cdf[j]
+
+        for k in range(j1, j):
+
+            # print(j, k, np.nanmax(out[k]))
+            # out[k] = np.r_['-1, 4, 0', out[k][1::2], out[k][:-1:2]].max(axis=-1)
+
+            if leader:
+                # out[k] = (np.r_['-1, 4, 0', out[k][1::2], out[k][:-1:2]] ** 2 / 2).sum(axis=-1)
+                out[k] = np.sqrt((np.r_['-1, 4, 0', out[k][1::2], out[k][:-1:2]]).prod(axis=-1))
+            else:
+                out[k] = (np.r_['-1, 4, 0', out[k][1::2], out[k][:-1:2]]).max(axis=-1)
+
+            # print(k, np.nanmax(out[k]))
+
+        # if j > j1:
+        #     print(out[j-1][-10:,0, 0])
+
+    for j in range(j1, j2+1):
+        if not leader:
+            out[j] **= 2 ** ((j2-j))
+
+    out = np.array([*out.values()]).swapaxes(0, 1)
+    idx_nan = np.isnan(out).any(axis=(1, 2, 3))
+
+    return out
+
+
+def compute_all_aggregate(CDF, j1, j2, leader=False):
+
+    Agg = {
+        j: compute_aggregate(CDF, j1, j, leader) for j in range(j1, j2+1)
+    }
+
+    N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
+    agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), N, *CDF[j1].shape[1:]))
+
+    # agg shape N_coef, N_aggregates, N_ranges, N_signals
+    # N_coef is determined by the upsampled number of coefficients 
+
+    end = 0
+
+    for j in range(min(Agg), j2+1):
+
+        start = end
+        end = int((j - j1 + 1) * (2 + j - j1) / 2)
+
+        # cutting extraneous coefficients
+        agg[:, start:end] = np.repeat(Agg[j], 2 ** (j - j1), axis=0)[:agg.shape[0]]
+
+    return agg
+
+
+def inv_log_gamma_cdf(x, window_size):
+    out = gammaincc(window_size, -window_size * np.log(x))
+
+    if np.isclose(out, 1).any():
+        print('a')
+
+    return out
+
+
+def filter_gmean(input_line, output_line, window_size):
+
+    if window_size == 1:
+        output_line[:] = input_line
+
+    else:
+        output_line[:] = np.nan
+        output_line[:] = stats.mstats.gmean(
+            np.lib.stride_tricks.sliding_window_view(input_line, window_size), axis=1)
+        output_line[:] = inv_log_gamma_cdf(output_line, window_size)        
+
+
+def compute_all_aggregate2(CDF, j1, j2):
+
+    N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
+    agg = np.zeros((CDF[j2].shape[0] * 2 ** (j2 - j1), N, *CDF[j1].shape[1:]))
+
+    acc = 0
+    for j in range(j1, j2+1):
+        
+        for i in range(j2-j + 1):
+
+            agg[:, acc] = np.repeat(ndimage.generic_filter1d(
+                CDF[j], filter_gmean, 2**i, 0, mode='constant', cval=np.nan,
+                extra_arguments=(2 ** i,), origin=0), 2 ** (j - j1), axis=0)[:agg.shape[0]]
+
+            acc += 1
+
+    # agg shape N_coef, N_aggregates, N_ranges, N_signals
+    # N_coef is determined by the upsampled number of coefficients 
+
+    return agg
+
+
+def compute_all_aggregate3(CDF, j1, j2, leader=False):
+
+    Agg = {
+        j: compute_aggregate(CDF, j, j, leader) for j in range(j1, j2+1)
+    }
+
+    # N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
+    agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), j2-j1+1, *CDF[j1].shape[1:]))
+
+    # agg shape N_coef, N_aggregates, N_ranges, N_signals
+    # N_coef is determined by the upsampled number of coefficients 
+
+    end = 0
+
+    for i, j in enumerate(range(min(Agg), j2+1)):
+
+        # start = end
+        # end = int((j - j1 + 1) * (2 + j - j1) / 2)
+
+        # cutting extraneous coefficients
+        agg[:, i] = np.repeat(Agg[j][:, 0], 2 ** (j - j1), axis=0)[:agg.shape[0]]
+
+    return agg
+
+
+def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
+             leader_idx_correction=True, pval=False, cbar=True, figsize=(2.5, 1),
+             gamma=.3, nan_idx=None, signal_idx=0, range_idx=0):
+
+    min_all = min([np.nanmin(np.abs(cdf[s])) for s in range(j1, j2+1) if s in cdf])
+
+    if vmax is None:
+        vmax = max([np.nanmax(cdf[s]) for s in range(j1, j2+1) if s in cdf])
+    if vmin is None:
+        vmin = min_all
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
+
+    # norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
+
+    cmap = mpl.cm.get_cmap('inferno').copy()
+    cmap.set_bad('grey')
+
+    for i, scale in enumerate(range(j1, j2 + 1)):
+
+        if scale not in cdf:
+            continue
+
+        temp = cdf[scale][:, signal_idx, range_idx]
+        # temp = np.exp(abs(temp - .5) ** 2)
+
+        X = ((np.arange(temp.shape[0] + 1))
+             * (2 ** (scale - j1 + 1)))
+        X = np.tile(X[:, None], (1, 2))
+
+        C = np.copy(temp[:, None])
+
+        if pval:
+            C = -np.log(C)
+
+        Y = np.ones(X.shape[0]) * scale
+        Y = np.stack([Y - .5, Y + .5]).transpose()
+
+        qm = ax.pcolormesh(X, Y, C, cmap=cmap, rasterized=True)
+
+        if nan_idx is not None:
+            idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
+
+            segments = np.split(idx, np.where(np.diff(idx) != 1)[0] + 1)
+
+            for seg in segments:
+
+                if len(seg) == 0:
+                    continue
+
+                ax.pcolormesh(
+                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                    edgecolor='xkcd:blue')
+
+    ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
+           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey',
+           xlim=(0, cdf[j1].shape[0]*2))
+
+    ax.tick_params(which='minor', left=True, right=False, top=False, color='w')
+    ax.yaxis.set_minor_locator(mpl.ticker.IndexLocator(base=1, offset=.5))
+    ax.tick_params(which='major', right=False, top=False, color='w')
+
+    # ax.set_yticks(range(j1, j2+1))
+    # ax.set_xlabel('shift')
+    # ax.set_ylabel('scale')
+    # ax.set_facecolor('grey')
+
+    if cbar:
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        locator = mpl.ticker.MaxNLocator(4, symmetric=False)
+        cb = plt.colorbar(qm, ax=ax, ticks=locator, fraction=.1, aspect=8)
+        # plt.colorbar(qm, ax=ax    es[0], ticks=locator, aspect=1)
+        cb.ax.tick_params(which='major', size=3)
+        cb.ax.tick_params(which='minor', right=False)
+
+
+def cluster_reject_leaders(j1, j2, p_exp, cm, coefs, leaders, verbose,
+                           generalized=False):
+
+    ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())
+    ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
+
+    if generalized:
+
+        j_array, C1_array, scale, shape = get_location_scale_shape(cm)
+        
+        CDF = {
+            j: gen_cdf(
+            np.log(leaders.values[j][:, None]), 
+            C1_array[j_array == j] - ZPJCorr[j_array==j],
+            scale[j_array==j], shape[j_array==j])
+            for j in range(j1, j2+1)
+        }
+
+    else:
+        j_array, C1_array, C2_array = get_location_scale(cm)
+    
+        CDF = {
+            j: normal_cdf(
+            np.log(leaders.values[j][:, None]), 
+            C1_array[j_array == j] - ZPJCorr[j_array==j],
+            np.sqrt(C2_array[j_array == j]),
+            p=1)
+            for j in range(j1, j2+1)
+        }
+
+    if verbose:
+        plt.figure()
+        plot_cdf(CDF, j1, j2, pval=False)
+
+    idx_reject = {
+        j: np.zeros_like(CDF[j], dtype=bool) for j in range(j1, j2+1)
+    }
+
+    agg = compute_all_aggregate(CDF, j1, j2, leader=True)
+
+    # mask_nan = np.isnan(agg[:, :agg.shape[1] // 2, 0, 0]).any(axis=1)
+    mask_nan = np.isnan(agg[:, :, 0, 0]).any(axis=1)
+
+    clusterer = hdbscan.HDBSCAN(
+        cluster_selection_epsilon=5, metric='euclidean',
+        min_cluster_size=(~mask_nan).sum() // 2 + 1,
+        min_samples=1, cluster_selection_method='eom',
+        allow_single_cluster=True, gen_min_span_tree=verbose,
+        algorithm='boruvka_balltree')
+
+    # clusterer = hdbscan.HDBSCAN(
+    #     cluster_selection_epsilon=.9, metric='minkowski', min_cluster_size=1920,
+    #     min_samples=1,
+    #     cluster_selection_method='eom', p=2,
+    #     allow_single_cluster=True, gen_min_span_tree=verbose)
+
+    for idx_signal, idx_range in tqdm(np.ndindex(CDF[j1].shape[1:])):
+
+        standard_embedding = umap.UMAP(
+            n_components=j2-j1,
+            n_neighbors=20,
+            metric='manhattan',
+            n_epochs=10000,
+            set_op_mix_ratio=.5,
+            min_dist=0,
+        # ).fit_transform(agg[~mask_nan, :agg.shape[1] // 2, idx_signal, idx_range])
+        ).fit_transform(agg[~mask_nan, :, idx_signal, idx_range])
+
+        if verbose:
+            plt.figure()    
+            N = (~mask_nan).sum()
+            cmap = sns.color_palette('inferno', as_cmap=True)
+            ax = sns.scatterplot(
+                x=standard_embedding[:, 0], y=standard_embedding[:, 1],
+                s=30, color=cmap(np.arange(N)/N), legend=False)
+            ax.set(xlabel='1st embedding dimension',
+                   ylabel='2nd embedding dimension',
+                   title='UMAP embedding')
+
+        p = clusterer.fit_predict(standard_embedding)
+
+        # p = clusterer.fit_predict(agg[~mask_nan, :28, idx_signal, idx_range])
+
+        if verbose and idx_signal == 0 and idx_range == 0:
+            plt.figure()
+            sns.histplot(clusterer.minimum_spanning_tree_.to_pandas().distance.values, log=True)
+
+        # First slice to mask_nan shape, which correspond to the 
+        idx_reject[j1][:mask_nan.shape[0]][~mask_nan, idx_signal, idx_range] = p == -1
+
+    # if verbose:
+
+    #     print(agg[~idx_reject[j1][:mask_nan.shape[0], 0, 0]].shape)
+
+    #     standard_embedding = umap.UMAP(
+    #         n_components=j2-j1, #agg.shape[1],
+    #         n_neighbors=20,
+    #         metric='manhattan',
+    #         n_epochs=100,
+    #         set_op_mix_ratio=.5,
+    #         min_dist=0,
+    #     # ).fit_transform(agg[~mask_nan, :agg.shape[1] // 2, idx_signal, idx_range])
+    #     ).fit_transform(agg[~(idx_reject[j1][:mask_nan.shape[0], idx_signal, idx_range] | mask_nan), :, idx_signal, idx_range])
+
+    #     plt.figure()
+    #     N = (~mask_nan).sum()
+    #     cmap = sns.color_palette('inferno', as_cmap=True)
+    #     ax = sns.scatterplot(x=standard_embedding[:, 0], y=standard_embedding[:, 1],
+    #                          s=30, legend=False)
+    #     ax.set(xlabel='1st embedding dimension', ylabel='2nd embedding dimension', title='UMAP embedding')
+
+    #     p = clusterer.fit_predict(standard_embedding)
+
+    #     # p = clusterer.fit_predict(agg[~mask_nan, :28, idx_signal, idx_range])
+
+    #     if verbose and idx_signal == 0 and idx_range == 0:
+    #         plt.figure()
+    #         sns.histplot(clusterer.minimum_spanning_tree_.to_pandas().distance.values, log=True)
+
+    return idx_reject
+
+
+def normal_cdf(x, mu, sigma, p):
+    return .5 * (1 + erf((x - p * mu) / (p * sigma * np.sqrt(2))))

@@ -4,7 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import dataclass, InitVar, field
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .utils import fast_power, MFractalVar, isclose
+from .utils import fast_power, MFractalVar, isclose, mask_reject
 from .multiresquantity import MultiResolutionQuantityBase,\
     MultiResolutionQuantity
 
@@ -69,6 +69,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
     q: np.array
     scaling_ranges: List[Tuple[int]]
     weighted: str = None
+    idx_reject: InitVar[Dict[int, np.ndarray]] = field(default=None)
     bootstrapped_mfa: InitVar[MFractalVar] = None
     j: np.array = field(init=False)
     logvalues: np.array = field(init=False)
@@ -76,7 +77,7 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
     H: np.array = field(init=False)
     gamint: float = field(init=False)
 
-    def __post_init__(self, mrq, bootstrapped_mfa):
+    def __post_init__(self, mrq, idx_reject, bootstrapped_mfa):
 
         self.formalism = mrq.formalism
         self.gamint = mrq.gamint
@@ -87,10 +88,10 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         if bootstrapped_mfa is not None:
             self.bootstrapped_mrq = bootstrapped_mfa.structure
 
-        self._compute(mrq)
+        self._compute(mrq, idx_reject)
         self._compute_zeta(mrq.n_rep)
 
-    def _compute(self, mrq):
+    def _compute(self, mrq, idx_reject):
 
         if self.formalism == 'wavelet p-leader':
             self.values = values = np.zeros(
@@ -105,6 +106,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
             c_j = mrq.values[j][:, None, :] * (
                 mrq.ZPJCorr[None, :, :, ind_j] if self.formalism == 'wavelet p-leader' else 1
             )
+
+            c_j = mask_reject(c_j, idx_reject, j, mrq.interval_size)
 
             s_j = np.zeros((values.shape[0], values.shape[2], mrq.n_rep))
 

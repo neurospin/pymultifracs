@@ -28,7 +28,7 @@ def _check_formalism(p_exp):
         return 'wavelet p-leader'
 
 
-def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted):
+def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
     """
     Estimate the value of eta_p
     """
@@ -36,7 +36,8 @@ def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted):
     wavelet_structure = StructureFunction(wt_coefs,
                                           np.array([p_exp]),
                                           scaling_ranges,
-                                          weighted)
+                                          weighted,
+                                          idx_reject=idx_reject)
 
     # shape N_ranges, N_signals
     return wavelet_structure.zeta[0]
@@ -147,6 +148,26 @@ def filtering(approx, high_filter, low_filter):
     return detail, approx
 
 
+def filtering2(approx, wt):
+    """
+    """
+
+    low, high = pywt.dwt(approx, wt, axis=0)
+
+    # index of first good value
+    fp = wt.dec_len - 1
+    # index of last good value
+    lp = -fp
+
+    # replace border with nan
+    high[0:fp] = np.nan
+    high[lp:] = np.nan
+    low[0:fp] = np.nan
+    low[lp:] = np.nan
+
+    return high[1:-1], low[1:-1]
+
+
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
     if scale == 1:
@@ -217,7 +238,8 @@ def compute_leaders(wt_coefs, gamint, p_exp, size=3):
 
     sans_voisin = None
     wt_leaders = MultiResolutionQuantity(formalism, gamint, p_exp=p_exp,
-                                         origin_mrq=wt_coefs)
+                                         origin_mrq=wt_coefs,
+                                         interval_size=size)
 
     max_level = wt_coefs.j2_eff()
 
@@ -249,7 +271,8 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
 
     wt_leaders = MultiResolutionQuantity(formalism, gamint,
                                          n_sig=wt_coefs.n_sig, p_exp=p_exp,
-                                         origin_mrq=wt_coefs)
+                                         origin_mrq=wt_coefs,
+                                         interval_size=size)
 
     max_level = wt_coefs.j2_eff()
 
@@ -491,16 +514,21 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
     # Initialize structures
     wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name,
-                                       n_sig=signal.shape[1])
+                                       n_sig=signal.shape[1],
+                                       interval_size=1)
     wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
                                          n_sig=signal.shape[1], p_exp=p_exp,
-                                         origin_mrq=wt_coefs)
+                                         origin_mrq=wt_coefs, interval_size=3)
 
     sans_voisin = None
 
     for scale in range(1, max_level + 1):
 
         detail, approx = filtering(approx, high_filter, low_filter)
+
+        detail = detail[:-1]
+
+        # detail, approx = filtering2(approx, wavelet)
 
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))

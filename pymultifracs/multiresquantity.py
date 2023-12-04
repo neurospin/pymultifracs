@@ -9,10 +9,8 @@ from typing import Any
 
 import numpy as np
 
-from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders
-from .bootstrap import circular_leader_bootstrap, get_empirical_CI, \
-    get_confidence_interval, get_empirical_variance, \
-    get_variance, get_std
+from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
+    mask_reject
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .regression import compute_R2
 
@@ -75,7 +73,7 @@ class MultiResolutionQuantityBase:
             if k in inspect.signature(cls).parameters
         })
 
-    def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges):
+    def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
         sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.n_rep))
 
@@ -83,6 +81,9 @@ class MultiResolutionQuantityBase:
             for j in range(j1, j2 + 1):
 
                 c_j = np.abs(self.values[j])
+
+                c_j = mask_reject(c_j, idx_reject, j, 1)
+                
                 sup_c_j = np.nanmax(c_j, axis=0)
                 sup_coeffs[j-j_min, i] = sup_c_j
 
@@ -150,19 +151,23 @@ class MultiResolutionQuantityBase:
 
     def __getattr__(self, name):
 
+
         if name[:3] == 'CI_':
+            from .bootstrap import get_confidence_interval
 
             bootstrapped_mrq = self._get_bootstrapped_mrq()
 
             return get_confidence_interval(bootstrapped_mrq, name[3:])
 
         elif name[:4] == 'CIE_':
+            from .bootstrap import get_empirical_CI
 
             self._check_bootstrap_mrq()
 
             return get_empirical_CI(self.bootstrapped_mrq, self, name[4:])
 
         elif name[:3] == 'VE_':
+            from .bootstrap import get_empirical_variance
 
             self._check_bootstrap_mrq()
 
@@ -170,6 +175,8 @@ class MultiResolutionQuantityBase:
                                           name[3:])
 
         elif name[:3] == 'SE_':
+
+            from .bootstrap import get_empirical_variance
 
             self._check_bootstrap_mrq()
 
@@ -179,11 +186,15 @@ class MultiResolutionQuantityBase:
 
         elif name[:2] == 'V_':
 
+            from .bootstrap import get_variance
+
             bootstrapped_mrq = self._get_bootstrapped_mrq()
 
             return get_variance(bootstrapped_mrq, name[2:])
 
         elif name[:4] == 'STD_':
+
+            from .bootstrap import get_std
 
             bootstrapped_mrq = self._get_bootstrapped_mrq()
 
@@ -228,6 +239,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     wt_name: str
     n_sig: int = None
     p_exp: float = None
+    interval_size: int = 1
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase = None
@@ -244,6 +256,8 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                              '"wavelet leader", "wavelet p-leader"')
 
     def bootstrap(self, R, min_scale=1):
+
+        from .bootstrap import circular_leader_bootstrap
 
         block_length = get_filter_length(self.wt_name)
         max_scale = max_scale_bootstrap(self)
@@ -264,6 +278,8 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
 
     @classmethod
     def bootstrap_multiple(cls, R, min_scale, mrq_list):
+
+        from .bootstrap import circular_leader_bootstrap
 
         block_length = max([
             get_filter_length(mrq.wt_name) for mrq in mrq_list
@@ -290,17 +306,10 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
     def correct_pleaders(self, min_scale, max_scale):
-<<<<<<< HEAD
 
         self.ZPJCorr = _correct_pleaders(
             self, self.p_exp, min_scale, max_scale)
 
-=======
-
-        self.ZPJCorr = _correct_pleaders(
-            self, self.p_exp, min_scale, max_scale)
-
->>>>>>> f707405b0e7cea21c0eee248f00f172034eb1f06
         return self.ZPJCorr
 
     def __getattribute__(self, name: str) -> Any:

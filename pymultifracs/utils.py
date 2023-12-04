@@ -22,7 +22,7 @@ lwt : MFractalVar
 """
 
 MFractalVar = namedtuple('MFractalVar',
-                         'structure cumulants spectrum hmin')
+                         'structure cumulants spectrum')
 """Aggregates the output of multifractal analysis
 
 Attributes
@@ -226,3 +226,20 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
 
     # ZPJCorr shape (n_ranges, n_rep, n_level)
     return ZPJCorr
+
+
+def mask_reject(values, idx_reject, j, interval_size):
+
+    if idx_reject is None or j not in idx_reject:
+        return values
+
+    mask = np.ones_like(idx_reject[j], dtype=float)
+
+    mask[idx_reject[j]] = np.nan
+
+    delta = (interval_size - 1) // 2
+    
+    if delta > 0:
+        return values * mask[delta:-delta]
+    
+    return values * mask

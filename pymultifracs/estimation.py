@@ -13,7 +13,7 @@ from .regression import linear_regression, prepare_regression, prepare_weights
 from .structurefunction import StructureFunction
 
 
-def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
+def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
                   return_y=False):
     """
     Estimate the value of the uniform regularity exponent hmin using
@@ -27,8 +27,8 @@ def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
     if weighted == 'bootstrap' and mrq.bootstrapped_mrq is not None:
 
         std = np.std(
-            mrq.bootstrapped_mrq.sup_coeffs(n_ranges, j_max, j_min,
-                                            scaling_ranges),
+            mrq.bootstrapped_mrq.sup_coeffs(
+                n_ranges, j_max, j_min, scaling_ranges, idx_reject),
             axis=-1)[None, :]
 
     else:
@@ -37,7 +37,8 @@ def estimate_hmin(mrq, scaling_ranges, weighted, warn=True,
     w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
                         scaling_ranges, std=std)
 
-    sup_coeffs = mrq.sup_coeffs(n_ranges, j_max, j_min, scaling_ranges)
+    sup_coeffs = mrq.sup_coeffs(
+        n_ranges, j_max, j_min, scaling_ranges, idx_reject)
 
     y = np.log2(sup_coeffs)[None, :]
 
