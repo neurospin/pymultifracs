@@ -303,8 +303,7 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
     if len(cm.m) > 1:
         plot_dim_1 = nrow
-        plot_dim_2 = int(np.ceil(len(cm.m) / nrow))
-
+        plot_dim_2 = int(np.ceil(n_cumul / nrow))
     else:
         plot_dim_1 = 1
         plot_dim_2 = 1
