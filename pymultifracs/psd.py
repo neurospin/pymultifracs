@@ -249,11 +249,10 @@ def wavelet_estimation(signal, fs, n_moments, j2=None, wt='db'):
     """
 
     # PSD
-    transform = wavelet_analysis(signal, j1=1, j2=j2,
+    transform = wavelet_analysis(signal, j2=j2,
                                  normalization=1,
                                  wt_name=f'{wt}{n_moments}',
                                  gamint=0.5,
-                                 weighted=None,
                                  p_exp=None)
 
     # for arr in transform.wt_coefs.values.values():
