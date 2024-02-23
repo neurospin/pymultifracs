@@ -232,6 +232,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.n_sig = mrq.n_sig
+        self.gamint = mrq.gamint
         self.j = np.array(list(mrq.values))
 
         if bootstrapped_mfa is not None:

@@ -237,7 +237,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                                  plot_dim_2,
                                  num=figlabel,
                                  squeeze=False,
-                                 figsize=figsize)
+                                 figsize=figsize,
+                                 sharex=True)
 
         fig.suptitle(self.formalism +
                      r' - structure functions $\log_2(S(j,q))$')
@@ -272,9 +273,10 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                 CI = None
 
             ax = axes[counter % nrow][counter // nrow]
-            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=-1)
+            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=4)
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
+            ax.tick_params(bottom=False, top=False, which='minor')
 
             counter += 1
 
@@ -299,13 +301,13 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
                 legend = rf'$s_{{{q:.2f}}}$ = {slope:.2f}' + CI_legend
 
                 ax.plot([x0, x1], [y0, y1], color='k',
-                        linestyle='-', linewidth=2, label=legend, zorder=0)
+                        linestyle='-', linewidth=2, label=legend, zorder=5)
                 ax.legend()
 
         for j in range(counter, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
 
-        plt.draw()
+        # plt.draw()
 
         if filename is not None:
             plt.savefig(filename)

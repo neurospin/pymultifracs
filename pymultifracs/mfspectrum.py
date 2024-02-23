@@ -84,6 +84,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.n_sig = mrq.n_sig
+        self.gamint = mrq.gamint
         self.j = np.array(list(mrq.values))
 
         if bootstrapped_mfa is not None:
@@ -208,7 +209,8 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         return super().__getattr__(name)
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
-             fmt='ko-', scaling_range=0, signal_idx=0, **plot_kwargs):
+             fmt='ko-', scaling_range=0, signal_idx=0, shift_gamint=False,
+             **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
@@ -248,7 +250,10 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         else:
             CI_Dq, CI_hq = None, None
 
-        ax.errorbar(self.hq[:, scaling_range, 0], self.Dq[:, scaling_range, 0],
+        shift = 0 if not shift_gamint else self.gamint
+
+        ax.errorbar(self.hq[:, scaling_range, 0] - shift,
+                    self.Dq[:, scaling_range, 0],
                     CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
