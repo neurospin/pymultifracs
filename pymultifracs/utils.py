@@ -38,12 +38,10 @@ MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
 
 
 def scale2freq(scale, sfreq):
-    return (3/4) * sfreq * (2 ** -scale)
-
+    return pywt.scale2frequency('db3', 2 ** scale) * sfreq
 
 def freq2scale(freq, sfreq):
-    return - 2 - np.log2(freq / (3 * sfreq))
-
+    return np.log2(pywt.frequency2scale('db3', freq / sfreq))
 
 def fband2scale(fband, sfreq):
     return (int(np.ceil(freq2scale(fband[1], sfreq))),
@@ -238,7 +236,7 @@ def mask_reject(values, idx_reject, j, interval_size):
     mask[idx_reject[j]] = np.nan
 
     delta = (interval_size - 1) // 2
-    
+
     if delta > 0:
         return values * mask[delta:-delta]
     

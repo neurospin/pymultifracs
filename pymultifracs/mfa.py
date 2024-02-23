@@ -82,7 +82,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted, idx_reject)
 
         if eta_p.max() <= 0:
-            raise ValueError(
+            # raise ValueError(
+            warnings.warn(
                 f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
                 "analyzed. A smaller value of p (or larger value of gamint) "
                 "should be selected.")

@@ -310,18 +310,20 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         if filename is not None:
             plt.savefig(filename)
 
-    def plot_scaling(self, figlabel='Scaling Function', filename=None):
-
+    def plot_scaling(self, figlabel='Scaling Function', filename=None,
+                    ax=None, signal_idx=0, range_idx=0, **plot_kw):
+        
         assert len(self.q) > 1, ("This plot is only possible if more than 1 q",
                                  " value is used")
 
-        plt.figure(figlabel)
-        plt.plot(self.q, self.zeta[:, 0, 0], 'k--.')
-        plt.xlabel('q')
-        plt.ylabel(r'$\zeta(q)$')
-        plt.suptitle(self.formalism + ' - scaling function')
+        if ax is None:
+            _, ax = plt.subplots()
 
-        plt.draw()
+        ax.plot(self.q, self.zeta[:, range_idx, signal_idx], **plot_kw)
+        ax.set(
+            xlabel = 'q', ylabel=r'$\zeta(q)$', title=self.formalism + ' - scaling function')
+
+        # plt.draw()
 
         if filename is not None:
             plt.savefig(filename)

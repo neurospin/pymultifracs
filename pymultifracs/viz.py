@@ -400,23 +400,18 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
               leader_idx_correction=True, cbar=True, figsize=(2.5, 1),
               gamma=.3, nan_idx=None, signal_idx=0):
-
-    min_all = min([np.nanmin(np.abs(mrq.values[s][:, signal_idx])) for s in range(j1, j2+1) if s in mrq.values])
-
+    
     if vmax is None:
-        vmax = max([np.nanmax(mrq.values[s][:, signal_idx]) for s in range(j1, j2+1) if s in mrq.values])
+        max_scale = [
+            np.nanmax(mrq.values[s][:, signal_idx])
+            for s in range(j1, j2+1) if s in mrq.values
+        ]
+
     if vmin is None:
-        vmin = min_all
-
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')#, width_ratios=[20, 1])
-
-    norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
-
-    # ax = axes[0]
-
-    cmap = mpl.cm.get_cmap('inferno').copy()
-    cmap.set_bad('grey')
+        min_scale = [
+            np.nanmin(np.abs(mrq.values[s][:, signal_idx]))
+            for s in range(j1, j2+1) if s in mrq.values
+        ]
 
     if mrq.formalism == 'wavelet p-leader':
 
@@ -426,7 +421,33 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
                 mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
             )
 
-        ZPJCorr = mrq.correct_pleaders(j1, j2)[None, 0, signal_idx, ]
+        ZPJCorr = mrq.correct_pleaders(j1, j2)[None, 0, signal_idx]
+
+        if vmax is None:
+            max_scale = [
+                m * ZPJCorr[:, scale-j1] 
+                for m, scale in zip(max_scale, range(j1, j2+1))
+            ]
+
+        if vmin is None:
+            min_scale = [
+                m * ZPJCorr[:, scale-j1] 
+                for m, scale in zip(min_scale, range(j1, j2+1))
+            ]
+
+    if vmax is None:
+        vmax = max(max_scale)
+    if vmin is None:
+        vmin = min(min_scale)
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')#, width_ratios=[20, 1])
+
+    norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
+    # ax = axes[0]
+
+    cmap = mpl.cm.get_cmap('inferno').copy()
+    cmap.set_bad('grey')
 
     for i, scale in enumerate(range(j1, j2 + 1)):
 
@@ -469,7 +490,8 @@ def plot_coef(mrq, j1, j2, leader=True, ax=None, vmin=None, vmax=None,
                     edgecolor='xkcd:blue')
 
     ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
-           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey', xlim=(0, mrq.values[j1].shape[0]*2))
+           xlabel='shift $k$', ylabel='scale $j$', facecolor='grey',
+           xlim=(0, mrq.values[j1].shape[0]*2))
 
     ax.tick_params(which='minor', left=True, right=False, top=False, color='w')
     ax.yaxis.set_minor_locator(mpl.ticker.IndexLocator(base=1, offset=.5))

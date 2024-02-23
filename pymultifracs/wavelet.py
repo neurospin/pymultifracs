@@ -452,8 +452,8 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
         will be computed. If None, it will automatically be set to the
         highest value possible.
 
-    gamint : float
-        Fractional integration coefficient :math:`\\gamma_{\\textrm{int}}`
+    gamint : float | ndarray, shape (n_realisations)
+        Fractional integration coefficient :math:`\\gamma_{\\textrm{int}}`.
 
     normalization : int
         Norm to use on the wavelet coefficients, see notes for more details.
@@ -496,6 +496,9 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
     if len(signal.shape) == 1:
         signal = signal[:, None]
 
+    if isinstance(gamint, np.ndarray) and gamint.ndim == 1:
+        gamint = gamint[None, :]
+
     # Initialize the filter
     wavelet = pywt.Wavelet(wt_name)
     # Investigate why -1
@@ -524,6 +527,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
     for scale in range(1, max_level + 1):
 
+        # detail shape (N_coef_at_scale, n_realisations)
         detail, approx = filtering(approx, high_filter, low_filter)
 
         detail = detail[:-1]

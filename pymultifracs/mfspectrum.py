@@ -4,7 +4,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +13,7 @@ from .multiresquantity import (MultiResolutionQuantity,
                                MultiResolutionQuantityBase)
 from .regression import linear_regression, prepare_regression, prepare_weights
 from .ScalingFunction import ScalingFunction
-from .utils import MFractalVar, fast_power, fixednansum, isclose
+from .utils import MFractalVar, fast_power, fixednansum, isclose, mask_reject
 
 
 @dataclass
@@ -68,17 +68,18 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf
     """
     mrq: InitVar[MultiResolutionQuantity]
-    j: np.array = field(init=False)
-    scaling_ranges: List[Tuple[int]]
     q: np.array
+    scaling_ranges: List[Tuple[int]]
     bootstrapped_mfa: InitVar[MFractalVar] = None
     weighted: str = None
+    idx_reject: InitVar[Dict[int, np.ndarray]] = field(default=None)
+    j: np.array = field(init=False)
     Dq: np.array = field(init=False)
     hq: np.array = field(init=False)
     U: np.array = field(init=False)
     V: np.array = field(init=False)
 
-    def __post_init__(self, mrq, bootstrapped_mfa):
+    def __post_init__(self, mrq, bootstrapped_mfa, idx_reject):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
@@ -88,9 +89,9 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         if bootstrapped_mfa is not None:
             self.bootstrapped_mrq = bootstrapped_mfa.spectrum
 
-        self._compute(mrq)
+        self._compute(mrq, idx_reject)
 
-    def _compute(self, mrq):
+    def _compute(self, mrq, idx_reject):
         """
         Computes the multifractal spectrum (Dq, hq)
         """
@@ -108,21 +109,26 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            nj = mrq.nj[j]
+            # nj = mrq.nj[j]
             mrq_values_j = np.abs(mrq.values[j])[:, None, :]
 
             if self.formalism == 'wavelet p-leader':
                 mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
 
+            mrq_values_j = mask_reject(
+                mrq_values_j, idx_reject, j, mrq.interval_size)
+
             idx_nan = np.isnan(mrq_values_j)
             temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
                             axis=0)
-
             # np.nan ** 0 = 1.0, adressed here
             temp[:, idx_nan] = np.nan
+
             Z = np.nansum(temp, axis=1)[:, None, :]
             Z[Z == 0] = np.nan
             R_j = temp / Z
+            
+            nj = ((~idx_nan).sum(axis=0))[None, :]
             V[:, ind_j] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
             U[:, ind_j] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
                                                     axis=1)
@@ -144,8 +150,8 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         hq = np.zeros_like(Dq)
 
         # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-        y = U[:, j_min_idx:j_max_idx, None, :]
-        z = V[:, j_min_idx:j_max_idx, None, :]
+        y = U[:, j_min_idx:j_max_idx, :]
+        z = V[:, j_min_idx:j_max_idx, :]
 
         if self.weighted == 'bootstrap':
 
@@ -176,7 +182,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
         self.weights['w_U'] = prepare_weights(
             self, self.weighted, n_ranges, j_min, j_max, self.scaling_ranges,
             std_U)
-
+        
         slope_1, _ = linear_regression(x, y, self.weights['w_U'])
         slope_2, _ = linear_regression(x, z, self.weights['w_V'])
 
@@ -246,7 +252,7 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
                     CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
-        ax.set(xlabel='h', ylabel='D(h)', ylim=(0, 1.05), xlim=(0, 1.5))
+        ax.set(xlabel='h', ylabel='D(h)', ylim=(0, 1.1), xlim=(0, 1.5))
 
         plt.suptitle(self.formalism + ' - multifractal spectrum')
         plt.draw()

@@ -8,6 +8,7 @@ import inspect
 from typing import Any
 
 import numpy as np
+import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
     mask_reject
@@ -80,7 +81,7 @@ class MultiResolutionQuantityBase:
         for i, (j1, j2) in enumerate(scaling_ranges):
             for j in range(j1, j2 + 1):
 
-                c_j = np.abs(self.values[j])
+                c_j = np.abs(self.values[j])[:, None, :]
 
                 c_j = mask_reject(c_j, idx_reject, j, 1)
                 
@@ -118,7 +119,7 @@ class MultiResolutionQuantityBase:
 
     def find_best_range(self):
         return find_max_lambda(self.compute_Lambda())
-
+    
     def _check_enough_rep_bootstrap(self):
 
         if (ratio := self.n_rep // self.n_sig) < 2:
@@ -150,7 +151,6 @@ class MultiResolutionQuantityBase:
         self.bootstrapped_mrq._check_enough_rep_bootstrap()
 
     def __getattr__(self, name):
-
 
         if name[:3] == 'CI_':
             from .bootstrap import get_confidence_interval
@@ -201,6 +201,12 @@ class MultiResolutionQuantityBase:
             return get_std(bootstrapped_mrq, name[4:])
 
         return self.__getattribute__(name)
+    
+    def scale2freq(self, scale, sfreq):
+        return pywt.scale2frequency(self.wt_name, scale) * sfreq
+        
+    def freq2scale(self, freq, sfreq):
+        return pywt.frequency2scale(self.wt_name, freq / sfreq)
 
 
 @dataclass
@@ -209,7 +215,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     Handles multi-resolution quantities in multifractal analysis.
 
     It can be used to represent wavelet coefficients :math:`d_X(j, k)`
-    and wavelet leaders :math:`L_X(j, k)`.
+    and wavelet (p-)leaders :math:`L_X(j, k)`.
 
     Parameters
     ----------
