@@ -252,14 +252,16 @@ class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
 
         shift = 0 if not shift_gamint else self.gamint
 
-        ax.errorbar(self.hq[:, scaling_range, 0] - shift,
-                    self.Dq[:, scaling_range, 0],
+        ax.errorbar(self.hq[:, scaling_range, signal_idx] - shift,
+                    self.Dq[:, scaling_range, signal_idx],
                     CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
-        ax.set(xlabel='h', ylabel='D(h)', ylim=(0, 1.1), xlim=(0, 1.5))
+        ax.set(xlabel='Regularity $h$', ylabel='Fractal dimension $D(h)$',
+               ylim=(0, 1.1), xlim=(0, 1.5),
+               title=self.formalism + ' - multifractal spectrum')
 
-        plt.suptitle(self.formalism + ' - multifractal spectrum')
+        # plt.suptitle()
         plt.draw()
 
         if filename is not None:
