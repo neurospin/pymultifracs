@@ -265,7 +265,7 @@ def compute_leaders(wt_coefs, gamint, p_exp, size=3):
     return wt_leaders
 
 
-def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
+def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
 
     formalism = _check_formalism(p_exp)
 
@@ -297,12 +297,12 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
             coefs[size-i:-(i-1) or None] for i in range(1, size+1)
         ], axis=0)
 
-        if (idx_reject is not None
-                and scale in idx_reject
-                and idx_reject[scale].sum() > 0):
+        # if (idx_reject is not None
+        #         and scale in idx_reject
+        #         and idx_reject[scale].sum() > 0):
 
-            idx = idx_reject[scale]
-            scale_contribution[:, idx.squeeze().transpose()] = np.nan
+        #     idx = idx_reject[scale]
+        #     scale_contribution[:, idx.squeeze().transpose()] = np.nan
 
         if scale == 1:
 
@@ -353,13 +353,13 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3, idx_reject=None):
         leaders = fast_power(pleader_p[scale], 1/p_exp)
         wt_leaders.add_values(leaders, scale)
 
-    if formalism == 'wavelet p-leader':
+    # if formalism == 'wavelet p-leader':
 
-        working_coefs = deepcopy(wt_coefs)
+    #     working_coefs = deepcopy(wt_coefs)
 
-        if idx_reject is not None:
-            for scale in idx_reject:
-                working_coefs.values[scale][1:-1][idx_reject[scale][0].squeeze().transpose()] = np.nan
+    #     if idx_reject is not None:
+    #         for scale in idx_reject:
+    #             working_coefs.values[scale][1:-1][idx_reject[scale][0].squeeze().transpose()] = np.nan
 
     return wt_leaders
 
@@ -382,43 +382,43 @@ eta_p : float
 """
 
 
-def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
-                           normalization, gamint, j2, wt_name):
+# def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
+#                            normalization, gamint, j2, wt_name):
 
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name)
-    wt_leaders = None
+#     wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name)
+#     wt_leaders = None
 
-    for scale in range(1, max_level + 1):
+#     for scale in range(1, max_level + 1):
 
-        detail, approx = filtering(approx, high_filter, low_filter)
+#         detail, approx = filtering(approx, high_filter, low_filter)
 
-        # normalization
-        detail = detail*2**(scale*(0.5-1/normalization))
+#         # normalization
+#         detail = detail*2**(scale*(0.5-1/normalization))
 
-        # fractional integration
-        detail = detail*2.0**(gamint*scale)
+#         # fractional integration
+#         detail = detail*2.0**(gamint*scale)
 
-        # remove infinite values and store wavelet coefficients
-        # finite_idx_coef = np.logical_not(np.isinf(np.abs(detail)))
-        finite_idx_coef = np.logical_not(np.isnan(np.abs(detail)))
+#         # remove infinite values and store wavelet coefficients
+#         # finite_idx_coef = np.logical_not(np.isinf(np.abs(detail)))
+#         finite_idx_coef = np.logical_not(np.isnan(np.abs(detail)))
 
-        # print(np.sum(finite_idx_coef, axis=0).min())
+#         # print(np.sum(finite_idx_coef, axis=0).min())
 
-        if np.sum(finite_idx_coef, axis=0).min() < 3:
-            max_level = scale-1
-            break
+#         if np.sum(finite_idx_coef, axis=0).min() < 3:
+#             max_level = scale-1
+#             break
 
-        # if 0 in np.sum(finite_idx_coef, axis=0):
+#         # if 0 in np.sum(finite_idx_coef, axis=0):
 
-        # detail[~finite_idx_coef] = np.nan
-        wt_coefs.add_values(detail, scale)
+#         # detail[~finite_idx_coef] = np.nan
+#         wt_coefs.add_values(detail, scale)
 
-    # "effective" j2, used in linear regression
-    j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
+#     # "effective" j2, used in linear regression
+#     j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
 
-    return WaveletTransform(wt_leaders=wt_leaders,
-                            wt_coefs=wt_coefs,
-                            j2_eff=j2_eff)
+#     return WaveletTransform(wt_leaders=wt_leaders,
+#                             wt_coefs=wt_coefs,
+#                             j2_eff=j2_eff)
 
 
 def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
@@ -443,10 +443,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
         package [1]_. The default value of ``'db3'`` means Daubechies with 3
         vanishing moments.
 
-    j1 : int
-        Lower bound of the scale range on which to estimate :math:`\\eta_p` in
-        p-leader correction.
-
     j2 : int | None
         Upper bound of the scale range for which wavelet coefficients
         will be computed. If None, it will automatically be set to the
@@ -457,14 +453,6 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
     normalization : int
         Norm to use on the wavelet coefficients, see notes for more details.
-
-    weighted : str | None
-        Whether to perform weighted linear regression, used only when
-        computing p-leaders for when estimating :math:`\\eta_p` in p-leader
-        correction
-
-    j2_reg: int
-        Upper bound of the scale range on which to estimate :math:`\\eta_p' in p-leader correction
 
     Returns
     -------
@@ -493,7 +481,7 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
         , page5
     """
 
-    if len(signal.shape) == 1:
+    if signal.ndim == 1:
         signal = signal[:, None]
 
     if isinstance(gamint, np.ndarray) and gamint.ndim == 1:
@@ -505,25 +493,18 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
     high_filter = -1*np.array(wavelet.dec_hi)[:, None]
     low_filter = np.array(wavelet.dec_lo)[:, None]
 
-    formalism = _check_formalism(p_exp)
-
     max_level = _decomposition_level(signal, len(high_filter), j2)
     approx = signal
-
-    if formalism == 'wavelet coef':
-        return _wavelet_coef_analysis(approx, max_level, high_filter,
-                                      low_filter, normalization, gamint, j2,
-                                      wt_name)
 
     # Initialize structures
     wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name,
                                        n_sig=signal.shape[1],
                                        interval_size=1)
-    wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
-                                         n_sig=signal.shape[1], p_exp=p_exp,
-                                         origin_mrq=wt_coefs, interval_size=3)
+    # wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
+    #                                      n_sig=signal.shape[1], p_exp=p_exp,
+    #                                      origin_mrq=wt_coefs, interval_size=3)
 
-    sans_voisin = None
+    # sans_voisin = None
 
     for scale in range(1, max_level + 1):
 
@@ -551,8 +532,8 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
         #     max_level = scale-1
         #     break
 
-        leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
-                                                scale, formalism, p_exp)
+        # leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
+        #                                         scale, formalism, p_exp)
 
         # remove infinite values and store wavelet coefficients
         # detail[~finite_idx_coef] = np.nan
@@ -560,17 +541,24 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
         # remove infinite values and store wavelet leaders
         # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
-        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+        # finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
         # leaders[~finite_idx_wl] = np.nan
 
-        if np.sum(finite_idx_wl, axis=0).min() < 3:
-            max_level = scale-1
-            break
+        # if np.sum(finite_idx_wl, axis=0).min() < 3:
+        #     max_level = scale-1
+        #     break
 
-        wt_leaders.add_values(leaders, scale)
+        # wt_leaders.add_values(leaders, scale)
 
     if max_level == 0:
         return WaveletTransform(None, None, max_level)
+    
+    wt_leaders = None
+
+    if p_exp is not None:
+
+        wt_leaders = compute_leaders2(
+            wt_coefs, gamint, p_exp, size=3)
 
     return WaveletTransform(wt_leaders=wt_leaders,
                             wt_coefs=wt_coefs,
@@ -579,30 +567,46 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
 
 def compute_wse(wt_coefs, theta=0.5):
 
-    wse_coef = MultiResolutionQuantity('weak scaling exponent', wt_coefs.gamint, wt_coefs.wt_name)
+    wse_coef = MultiResolutionQuantity(
+        'weak scaling exponent', wt_coefs.gamint, wt_coefs.wt_name)
 
     for scale, dwt in wt_coefs.values.items():
-        lower_scale = max(1,int(scale-scale**(theta))) # On définit une tranche d'échelle J/sqrt(J)
-        # lower_scale = np.min(lower_scale,scale)  # On prend en compte où on dépasse le nombre d'échelle max
+
+        # On définit une tranche d'échelle J/sqrt(J)
+        lower_scale = max(1,int(scale-scale**(theta)))
+
+        # On prend en compte où on dépasse le nombre d'échelle max
+        # lower_scale = np.min(lower_scale,scale)  
         # J2 = 1  # Dans les cas des leaders J2=1
 
         wse = np.zeros_like(dwt)  # On initialise le max à 0
+        
         for k in range(dwt.shape[0]): # On calcule les coefficient l(J1,k)
 
-            for j in range(scale,lower_scale-1,-1): # On parcourt les tranches d'échelle allant de J2 à J1
-                packet_size = (scale-j)+1  # On prend des paquets de coefficients qui varie
+            # On parcourt les tranches d'échelle allant de J2 à J1
+            for j in range(scale,lower_scale-1,-1): 
+                
+                # On prend des paquets de coefficients qui varient
+                packet_size = (scale-j)+1  
                 # packet_size = 1  # Pour calculer les leaders
 
-                cwav = wt_coefs.values[j] # On stock tous les coefs en ondelettes
+                # On stock tous les coefs en ondelettes
+                cwav = wt_coefs.values[j] 
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
-                left_bound = int(max(1, 2^(scale-j) * (k-packet_size)))-1 # On calcule la borne de gauche
-                right_bound = int(min(nwav,2^(scale-j) * (k+packet_size)))-1 # On calcule la borne de droite
+                # On calcule la borne de gauche
+                left_bound = int(max(1, 2^(scale-j) * (k-packet_size)))-1 
+                # On calcule la borne de droite
+                right_bound = int(min(nwav,2^(scale-j) * (k+packet_size)))-1 
 
                 if right_bound <= left_bound:
                     continue
 
-                wse[k] = np.nanmax(np.r_[wse[k], np.nanmax(abs(cwav[left_bound:right_bound]), axis=0)], axis=0) # On détermine le WSE
+                wse[k] = np.nanmax(  # On détermine le WSE
+                    np.r_[
+                        wse[k],
+                        np.nanmax(abs(cwav[left_bound:right_bound]), axis=0)],
+                    axis=0) 
 
         wse_coef.add_values(wse, scale)
 

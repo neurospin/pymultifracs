@@ -104,7 +104,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.values[j][:, None, :] * (
-                mrq.ZPJCorr[None, :, :, ind_j] if self.formalism == 'wavelet p-leader' else 1
+                mrq.ZPJCorr[None, :, :, ind_j]
+                if self.formalism == 'wavelet p-leader' else 1
             )
 
             c_j = mask_reject(c_j, idx_reject, j, mrq.interval_size)
@@ -323,7 +324,8 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
 
         ax.plot(self.q, self.zeta[:, range_idx, signal_idx], **plot_kw)
         ax.set(
-            xlabel = 'q', ylabel=r'$\zeta(q)$', title=self.formalism + ' - scaling function')
+            xlabel = 'q', ylabel=r'$\zeta(q)$',
+            title=self.formalism + ' - scaling function')
 
         # plt.draw()
 

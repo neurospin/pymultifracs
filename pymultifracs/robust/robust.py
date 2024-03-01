@@ -17,61 +17,6 @@ import hdbscan
 import umap
 
 
-def _high_weighted_median(a, weights):
-    """
-    Computes a weighted high median of a. This is defined as the
-    smallest a[j] such that the sum over all a[i]<=a[j] is strictly
-    greater than half the total sum of the weights
-    """
-    a_cp = np.copy(a)
-    weights_cp = np.copy(weights)
-    n = a_cp.shape[0]
-    sorted_a = np.zeros((n,), dtype=np.double)
-    a_cand = np.zeros((n,), dtype=np.double)
-    weights_cand = np.zeros((n,), dtype=np.intc)
-    kcand = 0
-    wleft, wright, wmid, wtot, wrest = [0] * 5
-    trial = 0
-    wtot = np.sum(weights_cp)
-    for i in range(100000):
-        wleft = 0
-        wmid = 0
-        wright = 0
-        for i in range(n):
-            sorted_a[i] = a_cp[i]
-        sorted_a = np.partition(sorted_a, kth=n//2)
-        trial = sorted_a[n//2]
-        for i in range(n):
-            if a_cp[i] < trial:
-                wleft = wleft + weights_cp[i]
-            elif a_cp[i] > trial:
-                wright = wright + weights_cp[i]
-            else:
-                wmid = wmid + weights_cp[i]
-        kcand = 0
-        if 2 * (wrest + wleft) > wtot:
-            for i in range(n):
-                if a_cp[i] < trial:
-                    a_cand[kcand] = a_cp[i]
-                    weights_cand[kcand] = weights_cp[i]
-                    kcand = kcand + 1
-        elif 2 * (wrest + wleft + wmid) <= wtot:
-            for i in range(n):
-                if a_cp[i] > trial:
-                    a_cand[kcand] = a_cp[i]
-                    weights_cand[kcand] = weights_cp[i]
-                    kcand = kcand + 1
-            wrest = wrest + wleft + wmid
-        else:
-            return trial
-        n = kcand
-        for i in range(n):
-            a_cp[i] = a_cand[i]
-            weights_cp[i] = weights_cand[i]
-    print('aargh')
-    raise ValueError('Weighted median did not converge')
-
-
 def _qn(a, c):
     """
     Computes the Qn robust estimator of scale, a more efficient alternative

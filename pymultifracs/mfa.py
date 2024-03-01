@@ -49,7 +49,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     Returns
     -------
     :class:`~pymultifracs.mf_analysis.MFractalData`
-        The output of the multifractal analysis, is a list if `mrq` was passed as an Iterable
+        The output of the multifractal analysis, is a list if `mrq` was passed
+        as an Iterable
     """
 
     if isinstance(mrq, Iterable):
