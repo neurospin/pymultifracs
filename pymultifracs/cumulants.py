@@ -395,17 +395,17 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         return super()._compute_R2(self.values, self.slope, self.intercept,
                                    self.weights)
 
-    def __getattribute__(self, __name: str):
+    # def __getattribute__(self, __name: str):
 
-        if __name == 'n_sig' and super().__getattribute__('n_sig') is None:
-            return 1
+    #     if __name == 'n_sig' and super().__getattribute__('n_sig') is None:
+    #         return 1
 
-        # return self.__getattr__(__name)
+    #     # return self.__getattr__(__name)
 
-        # try:
-        return super().__getattribute__(__name)
-        # except AttributeError:
-        #     return self.__getattr__(__name)
+    #     # try:
+    #     return super().__getattribute__(__name)
+    #     # except AttributeError:
+    #     #     return self.__getattr__(__name)
 
     def __getattr__(self, name):
 

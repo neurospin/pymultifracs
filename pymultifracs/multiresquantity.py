@@ -22,7 +22,7 @@ class MultiResolutionQuantityBase:
     gamint: float = field(init=False, default=None)
     wt_name: str = field(init=False, default=None)
     nj: dict = field(init=False, default_factory=dict)
-    n_sig: int = field(init=False, default=None)
+    n_sig: int = field(init=False, default=1)
     bootstrapped_mrq: Any = field(init=False, default=None)
     origin_mrq: Any = field(init=False, default=None)
 
