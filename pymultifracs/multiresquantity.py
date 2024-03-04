@@ -14,6 +14,7 @@ from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
     mask_reject
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .regression import compute_R2
+from .viz import plot_coef
 
 
 @dataclass
@@ -317,6 +318,9 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
             self, self.p_exp, min_scale, max_scale)
 
         return self.ZPJCorr
+
+    def plot(self, j1, j2, **kwargs):
+        plot_coef(self, j1, j2, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
 

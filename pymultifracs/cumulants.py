@@ -10,10 +10,7 @@ from typing import List, Tuple, Dict
 import numpy as np
 from scipy.special import binom as binomial_coefficient
 from scipy.stats import norm as Gaussian
-from statsmodels.robust.scale import qn_scale
-# from .robust import qn
-from statsmodels.robust.norms import estimate_location, TukeyBiweight
-from statsmodels.tools.validation import array_like, float_like
+import numba
 
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
@@ -21,57 +18,60 @@ from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar, _correct_pleaders, mask_reject
 from .multiresquantity import MultiResolutionQuantity, \
     MultiResolutionQuantityBase
-# from ._robust import _qn
-# from .robust import _qn
 
 
-def qn_scale2(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
-    """
-    Computes the Qn robust estimator of scale
+# def qn_scale2(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
+#     """
+#     Computes the Qn robust estimator of scale
 
-    The Qn scale estimator is a more efficient alternative to the MAD.
-    The Qn scale estimator of an array a of length n is defined as
-    c * {abs(a[i] - a[j]): i<j}_(k), for k equal to [n/2] + 1 choose 2. Thus,
-    the Qn estimator is the k-th order statistic of the absolute differences
-    of the array. The optional constant is used to normalize the estimate
-    as explained below. The implementation follows the algorithm described
-    in Croux and Rousseeuw (1992).
+#     The Qn scale estimator is a more efficient alternative to the MAD.
+#     The Qn scale estimator of an array a of length n is defined as
+#     c * {abs(a[i] - a[j]): i<j}_(k), for k equal to [n/2] + 1 choose 2. Thus,
+#     the Qn estimator is the k-th order statistic of the absolute differences
+#     of the array. The optional constant is used to normalize the estimate
+#     as explained below. The implementation follows the algorithm described
+#     in Croux and Rousseeuw (1992).
 
-    Parameters
-    ----------
-    a : array_like
-        Input array.
-    c : float, optional
-        The normalization constant. The default value is used to get consistent
-        estimates of the standard deviation at the normal distribution.
-    axis : int, optional
-        The default is 0.
+#     Parameters
+#     ----------
+#     a : array_like
+#         Input array.
+#     c : float, optional
+#         The normalization constant. The default value is used to get consistent
+#         estimates of the standard deviation at the normal distribution.
+#     axis : int, optional
+#         The default is 0.
 
-    Returns
-    -------
-    {float, ndarray}
-        The Qn robust estimator of scale
-    """
+#     Returns
+#     -------
+#     {float, ndarray}
+#         The Qn robust estimator of scale
+#     """
 
-    # arr, mask = _replace_nan(a, 0)
+#     # arr, mask = _replace_nan(a, 0)
 
-    a = array_like(
-        a, "a", ndim=None, dtype=np.float64, contiguous=True, order="C"
-    )
-    c = float_like(c, "c")
+#     a = array_like(
+#         a, "a", ndim=None, dtype=np.float64, contiguous=True, order="C"
+#     )
+#     c = float_like(c, "c")
 
-    if a.ndim == 0:
-        raise ValueError("a should have at least one dimension")
-    elif a.size == 0:
-        return np.nan
-    else:
-        out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
-        if out.ndim == 0:
-            return float(out)
-        return out
+#     if a.ndim == 0:
+#         raise ValueError("a should have at least one dimension")
+#     elif a.size == 0:
+#         return np.nan
+#     else:
+#         out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
+#         if out.ndim == 0:
+#             return float(out)
+#         return out
 
 
 def compute_robust_cumulants(X, m_array, alpha=1):
+
+    from statsmodels.robust.scale import qn_scale
+    from statsmodels.robust.norms import estimate_location, TukeyBiweight
+    from statsmodels.tools.validation import array_like, float_like
+
     # shape X (n_j, n_ranges, n_rep)
 
     n_j, n_range, n_rep = X.shape
@@ -160,6 +160,131 @@ def compute_robust_cumulants(X, m_array, alpha=1):
     return values
 
 
+# def fast_power(array, exponent):
+
+#     # import warnings
+#     # warnings.filterwarnings("error")
+
+#     if exponent == 1:
+#         return array
+
+#     elif exponent == 2:
+#         return array * array
+#         # return np.square(array)
+
+#     elif exponent == 0.5:
+#         return np.sqrt(array)
+
+#     elif exponent == 0:
+#         # np.nan ** 0 = 1.0, adressed here
+#         ixd_nan = np.isnan(array)
+#         res = array ** exponent
+#         res[ixd_nan] = np.nan
+#         return res
+
+#     elif exponent == -1:
+#         return array ** exponent
+
+#     elif isinstance(exponent, int) and exponent > 0 and exponent <= 10:
+
+#         array_out = np.ones(array.shape)
+
+#         for _ in range(exponent):
+#             array_out *= array
+
+#         return array_out
+
+#     return np.power(array, exponent)
+
+
+@numba.njit()
+def fast_mask_reject(values, idx_reject, ind_j, interval_size):
+
+    if idx_reject is None:
+        return values
+
+    mask = np.ones_like(idx_reject[ind_j], dtype=float)
+
+    mask[idx_reject] = np.nan
+
+    delta = (interval_size - 1) // 2
+
+    if delta > 0:
+        return values * mask[delta:-delta]
+    
+    return values * mask
+
+
+LOOKUP_LIST = numba.typed.List(
+    [np.array([1], dtype=np.float64),
+     np.array([1, 1], dtype=np.float64),
+     np.array([1,2,1], dtype=np.float64),
+     np.array([1, 3, 3, 1], dtype=np.float64),
+     np.array([1, 4, 6, 4, 1], dtype=np.float64),
+     np.array([1, 5, 10, 10, 5, 1], dtype=np.float64)]
+)
+
+
+@numba.njit()
+def fast_binom_coef(m, n, lookup_list):
+    if m > 5:
+        raise NotImplementedError(
+            'Cumulant order above 6 not implemented in fast version')
+
+    return lookup_list[m][n]
+
+
+@numba.njit
+def compute_cumulants(mrq_values, j, m, formalism, idx_reject,
+                      interval_size, out_values, ZPJCorr=None):
+
+      # if self.formalism == 'wavelet p-leader':
+        #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+
+        moments = np.zeros_like(mrq_values)
+        # aux = np.zeros_like(moments)
+
+        for ind_j in range(j.shape[0]):
+
+        # for ind_j, j in enumerate(j):
+            
+            # for idx_
+
+            T_X_j = np.abs(mrq_values[ind_j])
+            T_X_j = T_X_j[:, None, :]
+
+            if formalism == 'wavelet p-leader':
+                T_X_j = T_X_j * ZPJCorr[None, :, :, ind_j]
+
+            log_T_X_j = np.log(T_X_j)
+
+            # dropping infinite coefsx
+            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+
+            log_T_X_j = fast_mask_reject(
+                log_T_X_j, idx_reject, ind_j, interval_size)
+
+            for ind_m, m in enumerate(m):
+
+                moments[ind_m, ind_j] = np.nanmean(
+                    log_T_X_j ** m, axis=0)
+
+                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                moments[ind_m, ind_j, idx_unreliable] = np.nan
+
+                if m == 1:
+                    out_values[ind_m, ind_j] = moments[ind_m, ind_j]
+                else:
+                    aux = 0
+
+                    for ind_n, n in enumerate(np.arange(1, m)):
+                        aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
+                                * out_values[ind_n, ind_j]
+                                * moments[ind_m-ind_n-1, ind_j])
+
+                    out_values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+
+
 @dataclass
 class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     r"""
@@ -246,7 +371,10 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         else:
             self.values = np.zeros((len(self.m), len(self.j), 1, mrq.n_rep))
 
-        self._compute(mrq, robust, idx_reject)
+        if robust:
+            self._compute_robust(mrq, idx_reject)
+        else:
+            self._compute(mrq, idx_reject)
         self._compute_log_cumulants(mrq.n_rep)
 
     def __repr__(self):
@@ -259,11 +387,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             out += f" {param} = {getattr(self, param)}"
 
         return out
-
-    def _compute(self, mrq, robust, idx_reject):
-
-        # if self.formalism == 'wavelet p-leader':
-        #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+ 
+    def _compute_robust(self, mrq, idx_reject):
 
         moments = np.zeros_like(self.values)
         aux = np.zeros_like(moments)
@@ -283,34 +408,54 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
             log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
 
-            if robust:
+            values = compute_robust_cumulants(
+                log_T_X_j, self.m, **self.robust_kwargs)
 
-                values = compute_robust_cumulants(
-                    log_T_X_j, self.m, **self.robust_kwargs)
+            self.values[:, ind_j] = values
 
-                self.values[:, ind_j] = values
+    def _compute(self, mrq, idx_reject):
 
-            else:
-                # Non-robust estimation
-                for ind_m, m in enumerate(self.m):
+        if self.formalism == 'wavelet p-leader' and mrq.ZPJCorr is None:
+            mrq.correct_pleaders(self.j.min(), self.j.max())
+        else:
+            ZPJCorr = None
 
-                    moments[ind_m, ind_j] = np.nanmean(
-                        fast_power(log_T_X_j, m), axis=0)
+        moments = np.zeros_like(self.values)
 
-                    idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
-                    moments[ind_m, ind_j, idx_unreliable] = np.nan
+        for ind_j, j in enumerate(self.j):
 
-                    if m == 1:
-                        self.values[ind_m, ind_j] = moments[ind_m, ind_j]
-                    else:
-                        aux = 0
+            T_X_j = np.abs(mrq.values[j])
+            T_X_j = T_X_j[:, None, :]
 
-                        for ind_n, n in enumerate(np.arange(1, m)):
-                            aux += (binomial_coefficient(m-1, n-1)
-                                    * self.values[ind_n, ind_j]
-                                    * moments[ind_m-ind_n-1, ind_j])
+            if self.formalism == 'wavelet p-leader':
+                T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
-                        self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+            log_T_X_j = np.log(T_X_j)
+
+            # dropping infinite coefsx
+            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+
+            log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
+
+            for ind_m, m in enumerate(self.m):
+
+                np.nanmean(fast_power(log_T_X_j, m), out=moments[ind_m, ind_j],
+                           axis=0)
+
+                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                moments[ind_m, ind_j, idx_unreliable] = np.nan
+
+                if m == 1:
+                    self.values[ind_m, ind_j] = moments[ind_m, ind_j]
+                else:
+                    aux = 0
+
+                    for ind_n, n in enumerate(np.arange(1, m)):
+                        aux += (binomial_coefficient(m-1, n-1)
+                                * self.values[ind_n, ind_j]
+                                * moments[ind_m-ind_n-1, ind_j])
+
+                    self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
 
     def _compute_log_cumulants(self, n_rep):
         """

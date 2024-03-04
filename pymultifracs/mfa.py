@@ -11,15 +11,17 @@ import numpy as np
 from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
-from .wavelet import wavelet_analysis, _estimate_eta_p
+from .wavelet import wavelet_analysis, _estimate_eta_p, integrate_wavelet,\
+    compute_leaders
 from .estimation import estimate_hmin
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
-                bootstrap_weighted=None, R=1, estimates="scm", robust=False,
-                robust_kwargs=None, idx_reject=None):
+def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
+                n_cumul=2, q=None, bootstrap_weighted=None, R=1,
+                estimates="auto", robust=False, robust_kwargs=None,
+                idx_reject=None, return_mrq=False):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -28,6 +30,8 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         Multi-resolution quantity to analyze, or list of MRQs.
     scaling_ranges: List[Tuple[int]]
         List of pairs of (j1, j2) ranges of scales for the analysis
+    p_exp: float | inf | None
+    gamint: float
     weighted : str | None
         Whether the linear regressions will be weighted
     n_cumul : int
@@ -45,6 +49,9 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             - "c": cumulants
     robust: bool
         Use robust estimates of cumulants
+    robust_kwargs: Dict
+    idx_reject: Dict[str, ndarray]
+    return_mrq: bool
 
     Returns
     -------
@@ -53,26 +60,52 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         as an Iterable
     """
 
-    if isinstance(mrq, Iterable):
-
-        if isinstance(estimates, str):
-            estimates = [estimates] * len(mrq)
-
-        elif (n := len(estimates)) != (m := len(mrq)):
-            raise ValueError(
-                f"Length of `estimates` = {n} does not match `mrq` = {m}"
-            )
-
-        return ([mf_analysis(m, scaling_ranges, weighted, n_cumul,
-                             q, bootstrap_weighted, R, estimates[i], robust,
-                             robust_kwargs)
-                 for i, m in enumerate(mrq)])
+    # In case no value of q is specified, we still include q=2 in order to be
+    # able to estimate H
+    if q is None:
+        q = np.array([2])
+    elif isinstance(q, list):
+        q = np.array(q)
 
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
 
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. "
                          f"Effective max scale is {mrq.j2_eff()}")
+
+    if (mrq.formalism == 'wavelet coef' and p_exp is None
+            and mrq.gamint == 0 and gamint > 0):
+        
+        mrq = integrate_wavelet(mrq, gamint-mrq.gamint)
+
+        return mf_analysis(
+            mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
+            bootstrap_weighted, R, estimates, robust, robust_kwargs,
+            idx_reject, return_mrq)
+    
+    elif mrq.formalism == 'wavelet coef' and p_exp is not None:
+
+        mrq = compute_leaders(mrq, gamint, p_exp)
+
+        return mf_analysis(
+            mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
+            bootstrap_weighted, R, estimates, robust, robust_kwargs,
+            idx_reject, return_mrq)
+
+    # if isinstance(mrq, Iterable):
+
+    #     if isinstance(estimates, str):
+    #         estimates = [estimates] * len(mrq)
+
+    #     elif (n := len(estimates)) != (m := len(mrq)):
+    #         raise ValueError(
+    #             f"Length of `estimates` = {n} does not match `mrq` = {m}"
+    #         )
+
+    #     return ([mf_analysis(
+    #         m, scaling_ranges, weighted, n_cumul, q, bootstrap_weighted,
+    #         R, estimates[i], robust, robust_kwargs)
+    #              for i, m in enumerate(mrq)])
 
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
@@ -119,14 +152,6 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     else:
         mfa_boot = None
 
-    # In case no value of q is specified, we still include q=2 in order to be
-    # able to estimate H
-    if q is None:
-        q = [2]
-
-    if isinstance(q, list):
-        q = np.array(q)
-
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
@@ -145,85 +170,90 @@ def mf_analysis(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     struct, cumul, spec = None, None, None
 
-    if 's' in estimates:
+    flag_q = q is not None
+
+    if 's' in estimates or (estimates == 'auto' and flag_q):
         struct = StructureFunction.from_dict(parameters)
-    if 'c' in estimates:
+    if 'c' in estimates or estimates == 'auto':
         cumul = Cumulants.from_dict(parameters)
-    if 'm' in estimates:
+    if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
         spec = MultifractalSpectrum.from_dict(parameters)
+
+    if return_mrq:
+        return mrq,  MFractalVar(struct, cumul, spec)
 
     return MFractalVar(struct, cumul, spec)
 
 
-def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
-                     weighted=None, wt_name='db3', p_exp=None, q=None,
-                     n_cumul=3, bootstrap_weighted=None,
-                     estimates='scm', R=1):
-    """Perform multifractal analysis on a signal.
+# def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
+#                      weighted=None, wt_name='db3', p_exp=None, q=None,
+#                      n_cumul=3, bootstrap_weighted=None,
+#                      estimates='scm', R=1):
+#     """Perform multifractal analysis on a signal.
 
-    .. note:: This function combines wavelet analysis and multifractal analysis
-              for practicality.
-              The use of parameters is better described in their
-              respective functions
+#     .. note:: This function combines wavelet analysis and multifractal analysis
+#               for practicality.
+#               The use of parameters is better described in their
+#               respective functions
 
-    Parameters
-    ----------
-    signal : ndarray, shape (n_samples,)
-        The signal to perform the analysis on.
-    j1 : int
-        Minimum scale to perform fit on.
-    j2 : int
-        Maximum sacle to perform fit on.
-    normalization : int
-        Norm to use, by default 1.
-    gamint : float
-        Fractional integration coefficient, by default set to 0.
-        To understand how to specify gamint, see ~
-    weighted : str | None
-        Whether to perform a weighted linear regression, by default None.
-    wt_name : str, optional
-        Name of the wavelet to use, following pywavelet convention,
-        by default Daubechies with 3 vanishing moments.
-    p_exp : int | np.inf | None
-        Value of the p-exponent of the wavelet leaders, by default None.
-    q : list (float)
-        List of values of q to perform estimates on.
-    n_cumul : int, optional
-        [description], by default 3
-    minimal : bool, optional
-        [description], by default False.
+#     Parameters
+#     ----------
+#     signal : ndarray, shape (n_samples,)
+#         The signal to perform the analysis on.
+#     j1 : int
+#         Minimum scale to perform fit on.
+#     j2 : int
+#         Maximum sacle to perform fit on.
+#     normalization : int
+#         Norm to use, by default 1.
+#     gamint : float
+#         Fractional integration coefficient, by default set to 0.
+#         To understand how to specify gamint, see ~
+#     weighted : str | None
+#         Whether to perform a weighted linear regression, by default None.
+#     wt_name : str, optional
+#         Name of the wavelet to use, following pywavelet convention,
+#         by default Daubechies with 3 vanishing moments.
+#     p_exp : int | np.inf | None
+#         Value of the p-exponent of the wavelet leaders, by default None.
+#     q : list (float)
+#         List of values of q to perform estimates on.
+#     n_cumul : int, optional
+#         [description], by default 3
+#     minimal : bool, optional
+#         [description], by default False.
 
-    Returns
-    -------
-    MFractalData
-        The output of the multifractal analysis
+#     Returns
+#     -------
+#     MFractalData
+#         The output of the multifractal analysis
 
-    See also
-    --------
-    mf_analysis
-    :obj:`~pymultifracs.wavelet.wavelet_analysis`
-    """
+#     See also
+#     --------
+#     mf_analysis
+#     :obj:`~pymultifracs.wavelet.wavelet_analysis`
+#     """
 
-    j2 = max([sr[1] for sr in scaling_ranges])
+#     j2 = max([sr[1] for sr in scaling_ranges])
 
-    wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
-                                    j2=j2, gamint=gamint,
-                                    normalization=normalization)
+#     wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
+#                                     j2=j2, gamint=gamint,
+#                                     normalization=normalization)
 
-    mrq = wt_transform.wt_coefs
+#     mrq = wt_transform.wt_coefs
 
-    if wt_transform.wt_leaders is not None:
-        mrq = [mrq, wt_transform.wt_leaders]
+#     if wt_transform.wt_leaders is not None:
+#         mrq = [mrq, wt_transform.wt_leaders]
 
-    mf_data = mf_analysis(
-        mrq,
-        scaling_ranges,
-        weighted=weighted,
-        n_cumul=n_cumul,
-        q=q,
-        bootstrap_weighted=bootstrap_weighted,
-        R=R,
-        estimates=estimates,
-    )
+#     mf_data = mf_analysis(
+#         mrq,
+#         scaling_ranges,
+#         weighted=weighted,
+#         n_cumul=n_cumul,
+#         q=q,
+#         bootstrap_weighted=bootstrap_weighted,
+#         R=R,
+#         estimates=estimates,
+#     )
 
-    return mf_data
+#     return mf_data

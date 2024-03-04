@@ -6,10 +6,11 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 import warnings
 from collections import namedtuple
 from copy import deepcopy
+from math import ceil, floor
 
 import pywt
 import numpy as np
-from scipy.signal import convolve
+from scipy import signal
 
 from .structurefunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
@@ -112,8 +113,8 @@ def filtering(approx, high_filter, low_filter):
     # apply filters
     # note: 'direct' method MUST be used, since there are elements
     # that are np.inf inside `approx`
-    high = convolve(approx, high_filter, mode='full', method='direct')
-    low = convolve(approx, low_filter, mode='full', method='direct')
+    high = signal.convolve(approx, high_filter, mode='full', method='direct')
+    low = signal.convolve(approx, low_filter, mode='full', method='direct')
 
     # high[np.isnan(high)] = np.inf
     # low[np.isnan(low)] = np.inf
@@ -145,27 +146,46 @@ def filtering(approx, high_filter, low_filter):
     detail = high[detail_idx]
     approx = low[approx_idx]
 
+    # detail = detail[fp:-fp]
+
     return detail, approx
 
 
-def filtering2(approx, wt):
+def filtering2(approx, wt, standard='pywt'):
     """
     """
 
-    low, high = pywt.dwt(approx, wt, axis=0)
+    # mode = 'per' if standard == 'matlab' else 'zero'
+    mode = 'zero'
+    low, high = pywt.dwt(approx, wt, mode=mode, axis=0)
 
-    # index of first good value
-    fp = wt.dec_len - 1
+    # if mode == 'per':
+    #     # index of first good value
+    #     fp = ceil(wt.dec_len / 2) - 1
+    #     lp = - fp
+    # if mode == 'zero':
+    fp = ceil((wt.dec_len - 1) / 2)
     # index of last good value
+    
+    if standard == 'matlab':
+        fp -= 1
+
     lp = -fp
 
     # replace border with nan
-    high[0:fp] = np.nan
+    high[:fp] = np.nan
     high[lp:] = np.nan
-    low[0:fp] = np.nan
+    low[:fp] = np.nan
     low[lp:] = np.nan
 
-    return high[1:-1], low[1:-1]
+    if standard == 'matlab':
+        return -high[:-fp-1], low[fp:-1]
+
+    # if fp > 1:
+    #     return -high[(fp-1):(lp+1)], low[1:-1]
+    # else:
+
+    return -high[1:], low[fp-1:-1]
 
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
@@ -231,7 +251,7 @@ def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp,
     return leaders, sans_voisin
 
 
-def compute_leaders(wt_coefs, gamint, p_exp, size=3):
+def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
     # TODO: call from wavelet_analysis
 
     formalism = _check_formalism(p_exp)
@@ -265,14 +285,13 @@ def compute_leaders(wt_coefs, gamint, p_exp, size=3):
     return wt_leaders
 
 
-def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
+def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
 
     formalism = _check_formalism(p_exp)
 
-    wt_leaders = MultiResolutionQuantity(formalism, gamint,
-                                         n_sig=wt_coefs.n_sig, p_exp=p_exp,
-                                         origin_mrq=wt_coefs,
-                                         interval_size=size)
+    wt_leaders = MultiResolutionQuantity(
+        formalism, gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
+        origin_mrq=wt_coefs, interval_size=size)
 
     max_level = wt_coefs.j2_eff()
 
@@ -364,9 +383,9 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
     return wt_leaders
 
 
-WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
-                                                   'wt_leaders',
-                                                   'j2_eff'])
+# WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
+#                                                    'wt_leaders',
+#                                                    'j2_eff'])
 r"""Aggregates the output of wavelet analysis
 
 Attributes
@@ -421,8 +440,27 @@ eta_p : float
 #                             j2_eff=j2_eff)
 
 
-def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
-                     gamint=0.0, normalization=1):
+def integrate_wavelet(wt_coefs, gamint):
+
+    if wt_coefs.formalism != 'wavelet coef':
+        raise ValueError(
+            'Input multi-resolution quantity should be wavelet coef')
+
+    wt_int = MultiResolutionQuantity(
+        'wavelet coef', gamint, wt_coefs.wt_name, wt_coefs.n_sig,
+        interval_size=1
+    )
+
+    for scale in wt_coefs.values:
+
+        wt_int.add_values(
+            wt_coefs.values[scale] * 2 ** (gamint * scale), scale)\
+            
+    return wt_int
+
+
+def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
+                     dectype='pywt', ftype=None):
     """
     Compute wavelet coefficient and wavelet leaders.
 
@@ -484,8 +522,8 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
     if signal.ndim == 1:
         signal = signal[:, None]
 
-    if isinstance(gamint, np.ndarray) and gamint.ndim == 1:
-        gamint = gamint[None, :]
+    # if isinstance(gamint, np.ndarray) and gamint.ndim == 1:
+    #     gamint = gamint[None, :]
 
     # Initialize the filter
     wavelet = pywt.Wavelet(wt_name)
@@ -497,29 +535,27 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
     approx = signal
 
     # Initialize structures
-    wt_coefs = MultiResolutionQuantity('wavelet coef', gamint, wt_name,
+    wt_coefs = MultiResolutionQuantity('wavelet coef', 0, wt_name,
                                        n_sig=signal.shape[1],
                                        interval_size=1)
-    # wt_leaders = MultiResolutionQuantity(formalism, gamint, wt_name,
-    #                                      n_sig=signal.shape[1], p_exp=p_exp,
-    #                                      origin_mrq=wt_coefs, interval_size=3)
-
-    # sans_voisin = None
 
     for scale in range(1, max_level + 1):
 
         # detail shape (N_coef_at_scale, n_realisations)
-        detail, approx = filtering(approx, high_filter, low_filter)
 
-        detail = detail[:-1]
+        if ftype is not None:
+            detail, approx = filtering(approx, high_filter, low_filter)
+            detail = detail[:-1]
+            # approx = approx
 
-        # detail, approx = filtering2(approx, wavelet)
-
+        else:
+            detail, approx = filtering2(approx, wavelet, standard=dectype)
+        
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))
 
         # fractional integration
-        detail = detail*2.0**(gamint*scale)
+        # detail = detail*2.0**(gamint*scale)
 
         # finite_idx_coef = np.logical_not(np.isinf(np.abs(detail)))
         finite_idx_coef = np.logical_not(np.isnan(np.abs(detail)))
@@ -528,47 +564,23 @@ def wavelet_analysis(signal, p_exp=None, wt_name='db3', j2=None,
             max_level = scale-1
             break
 
-        # if 0 in np.sum(finite_idx_coef, axis=0):
-        #     max_level = scale-1
-        #     break
-
-        # leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
-        #                                         scale, formalism, p_exp)
-
         # remove infinite values and store wavelet coefficients
-        # detail[~finite_idx_coef] = np.nan
         wt_coefs.add_values(detail, scale)
 
-        # remove infinite values and store wavelet leaders
-        # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
-        # finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
-        # leaders[~finite_idx_wl] = np.nan
-
-        # if np.sum(finite_idx_wl, axis=0).min() < 3:
-        #     max_level = scale-1
-        #     break
-
-        # wt_leaders.add_values(leaders, scale)
-
     if max_level == 0:
-        return WaveletTransform(None, None, max_level)
+        return None
     
-    wt_leaders = None
-
-    if p_exp is not None:
-
-        wt_leaders = compute_leaders2(
-            wt_coefs, gamint, p_exp, size=3)
-
-    return WaveletTransform(wt_leaders=wt_leaders,
-                            wt_coefs=wt_coefs,
-                            j2_eff=max_level)
+    return wt_coefs
 
 
-def compute_wse(wt_coefs, theta=0.5):
+def compute_wse(wt_coefs, theta=0.5, gamint=0):
 
     wse_coef = MultiResolutionQuantity(
-        'weak scaling exponent', wt_coefs.gamint, wt_coefs.wt_name)
+        'weak scaling exponent', gamint, wt_coefs.wt_name)
+
+    gamint_coefs = {
+        2 ** (gamint * j) for j in wt_coefs.values
+    }
 
     for scale, dwt in wt_coefs.values.items():
 
@@ -584,14 +596,14 @@ def compute_wse(wt_coefs, theta=0.5):
         for k in range(dwt.shape[0]): # On calcule les coefficient l(J1,k)
 
             # On parcourt les tranches d'échelle allant de J2 à J1
-            for j in range(scale,lower_scale-1,-1): 
+            for j in range(scale,lower_scale-1,-1):
                 
                 # On prend des paquets de coefficients qui varient
-                packet_size = (scale-j)+1  
+                packet_size = (scale-j)+1
                 # packet_size = 1  # Pour calculer les leaders
 
                 # On stock tous les coefs en ondelettes
-                cwav = wt_coefs.values[j] 
+                cwav = wt_coefs.values[j] * gamint_coefs[j]
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
                 # On calcule la borne de gauche
