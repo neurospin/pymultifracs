@@ -234,7 +234,7 @@ def fast_binom_coef(m, n, lookup_list):
     return lookup_list[m][n]
 
 
-@numba.njit
+@numba.jit
 def compute_cumulants(mrq_values, j, m, formalism, idx_reject,
                       interval_size, out_values, ZPJCorr=None):
 
@@ -253,36 +253,40 @@ def compute_cumulants(mrq_values, j, m, formalism, idx_reject,
             T_X_j = np.abs(mrq_values[ind_j])
             T_X_j = T_X_j[:, None, :]
 
-            if formalism == 'wavelet p-leader':
-                T_X_j = T_X_j * ZPJCorr[None, :, :, ind_j]
+            # if formalism == 'wavelet p-leader':
+            #     T_X_j *= np.expand_dims(ZPJCorr[:, :, ind_j], 0)
 
-            log_T_X_j = np.log(T_X_j)
+            for idx_range, idx_signal in np.ndindex(T_X_j.shape[1:]):
 
-            # dropping infinite coefsx
-            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+                log_T_X_j = np.log(T_X_j)[:, idx_range, idx_signal]
 
-            log_T_X_j = fast_mask_reject(
-                log_T_X_j, idx_reject, ind_j, interval_size)
+                # dropping infinite coefsx
+                log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-            for ind_m, m in enumerate(m):
+                log_T_X_j = fast_mask_reject(
+                    log_T_X_j, idx_reject, ind_j, interval_size)
 
-                moments[ind_m, ind_j] = np.nanmean(
-                    log_T_X_j ** m, axis=0)
+                for ind_m, m in enumerate(m):
 
-                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
-                moments[ind_m, ind_j, idx_unreliable] = np.nan
+                    moments[ind_m, ind_j] = np.nanmean(
+                        log_T_X_j ** m, axis=0)
 
-                if m == 1:
-                    out_values[ind_m, ind_j] = moments[ind_m, ind_j]
-                else:
-                    aux = 0
+                    idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                    moments[ind_m, ind_j, idx_unreliable] = np.nan
 
-                    for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
-                                * out_values[ind_n, ind_j]
-                                * moments[ind_m-ind_n-1, ind_j])
+                    if m == 1:
+                        out_values[ind_m, ind_j, idx_range, idx_signal] = \
+                            moments[ind_m, ind_j]
+                    else:
+                        aux = 0
 
-                    out_values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+                        for ind_n, n in enumerate(np.arange(1, m)):
+                            aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
+                                    * out_values[ind_n, ind_j, idx_range, idx_signal]
+                                    * moments[ind_m-ind_n-1, ind_j])
+
+                        out_values[ind_m, ind_j, idx_range, idx_signal] = \
+                            moments[ind_m, ind_j] - aux
 
 
 @dataclass
@@ -420,29 +424,56 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
         else:
             ZPJCorr = None
 
+        # if idx_reject is not None:
+        #     idx_reject = [*idx_reject.values()]
+
+        # compute_cumulants(
+        #     [*mrq.values.values()], self.j, self.m, self.formalism, 
+        #     idx_reject, mrq.interval_size, self.values,
+        #     ZPJCorr=None
+        # )
+            
         moments = np.zeros_like(self.values)
+
+        # if ZPJCorr is not None:
+        #     ZPJCorr = mrq.ZPJCorr[None, :]
 
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.values[j])
             T_X_j = T_X_j[:, None, :]
 
-            if self.formalism == 'wavelet p-leader':
-                T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
+            if mrq.formalism == 'wavelet p-leader':
+                T_X_j = T_X_j * mrq.ZPJCorr[None, ..., ind_j]
 
-            log_T_X_j = np.log(T_X_j)
+            np.log(T_X_j, out=T_X_j)
 
             # dropping infinite coefsx
-            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+            # T_X_j[np.isinf(T_X_j)] = np.nan
 
-            log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
+            # T_X_j = mask_reject(T_X_j, idx_reject, j, interval_size)
+
+            mask_nan = np.isnan(T_X_j)
+            mask_nan |= np.isinf(T_X_j)
+            if idx_reject is not None:
+                delta = (mrq.interval_size - 1) // 2
+                mask_nan |= idx_reject[j][delta:-delta]
+
+            T_X_j[mask_nan] = 0
+
+            N_useful = (~mask_nan).sum(axis=0)
 
             for ind_m, m in enumerate(self.m):
 
-                np.nanmean(fast_power(log_T_X_j, m), out=moments[ind_m, ind_j],
-                           axis=0)
+                # np.nanmean(fast_power(T_X_j, m), out=moments[ind_m, ind_j],
+                #            axis=0)
+                
+                np.sum(fast_power(T_X_j, m), axis=0, out=moments[ind_m, ind_j])
+                np.divide(
+                    moments[ind_m, ind_j], N_useful,
+                    out=moments[ind_m, ind_j])
 
-                idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+                idx_unreliable = N_useful < 3
                 moments[ind_m, ind_j, idx_unreliable] = np.nan
 
                 if m == 1:
@@ -451,11 +482,48 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                     aux = 0
 
                     for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += (binomial_coefficient(m-1, n-1)
+                        aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
                                 * self.values[ind_n, ind_j]
                                 * moments[ind_m-ind_n-1, ind_j])
 
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+
+        # moments = np.zeros_like(self.values)
+
+        # for ind_j, j in enumerate(self.j):
+
+        #     T_X_j = np.abs(mrq.values[j])
+        #     T_X_j = T_X_j[:, None, :]
+
+        #     if self.formalism == 'wavelet p-leader':
+        #         T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
+
+        #     log_T_X_j = np.log(T_X_j)
+
+        #     # dropping infinite coefsx
+        #     log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+
+        #     log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
+
+        #     for ind_m, m in enumerate(self.m):
+
+        #         np.nanmean(fast_power(log_T_X_j, m), out=moments[ind_m, ind_j],
+        #                    axis=0)
+
+        #         idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+        #         moments[ind_m, ind_j, idx_unreliable] = np.nan
+
+        #         if m == 1:
+        #             self.values[ind_m, ind_j] = moments[ind_m, ind_j]
+        #         else:
+        #             aux = 0
+
+        #             for ind_n, n in enumerate(np.arange(1, m)):
+        #                 aux += (binomial_coefficient(m-1, n-1)
+        #                         * self.values[ind_n, ind_j]
+        #                         * moments[ind_m-ind_n-1, ind_j])
+
+        #             self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
 
     def _compute_log_cumulants(self, n_rep):
         """
