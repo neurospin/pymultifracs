@@ -292,21 +292,21 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 @dataclass
 class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     r"""
-    Computes and analyzes cumulant. Should not be initialized directly but
-    instead computed from `mf_analysis`
-
+    Computes and analyzes cumulant.
     
+    .. note:: Should not be initialized directly but instead computed from `mf_analysis`.
+
     Attributes
     ----------
     n_cumul : int
         Number of computed cumulants.
-    scaling_ranges: List[Tuple[int]]
+    scaling_ranges : List[Tuple[int]]
         List of pairs of scales delimiting the temporal scale support over
         which the estimates are regressed.
-    weighted: str | None
+    weighted : str | None
         Whether weighted regression was performed.
-    robust_kwargs: Dict[str, object]:
-        Arguments used in robust estimation
+    robust_kwargs : Dict[str, object]:
+        Arguments used in robust estimation.
     m : ndarray, shape (n_cumulants,)
         List of the m values (cumulants), in order presented in the value
         arrays.
@@ -317,20 +317,24 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
     var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
-        Estimates of the variance of log-cumulants
-        .. warning:: var_log_cumulants
-                     was not debugged
-
+        Estimates of the variance of log-cumulants.
+        .. warning:: var_log_cumulants was not debugged
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    gamint: float
+    gamint : float
         Value of gamint used in the computation of the underlying MRQ.
-    wt_name: str
-        Name of the wavelet used in the underlying MRQ
+    wt_name : str
+        Name of the wavelet used in the underlying MRQ.
     nj : dict(ndarray)
-        Number of coefficients at scale j.
-        Arrays are of the shape (n_rep,)
+        Number of coefficients at scale j
+        Arrays are of the shape (n_rep,).
+
+    See Also
+    --------
+
+    Examples
+    --------
     """
     mrq: InitVar[MultiResolutionQuantity]
     n_cumul: int
@@ -518,8 +522,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
 
     def _compute_log_cumulants(self, n_rep):
         """
-        Compute the log-cumulants
-        (angular coefficients of the curves j->log[C_p(j)])
+        Compute the log-cumulants (angular coefficients of the curves
+        j->log[C_p(j)]).
         """
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(

@@ -49,12 +49,6 @@ Wavelet Analysis
     decomposition_level
     wavelet_analysis
 
-.. autosummary::
-    :toctree: _autosummary
-
-    WaveletTransform
-
-
 Simulation
 ----------
 
@@ -67,26 +61,6 @@ Simulation
 
     mrw
     fbm
-
-
-Computing and Plotting PSDs
----------------------------
-
-.. currentmodule:: pymultifracs.psd
-
-:py:mod:`pymultifracs.psd`:
-
-.. autosummary::
-    :toctree: _autosummary
-
-    plot_psd
-    wavelet_estimation
-    welch_estimation
-
-.. autosummary::
-    :toctree: _autosummary
-
-    PSD
 
 
 Utility functions

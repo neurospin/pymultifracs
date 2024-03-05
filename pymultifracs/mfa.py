@@ -26,15 +26,15 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
 
     Parameters
     ----------
-    mrq: :class:`MultiResolutionQuantity` | List[MultiResolutionQuantity]
+    mrq : :class:`.MultiResolutionQuantity` | List[:class:`.MultiResolutionQuantity`]
         Multi-resolution quantity to analyze, or list of MRQs. If it is a list,
         will return a list of the output of the function applied to each MRQ
         individually.
-    scaling_ranges: List[Tuple[int]]
+    scaling_ranges : List[Tuple[int]]
         List of pairs of (j1, j2) ranges of scales for the analysis.
-    p_exp: float | inf | None
+    p_exp : float | np.inf | None
         p-exponent for performing (p)-leader based analysis.
-    gamint: float | "auto"
+    gamint : float | str
         Fractional integration factor. If 'auto' will attempt to identify the
         minimal usable value of gamint.
     weighted : str | None
@@ -43,26 +43,27 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         Number of cumulants computed.
     q : ndarray, shape (n_exponents,)
         List of q values used in the multifractal analysis.
-    bootstrap_weighted: str | None
-        Whether the boostrapped mrqs will have weighted regressions
-    R: int
-        Number of bootstrapped repetitions
-    estimates: str
+    bootstrap_weighted : str | None
+        Whether the boostrapped mrqs will have weighted regressions.
+    R : int
+        Number of bootstrapped repetitions.
+    estimates : str
         Quantities to estimate: string containing a character for each of:
             - "m": multifractal spectrum
             - "s": structure function
             - "c": cumulants
+
         Defaults to "auto" which determines which quantities to estimate based
         on the value of `q`.
-    robust: bool
+    robust : bool
         Use robust estimates of cumulants.
-    robust_kwargs: Dict | None
+    robust_kwargs : Dict | None
         Arguments passed for robust estimation. Used for cumulant estimates
         of order >= 3.
-    idx_reject: Dict[int, ndarray]
+    idx_reject : Dict[int, ndarray]
         Dictionary associating each scale to a boolean array indicating whether
         certain coefficients should be removed.
-    return_mrq: bool
+    return_mrq : bool
         If True, will return the MRQ along with the results. Otherwise only the
         results will be returned.
 
@@ -72,7 +73,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         Optional return, if `return_mrq=True`.
     :class:`~pymultifracs.mf_analysis.MFractalData`
         The output of the multifractal analysis, is a list if `mrq` was passed
-        as an Iterable
+        as an Iterable.
     """
 
     # In case no value of q is specified, we still include q=2 in order to be

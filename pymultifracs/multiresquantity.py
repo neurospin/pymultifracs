@@ -14,7 +14,7 @@ from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
     mask_reject
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .regression import compute_R2
-from .viz import plot_coef
+from . import viz
 
 
 @dataclass
@@ -212,7 +212,7 @@ class MultiResolutionQuantityBase:
 
 @dataclass
 class MultiResolutionQuantity(MultiResolutionQuantityBase):
-    """
+    r"""
     Handles multi-resolution quantities in multifractal analysis.
 
     It can be used to represent wavelet coefficients :math:`d_X(j, k)`
@@ -230,32 +230,32 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coef', 'wavelet leader',
         or 'wavelet p-leaders'.
-    gamint: float
-        Fractional integration used in the computation of the MRQ
-    wt_name: str
-        Name of the wavelet used for the MRQ
-    p_exp: float | None
+    gamint : float
+        Fractional integration used in the computation of the MRQ.
+    wt_name : str
+        Name of the wavelet used for the MRQ.
+    p_exp : float | None
         Optional, for wavelet p-leaders indicates the p-exponent, takes value
         np.inf for wavelet leaders.
-    interval_size: int
+    interval_size : int
         Width of the coef interval over which the MRQ was computed.
     values : dict(ndarray)
         `values[j]` contains the coefficients at the scale j.
         Arrays are of the shape (nj, n_rep)
     nj : dict(ndarray)
         Contains the number of coefficients at the scale j.
-        Arrays are of the shape (n_rep,)
-    origin_mrq: MultiResolutionQuantity | None
+        Arrays are of the shape (n_rep,).
+    origin_mrq : MultiResolutionQuantity | None
         If MRQ is derived from another mrq, refers to the original MRQ.
-    eta_p: float | None
+    eta_p : float | None
         Only for p-leaders, wavelet scaling function :math:`\eta(p)`.
-        By default only computed during mf_analysis
-    ZPJCorr: ndarray | None
+        By default only computed during mf_analysis.
+    ZPJCorr : ndarray | None
         Only for p-leaders, correction factor for the finite size effects,
-        dependent on `eta_p`
-    bootstrapped_mrq: MultiResolutionQuantity | None
+        dependent on `eta_p`.
+    bootstrapped_mrq : :class:`.MultiResolutionQuantity` | None
         Storing the bootstrapped version of the MRQ if bootstraping has been
-        used
+        used.
     """
     formalism: str
     gamint: float
@@ -336,7 +336,7 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
         return self.ZPJCorr
 
     def plot(self, j1, j2, **kwargs):
-        plot_coef(self, j1, j2, **kwargs)
+        viz.plot_coef(self, j1, j2, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
 

@@ -14,16 +14,20 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+import numpy as np
+import pymultifracs
+import sphinx
+import numpydoc
+
 
 # -- Project information -----------------------------------------------------
 
 project = 'PyMultiFracs'
-copyright = '2020-2023, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
-author = 'M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
+copyright = '2020-2024, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
+author = 'M. Dumeur, O. D. Domingues, P. Ciuciu, V. van Wassenhove, P. Abry'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2'
-
+release = '0.3'
 
 # -- General configuration ---------------------------------------------------
 
@@ -141,6 +145,116 @@ numpydoc_xref_param_type = True
 
 numpydoc_class_members_toctree = False
 numpydoc_show_class_members = False
+
+numpydoc_xref_ignore = {
+    # words
+    "and",
+    "between",
+    "instance",
+    "instances",
+    "of",
+    "default",
+    "shape",
+    "or",
+    "with",
+    "length",
+    "pair",
+    "matplotlib",
+    "optional",
+    "kwargs",
+    "in",
+    "dtype",
+    "object",
+    # shapes
+    "n_vertices",
+    "n_faces",
+    "n_channels",
+    "m",
+    "n",
+    "n_events",
+    "n_colors",
+    "n_times",
+    "obj",
+    "n_chan",
+    "n_epochs",
+    "n_picks",
+    "n_ch_groups",
+    "n_dipoles",
+    "n_ica_components",
+    "n_pos",
+    "n_node_names",
+    "n_tapers",
+    "n_signals",
+    "n_step",
+    "n_freqs",
+    "wsize",
+    "Tx",
+    "M",
+    "N",
+    "p",
+    "q",
+    "r",
+    "n_observations",
+    "n_regressors",
+    "n_cols",
+    "n_frequencies",
+    "n_tests",
+    "n_samples",
+    "n_permutations",
+    "nchan",
+    "n_points",
+    "n_features",
+    "n_parts",
+    "n_features_new",
+    "n_components",
+    "n_labels",
+    "n_events_in",
+    "n_splits",
+    "n_scores",
+    "n_outputs",
+    "n_trials",
+    "n_estimators",
+    "n_tasks",
+    "nd_features",
+    "n_classes",
+    "n_targets",
+    "n_slices",
+    "n_hpi",
+    "n_fids",
+    "n_elp",
+    "n_pts",
+    "n_tris",
+    "n_nodes",
+    "n_nonzero",
+    "n_events_out",
+    "n_segments",
+    "n_orient_inv",
+    "n_orient_fwd",
+    "n_orient",
+    "n_dipoles_lcmv",
+    "n_dipoles_fwd",
+    "n_picks_ref",
+    "n_coords",
+    "n_meg",
+    "n_good_meg",
+    "n_moments",
+    "n_patterns",
+    "n_new_events",
+    # sklearn subclasses
+    "mapping",
+    "to",
+    "any",
+    # unlinkable
+    "CoregistrationUI",
+    "mne_qt_browser.figure.MNEQtBrowser",
+    # pooch, since its website is unreliable and users will rarely need the links
+    "pooch.Unzip",
+    "pooch.Untar",
+    "pooch.HTTPDownloader",
+}
+
+numpydoc_validate = True
+numpydoc_validation_checks = {"all"}
 
 # nbsphinx
 
