@@ -230,16 +230,32 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
     formalism : str
         Formalism used. Can be any of 'wavelet coef', 'wavelet leader',
         or 'wavelet p-leaders'.
-    n_scales : int
-        Size of the scale range covered.
-    nj : dict(ndarray)
-        Contains the number of coefficients at the scale j.
-        Arrays are of the shape (n_rep,)
+    gamint: float
+        Fractional integration used in the computation of the MRQ
+    wt_name: str
+        Name of the wavelet used for the MRQ
+    p_exp: float | None
+        Optional, for wavelet p-leaders indicates the p-exponent, takes value
+        np.inf for wavelet leaders.
+    interval_size: int
+        Width of the coef interval over which the MRQ was computed.
     values : dict(ndarray)
         `values[j]` contains the coefficients at the scale j.
         Arrays are of the shape (nj, n_rep)
-    n_rep : int
-        Number of realisations
+    nj : dict(ndarray)
+        Contains the number of coefficients at the scale j.
+        Arrays are of the shape (n_rep,)
+    origin_mrq: MultiResolutionQuantity | None
+        If MRQ is derived from another mrq, refers to the original MRQ.
+    eta_p: float | None
+        Only for p-leaders, wavelet scaling function :math:`\eta(p)`.
+        By default only computed during mf_analysis
+    ZPJCorr: ndarray | None
+        Only for p-leaders, correction factor for the finite size effects,
+        dependent on `eta_p`
+    bootstrapped_mrq: MultiResolutionQuantity | None
+        Storing the bootstrapped version of the MRQ if bootstraping has been
+        used
     """
     formalism: str
     gamint: float

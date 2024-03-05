@@ -8,9 +8,9 @@ from multiprocessing.sharedctypes import Value
 from typing import List, Tuple, Dict
 
 import numpy as np
-from scipy.special import binom as binomial_coefficient
+from scipy import special
 from scipy.stats import norm as Gaussian
-import numba
+# import numba
 
 from .viz import plot_cumulants
 from .ScalingFunction import ScalingFunction
@@ -197,150 +197,140 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 #     return np.power(array, exponent)
 
 
-@numba.njit()
-def fast_mask_reject(values, idx_reject, ind_j, interval_size):
+# @numba.njit()
+# def fast_mask_reject(values, idx_reject, ind_j, interval_size):
 
-    if idx_reject is None:
-        return values
+#     if idx_reject is None:
+#         return values
 
-    mask = np.ones_like(idx_reject[ind_j], dtype=float)
+#     mask = np.ones_like(idx_reject[ind_j], dtype=float)
 
-    mask[idx_reject] = np.nan
+#     mask[idx_reject] = np.nan
 
-    delta = (interval_size - 1) // 2
+#     delta = (interval_size - 1) // 2
 
-    if delta > 0:
-        return values * mask[delta:-delta]
+#     if delta > 0:
+#         return values * mask[delta:-delta]
     
-    return values * mask
+#     return values * mask
 
 
-LOOKUP_LIST = numba.typed.List(
-    [np.array([1], dtype=np.float64),
-     np.array([1, 1], dtype=np.float64),
-     np.array([1,2,1], dtype=np.float64),
-     np.array([1, 3, 3, 1], dtype=np.float64),
-     np.array([1, 4, 6, 4, 1], dtype=np.float64),
-     np.array([1, 5, 10, 10, 5, 1], dtype=np.float64)]
-)
+# LOOKUP_LIST = numba.typed.List(
+#     [np.array([1], dtype=np.float64),
+#      np.array([1, 1], dtype=np.float64),
+#      np.array([1,2,1], dtype=np.float64),
+#      np.array([1, 3, 3, 1], dtype=np.float64),
+#      np.array([1, 4, 6, 4, 1], dtype=np.float64),
+#      np.array([1, 5, 10, 10, 5, 1], dtype=np.float64)]
+# )
 
 
-@numba.njit()
-def fast_binom_coef(m, n, lookup_list):
-    if m > 5:
-        raise NotImplementedError(
-            'Cumulant order above 6 not implemented in fast version')
+# @numba.njit()
+# def fast_binom_coef(m, n, lookup_list):
+#     if m > 5:
+#         raise NotImplementedError(
+#             'Cumulant order above 6 not implemented in fast version')
 
-    return lookup_list[m][n]
+#     return lookup_list[m][n]
 
 
-@numba.jit
-def compute_cumulants(mrq_values, j, m, formalism, idx_reject,
-                      interval_size, out_values, ZPJCorr=None):
+# @numba.jit
+# def compute_cumulants(mrq_values, j, m, formalism, idx_reject,
+#                       interval_size, out_values, ZPJCorr=None):
 
-      # if self.formalism == 'wavelet p-leader':
-        #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
+#       # if self.formalism == 'wavelet p-leader':
+#         #     ZPJCorr = mrq.correct_pleaders(self.j.min(), self.j.max())
 
-        moments = np.zeros_like(mrq_values)
-        # aux = np.zeros_like(moments)
+#         moments = np.zeros_like(mrq_values)
+#         # aux = np.zeros_like(moments)
 
-        for ind_j in range(j.shape[0]):
+#         for ind_j in range(j.shape[0]):
 
-        # for ind_j, j in enumerate(j):
+#         # for ind_j, j in enumerate(j):
             
-            # for idx_
+#             # for idx_
 
-            T_X_j = np.abs(mrq_values[ind_j])
-            T_X_j = T_X_j[:, None, :]
+#             T_X_j = np.abs(mrq_values[ind_j])
+#             T_X_j = T_X_j[:, None, :]
 
-            # if formalism == 'wavelet p-leader':
-            #     T_X_j *= np.expand_dims(ZPJCorr[:, :, ind_j], 0)
+#             # if formalism == 'wavelet p-leader':
+#             #     T_X_j *= np.expand_dims(ZPJCorr[:, :, ind_j], 0)
 
-            for idx_range, idx_signal in np.ndindex(T_X_j.shape[1:]):
+#             for idx_range, idx_signal in np.ndindex(T_X_j.shape[1:]):
 
-                log_T_X_j = np.log(T_X_j)[:, idx_range, idx_signal]
+#                 log_T_X_j = np.log(T_X_j)[:, idx_range, idx_signal]
 
-                # dropping infinite coefsx
-                log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+#                 # dropping infinite coefsx
+#                 log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-                log_T_X_j = fast_mask_reject(
-                    log_T_X_j, idx_reject, ind_j, interval_size)
+#                 log_T_X_j = fast_mask_reject(
+#                     log_T_X_j, idx_reject, ind_j, interval_size)
 
-                for ind_m, m in enumerate(m):
+#                 for ind_m, m in enumerate(m):
 
-                    moments[ind_m, ind_j] = np.nanmean(
-                        log_T_X_j ** m, axis=0)
+#                     moments[ind_m, ind_j] = np.nanmean(
+#                         log_T_X_j ** m, axis=0)
 
-                    idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
-                    moments[ind_m, ind_j, idx_unreliable] = np.nan
+#                     idx_unreliable = (~np.isnan(log_T_X_j)).sum(axis=0) < 3
+#                     moments[ind_m, ind_j, idx_unreliable] = np.nan
 
-                    if m == 1:
-                        out_values[ind_m, ind_j, idx_range, idx_signal] = \
-                            moments[ind_m, ind_j]
-                    else:
-                        aux = 0
+#                     if m == 1:
+#                         out_values[ind_m, ind_j, idx_range, idx_signal] = \
+#                             moments[ind_m, ind_j]
+#                     else:
+#                         aux = 0
 
-                        for ind_n, n in enumerate(np.arange(1, m)):
-                            aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
-                                    * out_values[ind_n, ind_j, idx_range, idx_signal]
-                                    * moments[ind_m-ind_n-1, ind_j])
+#                         for ind_n, n in enumerate(np.arange(1, m)):
+#                             aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
+#                                     * out_values[ind_n, ind_j, idx_range, idx_signal]
+#                                     * moments[ind_m-ind_n-1, ind_j])
 
-                        out_values[ind_m, ind_j, idx_range, idx_signal] = \
-                            moments[ind_m, ind_j] - aux
+#                         out_values[ind_m, ind_j, idx_range, idx_signal] = \
+#                             moments[ind_m, ind_j] - aux
 
 
 @dataclass
 class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     r"""
-    Computes and analyzes cumulants
+    Computes and analyzes cumulant. Should not be initialized directly but
+    instead computed from `mf_analysis`
 
-    Parameters
-    ----------
-    mrq : MultiResolutionQuantity
-        Multi resolution quantity to analyze.
-    n_cumul : int
-        Number of cumulants to compute.
-    j1 : int
-        Lower-bound of the scale support for the linear regressions.
-    j2 : int
-        Upper-bound of the scale support for the linear regressions.
-    weighted: str | None
-        Whether to used weighted linear regressions.
-
-
+    
     Attributes
     ----------
-    formalism : str
-        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
-        or 'wavelet p-leaders'.
-    nj : dict(ndarray)
-        Number of coefficients at scale j.
-        Arrays are of the shape (n_rep,)
-    values : ndarray, shape (n_cumulants, n_scales, n_rep)
-        :math:`C_m(j)`.
     n_cumul : int
         Number of computed cumulants.
-    j1 : int
-        Lower-bound of the scale support for the linear regressions.
-    j2 : int
-        Upper-bound of the scale support for the linear regressions.
-    weighted : str | None
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of scales delimiting the temporal scale support over
+        which the estimates are regressed.
+    weighted: str | None
         Whether weighted regression was performed.
+    robust_kwargs: Dict[str, object]:
+        Arguments used in robust estimation
     m : ndarray, shape (n_cumulants,)
         List of the m values (cumulants), in order presented in the value
         arrays.
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
+    values : ndarray, shape (n_cumulants, n_scales, n_rep)
+        :math:`C_m(j)`.
     log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
     var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
-        Estimates of the log-cumulants
-
+        Estimates of the variance of log-cumulants
         .. warning:: var_log_cumulants
                      was not debugged
-    n_rep : int
-        Number of realisations
 
+    formalism : str
+        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
+        or 'wavelet p-leaders'.
+    gamint: float
+        Value of gamint used in the computation of the underlying MRQ.
+    wt_name: str
+        Name of the wavelet used in the underlying MRQ
+    nj : dict(ndarray)
+        Number of coefficients at scale j.
+        Arrays are of the shape (n_rep,)
     """
     mrq: InitVar[MultiResolutionQuantity]
     n_cumul: int
@@ -356,7 +346,8 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
     log_cumulants: np.ndarray = field(init=False)
     var_log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq, bootstrapped_mfa, robust, idx_reject):
+    def __post_init__(self, mrq, bootstrapped_mfa, robust_kwargs, robust,
+                      idx_reject):
 
         self.formalism = mrq.formalism
         self.nj = mrq.nj
@@ -376,7 +367,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
             self.values = np.zeros((len(self.m), len(self.j), 1, mrq.n_rep))
 
         if robust:
-            self._compute_robust(mrq, idx_reject)
+            self._compute_robust(mrq, idx_reject, **robust_kwargs)
         else:
             self._compute(mrq, idx_reject)
         self._compute_log_cumulants(mrq.n_rep)
@@ -482,7 +473,7 @@ class Cumulants(MultiResolutionQuantityBase, ScalingFunction):
                     aux = 0
 
                     for ind_n, n in enumerate(np.arange(1, m)):
-                        aux += (fast_binom_coef(m-1, n-1, LOOKUP_LIST)
+                        aux += (special.binom(m-1, n-1)
                                 * self.values[ind_n, ind_j]
                                 * moments[ind_m-ind_n-1, ind_j])
 

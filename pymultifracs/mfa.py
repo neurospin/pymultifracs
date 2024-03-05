@@ -12,7 +12,7 @@ from .mfspectrum import MultifractalSpectrum
 from .cumulants import Cumulants
 from .structurefunction import StructureFunction
 from .wavelet import wavelet_analysis, _estimate_eta_p, integrate_wavelet,\
-    compute_leaders
+    compute_leaders, compute_wse
 from .estimation import estimate_hmin
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
@@ -27,17 +27,22 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     Parameters
     ----------
     mrq: :class:`MultiResolutionQuantity` | List[MultiResolutionQuantity]
-        Multi-resolution quantity to analyze, or list of MRQs.
+        Multi-resolution quantity to analyze, or list of MRQs. If it is a list,
+        will return a list of the output of the function applied to each MRQ
+        individually.
     scaling_ranges: List[Tuple[int]]
-        List of pairs of (j1, j2) ranges of scales for the analysis
+        List of pairs of (j1, j2) ranges of scales for the analysis.
     p_exp: float | inf | None
-    gamint: float
+        p-exponent for performing (p)-leader based analysis.
+    gamint: float | "auto"
+        Fractional integration factor. If 'auto' will attempt to identify the
+        minimal usable value of gamint.
     weighted : str | None
-        Whether the linear regressions will be weighted
+        Whether the linear regressions will be weighted.
     n_cumul : int
-        Number of cumulants computed
+        Number of cumulants computed.
     q : ndarray, shape (n_exponents,)
-        List of q values used in the multifractal analysis
+        List of q values used in the multifractal analysis.
     bootstrap_weighted: str | None
         Whether the boostrapped mrqs will have weighted regressions
     R: int
@@ -47,14 +52,24 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
             - "m": multifractal spectrum
             - "s": structure function
             - "c": cumulants
+        Defaults to "auto" which determines which quantities to estimate based
+        on the value of `q`.
     robust: bool
-        Use robust estimates of cumulants
-    robust_kwargs: Dict
-    idx_reject: Dict[str, ndarray]
+        Use robust estimates of cumulants.
+    robust_kwargs: Dict | None
+        Arguments passed for robust estimation. Used for cumulant estimates
+        of order >= 3.
+    idx_reject: Dict[int, ndarray]
+        Dictionary associating each scale to a boolean array indicating whether
+        certain coefficients should be removed.
     return_mrq: bool
+        If True, will return the MRQ along with the results. Otherwise only the
+        results will be returned.
 
     Returns
     -------
+    MultiResolutionQuantity: 
+        Optional return, if `return_mrq=True`.
     :class:`~pymultifracs.mf_analysis.MFractalData`
         The output of the multifractal analysis, is a list if `mrq` was passed
         as an Iterable
@@ -70,20 +85,36 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     scaling_ranges = sanitize_scaling_ranges(scaling_ranges, mrq.j2_eff())
 
     if len(scaling_ranges) == 0:
-        raise ValueError("No valid scaling range provided. "
-                         f"Effective max scale is {mrq.j2_eff()}")
+        raise ValueError("No valid scaling range provided. ")
+
+    if isinstance(mrq, Iterable):
+
+        if isinstance(estimates, str):
+            estimates = [estimates] * len(mrq)
+
+        elif (n := len(estimates)) != (m := len(mrq)):
+            raise ValueError(
+                f"Length of `estimates` = {n} does not match `mrq` = {m}"
+            )
+
+        return ([mf_analysis(
+            m, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+            bootstrap_weighted, R, estimates[i], robust, robust_kwargs,
+            idx_reject, return_mrq)
+                 for i, m in enumerate(mrq)])
 
     if (mrq.formalism == 'wavelet coef' and p_exp is None
-            and mrq.gamint == 0 and gamint > 0):
+        and mrq.gamint==0 and not isinstance(gamint, str) and gamint!=0):
         
-        mrq = integrate_wavelet(mrq, gamint-mrq.gamint)
+        mrq = integrate_wavelet(mrq, gamint)
 
         return mf_analysis(
             mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
             bootstrap_weighted, R, estimates, robust, robust_kwargs,
             idx_reject, return_mrq)
     
-    elif mrq.formalism == 'wavelet coef' and p_exp is not None:
+    elif (mrq.formalism == 'wavelet coef' and p_exp is not None
+            and not isinstance(gamint, str)):
 
         mrq = compute_leaders(mrq, gamint, p_exp)
 
@@ -92,28 +123,31 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
             bootstrap_weighted, R, estimates, robust, robust_kwargs,
             idx_reject, return_mrq)
 
-    # if isinstance(mrq, Iterable):
-
-    #     if isinstance(estimates, str):
-    #         estimates = [estimates] * len(mrq)
-
-    #     elif (n := len(estimates)) != (m := len(mrq)):
-    #         raise ValueError(
-    #             f"Length of `estimates` = {n} does not match `mrq` = {m}"
-    #         )
-
-    #     return ([mf_analysis(
-    #         m, scaling_ranges, weighted, n_cumul, q, bootstrap_weighted,
-    #         R, estimates[i], robust, robust_kwargs)
-    #              for i, m in enumerate(mrq)])
-
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
 
-    if mrq.formalism == 'wavelet p-leader':
+    # Check minimal regularity constraint
+    if p_exp is not None:
 
         eta_p = _estimate_eta_p(
-            mrq.origin_mrq, mrq.p_exp, scaling_ranges, weighted, idx_reject)
+            mrq, p_exp, scaling_ranges, weighted, idx_reject)
+
+        if isinstance(gamint, str) and gamint == 'auto':
+            # gamint = -.5 * (eta_p // .5)
+            # gamint[eta_p // .5 > 0] = 0
+            # gamint[(gamint + eta_p) < 0.25] += .5
+            if eta_p // .5 > 0:
+                gamint = 0
+            else:
+                gamint = -.5 * (eta_p.min() // .5)
+
+                if gamint + eta_p < 0.25:
+                    gamint += .5
+
+            return mf_analysis(
+                mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+                bootstrap_weighted, R, estimates, robust, robust_kwargs,
+                idx_reject, return_mrq)
 
         if eta_p.max() <= 0:
             # raise ValueError(
@@ -134,6 +168,20 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     else:
 
         hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted, idx_reject)
+
+        if isinstance(gamint, str) and gamint == 'auto':
+            if hmin // .5 > 0:
+                gamint = 0
+            else:
+                gamint = -.5 * (hmin.min() // .5)
+
+                if gamint + hmin < 0.25:
+                    gamint += .5
+
+            return mf_analysis(
+                mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+                bootstrap_weighted, R, estimates, robust, robust_kwargs,
+                idx_reject, return_mrq)
 
         if hmin.max() <= 0:
             raise ValueError(
@@ -183,6 +231,17 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         return mrq,  MFractalVar(struct, cumul, spec)
 
     return MFractalVar(struct, cumul, spec)
+
+
+def mf_analysis_wse(wt_coef, scaling_ranges, theta=0.5, gamint=0, **kwargs):
+
+    if wt_coef.formalism != 'wavelet coef' or wt_coef.gamint > 0:
+        raise ValueError(
+            'Input `wt_coef` should be wavelet coefficients with zero gamint')
+
+    mrq = compute_wse(wt_coef, theta, gamint)
+
+    return mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
 
 
 # def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,

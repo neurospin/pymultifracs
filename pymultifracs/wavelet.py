@@ -286,6 +286,9 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
 
 
 def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
+    """
+    Computes the wavelet (p)-leaders from the wavelet coefficients
+    """
 
     formalism = _check_formalism(p_exp)
 
@@ -386,19 +389,19 @@ def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
 # WaveletTransform = namedtuple('WaveletTransform', ['wt_coefs',
 #                                                    'wt_leaders',
 #                                                    'j2_eff'])
-r"""Aggregates the output of wavelet analysis
+# r"""Aggregates the output of wavelet analysis
 
-Attributes
-----------
-wt_coefs : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-    Wavelet coefficients
-wt_leaders : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
-    Wavelet leaders, or p-leaders, depending on the value of ``p_exp`` passed
-j2_eff : int
-    Maximum scale effectively used during the computation of the coefficients
-eta_p : float
-    Estimated value of :math:`\eta_p`, before applying p-leader correction
-"""
+# Attributes
+# ----------
+# wt_coefs : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+#     Wavelet coefficients
+# wt_leaders : :class:`~pymultifracs.multiresquantity.MultiResolutionQuantity`
+#     Wavelet leaders, or p-leaders, depending on the value of ``p_exp`` passed
+# j2_eff : int
+#     Maximum scale effectively used during the computation of the coefficients
+# eta_p : float
+#     Estimated value of :math:`\eta_p`, before applying p-leader correction
+# """
 
 
 # def _wavelet_coef_analysis(approx, max_level, high_filter, low_filter,
@@ -441,6 +444,9 @@ eta_p : float
 
 
 def integrate_wavelet(wt_coefs, gamint):
+    """
+    Fractionally integrates the wavelet coef decomposition of a signal
+    """
 
     if wt_coefs.formalism != 'wavelet coef':
         raise ValueError(
@@ -464,7 +470,6 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
     """
     Compute wavelet coefficient and wavelet leaders.
 
-
     Parameters
     ----------
     signal : ndarray, shape (n_samples,) | (n_samples, n_realisations)
@@ -486,17 +491,13 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
         will be computed. If None, it will automatically be set to the
         highest value possible.
 
-    gamint : float | ndarray, shape (n_realisations)
-        Fractional integration coefficient :math:`\\gamma_{\\textrm{int}}`.
-
     normalization : int
         Norm to use on the wavelet coefficients, see notes for more details.
 
     Returns
     -------
-    WaveletTransform
-        Namedtuple containing the computed wavelet coefs, potential wavelet
-        leaders, and the effective maximum scale used
+    MultiResolutionQuantitiy
+        Wavelet coefficient representation of the signal
 
     Notes
     -----
@@ -574,12 +575,15 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
 
 
 def compute_wse(wt_coefs, theta=0.5, gamint=0):
+    """
+    Computes weak scaling exponent from wavelet coefs
+    """
 
     wse_coef = MultiResolutionQuantity(
         'weak scaling exponent', gamint, wt_coefs.wt_name)
 
     gamint_coefs = {
-        2 ** (gamint * j) for j in wt_coefs.values
+        j : 2 ** (gamint * j) for j in wt_coefs.values
     }
 
     for scale, dwt in wt_coefs.values.items():
@@ -607,18 +611,18 @@ def compute_wse(wt_coefs, theta=0.5, gamint=0):
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
                 # On calcule la borne de gauche
-                left_bound = int(max(1, 2^(scale-j) * (k-packet_size)))-1 
+                left_bound = int(max(0, 2**(scale-j) * (k-packet_size)))
                 # On calcule la borne de droite
-                right_bound = int(min(nwav,2^(scale-j) * (k+packet_size)))-1 
+                right_bound = int(min(nwav-1,2**(scale-j) * (k+packet_size)))
 
                 if right_bound <= left_bound:
                     continue
 
-                wse[k] = np.nanmax(  # On détermine le WSE
+                wse[k] = np.max(  # On détermine le WSE
                     np.r_[
                         wse[k],
-                        np.nanmax(abs(cwav[left_bound:right_bound]), axis=0)],
-                    axis=0) 
+                        np.max(abs(cwav[left_bound:right_bound]), axis=0)],
+                    axis=0)
 
         wse_coef.add_values(wse, scale)
 
