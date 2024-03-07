@@ -5,7 +5,7 @@ import json
 
 from pymultifracs.wavelet import wavelet_analysis
 from pymultifracs.estimation import estimate_hmin
-from pymultifracs.mfa import mf_analysis_full
+from pymultifracs.mfa import mf_analysis
 
 
 @pytest.mark.mfa

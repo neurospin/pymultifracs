@@ -19,13 +19,12 @@ from . import viz
 
 @dataclass
 class MultiResolutionQuantityBase:
-    formalism: str = field(init=False, default=None)
-    gamint: float = field(init=False, default=None)
-    wt_name: str = field(init=False, default=None)
-    nj: dict = field(init=False, default_factory=dict)
-    n_sig: int = field(init=False, default=1)
-    bootstrapped_mrq: Any = field(init=False, default=None)
-    origin_mrq: Any = field(init=False, default=None)
+    gamint: float
+    wt_name: 
+    nj: dict
+    n_sig: int
+    bootstrapped_mrq: MultiResolutionQuantityBase | None
+    origin_mrq: MultiResolutionQuantityBase | None
 
     def get_nj(self):
         """
@@ -211,7 +210,7 @@ class MultiResolutionQuantityBase:
 
 
 @dataclass
-class MultiResolutionQuantity(MultiResolutionQuantityBase):
+class WaveletDec(MultiResolutionQuantityBase):
     r"""
     Handles multi-resolution quantities in multifractal analysis.
 
@@ -355,3 +354,11 @@ class MultiResolutionQuantity(MultiResolutionQuantityBase):
                 return self.values[[*self.values][0]].shape[1]
 
         return super().__getattr__(name)
+
+
+@dataclass
+class WaveletLeader(WaveletDec):
+    
+
+class Wtwse(WaveletDec):
+

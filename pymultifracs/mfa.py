@@ -18,10 +18,10 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
-def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
-                n_cumul=2, q=None, bootstrap_weighted=None, R=1,
-                estimates="auto", robust=False, robust_kwargs=None,
-                idx_reject=None, return_mrq=False):
+def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
+           n_cumul=2, q=None, bootstrap_weighted=None, R=1,
+           estimates="auto", robust=False, robust_kwargs=None,
+           idx_reject=None, return_mrq=False):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -98,7 +98,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
                 f"Length of `estimates` = {n} does not match `mrq` = {m}"
             )
 
-        return ([mf_analysis(
+        return ([mfa_wt(
             m, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
             bootstrap_weighted, R, estimates[i], robust, robust_kwargs,
             idx_reject, return_mrq)
@@ -109,7 +109,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         
         mrq = integrate_wavelet(mrq, gamint)
 
-        return mf_analysis(
+        return mfa_wt(
             mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
             bootstrap_weighted, R, estimates, robust, robust_kwargs,
             idx_reject, return_mrq)
@@ -119,7 +119,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
 
         mrq = compute_leaders(mrq, gamint, p_exp)
 
-        return mf_analysis(
+        return mfa_wt(
             mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
             bootstrap_weighted, R, estimates, robust, robust_kwargs,
             idx_reject, return_mrq)
@@ -145,7 +145,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
                 if gamint + eta_p < 0.25:
                     gamint += .5
 
-            return mf_analysis(
+            return mfa_wt(
                 mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
                 bootstrap_weighted, R, estimates, robust, robust_kwargs,
                 idx_reject, return_mrq)
@@ -179,7 +179,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
                 if gamint + hmin < 0.25:
                     gamint += .5
 
-            return mf_analysis(
+            return mfa_wt(
                 mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
                 bootstrap_weighted, R, estimates, robust, robust_kwargs,
                 idx_reject, return_mrq)
@@ -234,7 +234,7 @@ def mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     return MFractalVar(struct, cumul, spec)
 
 
-def mf_analysis_wse(wt_coef, scaling_ranges, theta=0.5, gamint=0, **kwargs):
+def mfa_wse(wt_coef, scaling_ranges, theta=0.5, gamint=0, **kwargs):
 
     if wt_coef.formalism != 'wavelet coef' or wt_coef.gamint > 0:
         raise ValueError(
@@ -242,7 +242,7 @@ def mf_analysis_wse(wt_coef, scaling_ranges, theta=0.5, gamint=0, **kwargs):
 
     mrq = compute_wse(wt_coef, theta, gamint)
 
-    return mf_analysis(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
+    return mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
 
 
 # def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
