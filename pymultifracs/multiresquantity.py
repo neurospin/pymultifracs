@@ -19,30 +19,27 @@ from . import viz
 
 @dataclass
 class MultiResolutionQuantityBase:
-    gamint: float
-    wt_name: 
-    nj: dict
     n_sig: int
-    bootstrapped_mrq: MultiResolutionQuantityBase | None
-    origin_mrq: MultiResolutionQuantityBase | None
+    bootstrapped_mrq: Any | None
+    origin_mrq: Any | None
 
-    def get_nj(self):
-        """
-        Returns nj as a list
-        """
-        return list(self.nj.values())
+    # def get_nj(self):
+    #     """
+    #     Returns nj as a list
+    #     """
+    #     return list(self.nj.values())
 
-    def get_nj_interv(self, j1, j2):
-        """
-        Returns nj as an array, for j in [j1,j2]
-        """
-        return np.array([self.nj[j] for j in range(j1, j2+1)])
+    # def get_nj_interv(self, j1, j2):
+    #     """
+    #     Returns nj as an array, for j in [j1,j2]
+    #     """
+    #     return np.array([self.nj[j] for j in range(j1, j2+1)])
 
-    def update_nj(self):
-        self.nj = {
-            scale: (~np.isnan(self.values[scale])).sum(axis=0)
-            for scale in self.values
-        }
+    # def update_nj(self):
+    #     self.nj = {
+    #         scale: (~np.isnan(self.values[scale])).sum(axis=0)
+    #         for scale in self.values
+    #     }
 
     @classmethod
     def from_dict(cls, d):
@@ -209,7 +206,7 @@ class MultiResolutionQuantityBase:
         return pywt.frequency2scale(self.wt_name, freq / sfreq)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class WaveletDec(MultiResolutionQuantityBase):
     r"""
     Handles multi-resolution quantities in multifractal analysis.
@@ -257,18 +254,12 @@ class WaveletDec(MultiResolutionQuantityBase):
         used.
     """
     formalism: str
-    gamint: float
     wt_name: str
-    n_sig: int = None
-    p_exp: float = None
-    interval_size: int = 1
+    gamint: float = 0
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
-    origin_mrq: MultiResolutionQuantityBase = None
-    eta_p: np.ndarray = field(init=False, default=None)
+    origin_mrq: MultiResolutionQuantityBase | None = None
     ZPJCorr: np.ndarray = field(init=False, default=None)
-    bootstrapped_mrq: MultiResolutionQuantityBase = field(init=False,
-                                                          default=None)
 
     def __post_init__(self):
 
@@ -356,9 +347,13 @@ class WaveletDec(MultiResolutionQuantityBase):
         return super().__getattr__(name)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class WaveletLeader(WaveletDec):
-    
+    p_exp: float | np.inf
+    interval_size: int = 1
+    eta_p: np.ndarray = field(init=False, default=None)
 
+
+@dataclass(kw_only=True)
 class Wtwse(WaveletDec):
-
+    theta: float
