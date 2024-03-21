@@ -5,7 +5,7 @@ Authors: Merlin Dumeur <merlin@dumeur.net>
 from collections import namedtuple
 
 import numpy as np
-from sklearn.linear_model import LinearRegression
+# from sklearn.linear_model import LinearRegression
 
 from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 

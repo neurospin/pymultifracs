@@ -16,7 +16,9 @@ if version is None:
 
 extras = {
     'bootstrap': 'recombinator',
-    'robust': 'statsmodels'
+    'robust': 'statsmodels',
+    'test': ['pytest', 'pytest-xdist', 'pytest-cov'],
+    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme']
 }
 
 setup(name='pymultifracs',
@@ -29,11 +31,11 @@ setup(name='pymultifracs',
       license='MIT',
       packages=['pymultifracs'],
       install_requires=[
-          'numpy', 'scipy', 'scikit-learn', 'pywavelets', 'seaborn',
+          'numpy', 'scipy', 'pywavelets', 'seaborn',
       ],
       extras_require=extras,
       zip_safe=False,
-      python_requires='>=3.7',
+      python_requires='>=3.10',
       long_description=long_description,
       long_description_content_type='text/x-rst',
       classifiers=['Intended Audience :: Science/Research',

@@ -13,12 +13,10 @@ import matplotlib.pyplot as plt
 from .ScalingFunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar, isclose, mask_reject
-from .multiresquantity import MultiResolutionQuantityBase,\
-    MultiResolutionQuantity
 
 
-@dataclass
-class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
+@dataclass(kw_only=True)
+class StructureFunction(ScalingFunction):
     """
     Computes and analyzes structure functions
 
@@ -65,21 +63,19 @@ class StructureFunction(MultiResolutionQuantityBase, ScalingFunction):
         Number of realisations
 
     """
-    mrq: InitVar[MultiResolutionQuantity]
     q: np.array
-    scaling_ranges: List[Tuple[int]]
-    weighted: str = None
-    idx_reject: InitVar[Dict[int, np.ndarray]] = field(default=None)
+    # scaling_ranges: List[Tuple[int]]
+    # weighted: str = None
+    # idx_reject: InitVar[Dict[int, np.ndarray]] = field(default=None)
     bootstrapped_mfa: InitVar[MFractalVar] = None
-    j: np.array = field(init=False)
-    logvalues: np.array = field(init=False)
+    # j: np.array = field(init=False)
+    logvalues: np.array = field(init=False, repr=False)
     zeta: np.array = field(init=False)
     H: np.array = field(init=False)
     gamint: float = field(init=False)
 
     def __post_init__(self, mrq, idx_reject, bootstrapped_mfa):
 
-        self.formalism = mrq.formalism
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
         self.nj = mrq.nj

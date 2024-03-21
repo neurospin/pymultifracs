@@ -41,35 +41,35 @@ class MultiResolutionQuantityBase:
     #         for scale in self.values
     #     }
 
-    @classmethod
-    def from_dict(cls, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
-        extra keywords
+    # @classmethod
+    # def from_dict(cls, d):
+    #     r"""Method to instanciate a dataclass by passing a dictionary with
+    #     extra keywords
 
-        Parameters
-        ----------
-        d : dict
-            Dictionary containing at least all the parameters required by
-            __init__, but can also contain other parameters, which will be
-            ignored
+    #     Parameters
+    #     ----------
+    #     d : dict
+    #         Dictionary containing at least all the parameters required by
+    #         __init__, but can also contain other parameters, which will be
+    #         ignored
 
-        Returns
-        -------
-        MultiResolutionQuantityBase
-            Properly initialized multi resolution quantity
+    #     Returns
+    #     -------
+    #     MultiResolutionQuantityBase
+    #         Properly initialized multi resolution quantity
 
-        Notes
-        -----
-        .. note:: Normally, dataclasses can only be instantiated by only
-                  specifiying parameters expected by the automatically
-                  generated __init__ method.
-                  Using this method instead allows us to discard extraneous
-                  parameters, similarly to introducing a \*\*kwargs parameter.
-        """
-        return cls(**{
-            k: v for k, v in d.items()
-            if k in inspect.signature(cls).parameters
-        })
+    #     Notes
+    #     -----
+    #     .. note:: Normally, dataclasses can only be instantiated by only
+    #               specifiying parameters expected by the automatically
+    #               generated __init__ method.
+    #               Using this method instead allows us to discard extraneous
+    #               parameters, similarly to introducing a \*\*kwargs parameter.
+    #     """
+    #     return cls(**{
+    #         k: v for k, v in d.items()
+    #         if k in inspect.signature(cls).parameters
+    #     })
 
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
@@ -253,20 +253,12 @@ class WaveletDec(MultiResolutionQuantityBase):
         Storing the bootstrapped version of the MRQ if bootstraping has been
         used.
     """
-    formalism: str
     wt_name: str
     gamint: float = 0
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase | None = None
     ZPJCorr: np.ndarray = field(init=False, default=None)
-
-    def __post_init__(self):
-
-        if self.formalism not in ['wavelet coef', 'wavelet leader',
-                                  'wavelet p-leader', 'weak scaling exponent']:
-            raise ValueError('formalism needs to be one of : "wavelet coef", '
-                             '"wavelet leader", "wavelet p-leader"')
 
     def bootstrap(self, R, min_scale=1):
 
@@ -318,23 +310,19 @@ class WaveletDec(MultiResolutionQuantityBase):
         self.values[j] = coeffs
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
-    def correct_pleaders(self, min_scale, max_scale):
-
-        self.ZPJCorr = _correct_pleaders(
-            self, self.p_exp, min_scale, max_scale)
-
-        return self.ZPJCorr
-
     def plot(self, j1, j2, **kwargs):
         viz.plot_coef(self, j1, j2, **kwargs)
+
+    def get_formalism(self):
+        return 'wavelet coef'
 
     def __getattribute__(self, name: str) -> Any:
 
         if name == 'filt_len':
             return get_filter_length(self.wt_name)
 
-        if name == 'n_sig' and super().__getattribute__('n_sig') is None:
-            return 1
+        # if name == 'n_sig' and super().__getattribute__('n_sig') is None:
+        #     return 1
 
         return super().__getattribute__(name)
 
@@ -349,11 +337,30 @@ class WaveletDec(MultiResolutionQuantityBase):
 
 @dataclass(kw_only=True)
 class WaveletLeader(WaveletDec):
-    p_exp: float | np.inf
+    p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, default=None)
+
+    def get_formalism(self):
+        if self.p_exp == np.inf:
+            return 'wavelet leader'
+        return 'wavelet p-leader'
+
+    def correct_pleaders(self, min_scale, max_scale):
+
+        # No correction if infinite p
+        if self.p_exp == np.inf:
+            return
+
+        self.ZPJCorr = _correct_pleaders(
+            self, self.p_exp, min_scale, max_scale)
+
+        return self.ZPJCorr
 
 
 @dataclass(kw_only=True)
 class Wtwse(WaveletDec):
     theta: float
+
+    def get_formalism(self):
+        return 'weak scaling exponent'
