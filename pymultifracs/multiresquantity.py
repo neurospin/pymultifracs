@@ -12,8 +12,6 @@ import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
     mask_reject
-from .autorange import compute_Lambda, compute_R, find_max_lambda
-from .regression import compute_R2
 from . import viz
 
 
@@ -96,26 +94,6 @@ class MultiResolutionQuantityBase:
         j_max = max([sr[1] for sr in self.scaling_ranges])
 
         return j_min, j_max
-
-    def _compute_R2(self, moment, slope, intercept, weights):
-        return compute_R2(moment, slope, intercept, weights,
-                          [self._get_j_min_max()], self.j)
-
-    def _compute_R(self, moment, slope, intercept):
-        return compute_R(moment, slope, intercept,
-                         [self._get_j_min_max()], self.j)
-
-    def compute_Lambda(self):
-
-        R = self.compute_R()
-        R_b = self.bootstrapped_mrq.compute_R()
-
-        print(R.shape, R_b.shape)
-
-        return compute_Lambda(R, R_b)
-
-    def find_best_range(self):
-        return find_max_lambda(self.compute_Lambda())
     
     def _check_enough_rep_bootstrap(self):
 
@@ -258,7 +236,6 @@ class WaveletDec(MultiResolutionQuantityBase):
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase | None = None
-    ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def bootstrap(self, R, min_scale=1):
 
@@ -310,6 +287,9 @@ class WaveletDec(MultiResolutionQuantityBase):
         self.values[j] = coeffs
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
+    def get_values(self, j, ind_j):
+        return self.values[j][:, None, :]
+
     def plot(self, j1, j2, **kwargs):
         viz.plot_coef(self, j1, j2, **kwargs)
 
@@ -340,11 +320,22 @@ class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, default=None)
+    ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def get_formalism(self):
         if self.p_exp == np.inf:
             return 'wavelet leader'
         return 'wavelet p-leader'
+    
+    def get_values(self, j, ind_j):
+
+        if self.p_exp == np.inf:
+            return super().get_values(j)
+
+        if self.ZPJCorr is None:
+            self.correct_pleaders(self.j.min(), self.j.max())
+
+        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j, ind_j)
 
     def correct_pleaders(self, min_scale, max_scale):
 

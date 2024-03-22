@@ -8,9 +8,10 @@ import warnings
 
 import numpy as np
 
-from .mfspectrum import MultifractalSpectrum
-from .cumulants import Cumulants
-from .structurefunction import StructureFunction
+# from .mfspectrum import MultifractalSpectrum
+# from .cumulants import Cumulants
+# from .structurefunction import StructureFunction
+from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
 from .wavelet import wavelet_analysis, _estimate_eta_p, integrate_wavelet,\
     compute_leaders, compute_wse
 from .estimation import estimate_hmin

@@ -201,8 +201,8 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
             shift_gamint=False, **C_kwargs):
 
     if j1 is None:
-        if cm.bootstrapped_mrq is not None:
-            j1 = cm.bootstrapped_mrq.j.min()
+        if cm.bootstrapped_sf is not None:
+            j1 = cm.bootstrapped_sf.j.min()
         else:
             j1 = cm.j.min()
 
@@ -226,15 +226,15 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
     if shift_gamint and ind_m == 0:
         y -= x * cm.gamint / np.log2(np.e)
 
-    if cm.bootstrapped_mrq is not None and plot_CI:
+    if cm.bootstrapped_sf is not None and plot_CI:
 
-        if cm.bootstrapped_mrq.j.min() > j1:
+        if cm.bootstrapped_sf.j.min() > j1:
             raise ValueError(
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
-                f"{cm.bootstrapped_mrq.j.min()} instead")
+                f"{cm.bootstrapped_sf.j.min()} instead")
 
-        CI_slice = np.s_[int(j1 - cm.bootstrapped_mrq.j.min()):
-                         int(j2 - cm.bootstrapped_mrq.j.min() + 1)]
+        CI_slice = np.s_[int(j1 - cm.bootstrapped_sf.j.min()):
+                         int(j2 - cm.bootstrapped_sf.j.min() + 1)]
 
         CI = getattr(cm, f'CIE_C{m}')[CI_slice, signal_idx]
 
@@ -278,7 +278,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset
 
-        if cm.bootstrapped_mrq is not None:
+        if cm.bootstrapped_sf is not None:
             CI = getattr(cm, f"CIE_c{m}")[scaling_range, signal_idx]
 
             CI_legend = (

@@ -12,7 +12,7 @@ import pywt
 import numpy as np
 from scipy import signal
 
-from .structurefunction import StructureFunction
+from .scalingfunction import StructureFunction
 from .multiresquantity import MultiResolutionQuantity
 from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
@@ -27,22 +27,6 @@ def _check_formalism(p_exp):
         return 'wavelet leader'
     else:
         return 'wavelet p-leader'
-
-
-def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
-    """
-    Estimate the value of eta_p
-    """
-
-    wavelet_structure = StructureFunction(wt_coefs,
-                                          np.array([p_exp]),
-                                          scaling_ranges,
-                                          weighted,
-                                          idx_reject=idx_reject)
-
-    # shape N_ranges, N_signals
-    return wavelet_structure.zeta[0]
-
 
 def decomposition_level_bootstrap(X, wt_name):
     """

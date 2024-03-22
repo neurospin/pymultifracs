@@ -12,12 +12,12 @@ import numpy as np
 from .multiresquantity import (MultiResolutionQuantity,
                                MultiResolutionQuantityBase)
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .ScalingFunction import ScalingFunction
+from .scalingfunction import ScalingFunction
 from .utils import MFractalVar, fast_power, fixednansum, isclose, mask_reject
 
 
 @dataclass
-class MultifractalSpectrum(MultiResolutionQuantityBase, ScalingFunction):
+class MFSpectrum(MultiResolutionQuantityBase, ScalingFunction):
     """
     Estimates the Multifractal Spectrum
 

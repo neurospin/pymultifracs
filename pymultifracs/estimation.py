@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # from sklearn.linear_model import LinearRegression
 
 from .regression import linear_regression, prepare_regression, prepare_weights
-from .structurefunction import StructureFunction
+from .scalingfunction import StructureFunction
 
 
 def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
@@ -54,6 +54,21 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
         return hmin, intercept[0], y[0]
 
     return hmin, intercept[0]
+
+
+def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
+    """
+    Estimate the value of eta_p
+    """
+
+    wavelet_structure = StructureFunction(wt_coefs,
+                                          np.array([p_exp]),
+                                          scaling_ranges,
+                                          weighted,
+                                          idx_reject=idx_reject)
+
+    # shape N_ranges, N_signals
+    return wavelet_structure.zeta[0]
 
 
 def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):

@@ -13,7 +13,7 @@ from scipy.stats import norm as Gaussian
 # import numba
 
 from .viz import plot_cumulants
-from .ScalingFunction import ScalingFunction
+from .scalingfunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar, _correct_pleaders, mask_reject
 from .multiresquantity import MultiResolutionQuantity, \

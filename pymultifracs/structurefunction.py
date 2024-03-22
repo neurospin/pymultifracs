@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from .ScalingFunction import ScalingFunction
+from .scalingfunction import ScalingFunction
 from .regression import linear_regression, prepare_regression, prepare_weights
 from .utils import fast_power, MFractalVar, isclose, mask_reject
 
@@ -99,10 +99,12 @@ class StructureFunction(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            c_j = mrq.values[j][:, None, :] * (
-                mrq.ZPJCorr[None, :, :, ind_j]
-                if self.formalism == 'wavelet p-leader' else 1
-            )
+            c_j = mrq.get_values(j, ind_j)
+
+            # c_j = mrq.values[j][:, None, :] * (
+            #     mrq.ZPJCorr[None, :, :, ind_j]
+            #     if self.formalism == 'wavelet p-leader' else 1
+            # )
 
             c_j = mask_reject(c_j, idx_reject, j, mrq.interval_size)
 
