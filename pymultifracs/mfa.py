@@ -12,9 +12,9 @@ import numpy as np
 # from .cumulants import Cumulants
 # from .structurefunction import StructureFunction
 from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
-from .wavelet import wavelet_analysis, _estimate_eta_p, integrate_wavelet,\
+from .wavelet import wavelet_analysis, integrate_wavelet,\
     compute_leaders, compute_wse
-from .estimation import estimate_hmin
+from .estimation import estimate_hmin, _estimate_eta_p
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 

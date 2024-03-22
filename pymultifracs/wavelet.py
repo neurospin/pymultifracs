@@ -13,7 +13,7 @@ import numpy as np
 from scipy import signal
 
 from .scalingfunction import StructureFunction
-from .multiresquantity import MultiResolutionQuantity
+from .multiresquantity import WaveletDec, Wtwse, WaveletLeader
 from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
@@ -241,9 +241,9 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
     formalism = _check_formalism(p_exp)
 
     sans_voisin = None
-    wt_leaders = MultiResolutionQuantity(formalism, gamint, p_exp=p_exp,
-                                         origin_mrq=wt_coefs,
-                                         interval_size=size)
+    wt_leaders = WaveletLeader(
+        gamint=gamint, p_exp=p_exp, origin_mrq=wt_coefs, interval_size=size,
+        wt_name=wt_coefs.wt_name)
 
     max_level = wt_coefs.j2_eff()
 
@@ -276,9 +276,9 @@ def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
 
     formalism = _check_formalism(p_exp)
 
-    wt_leaders = MultiResolutionQuantity(
-        formalism, gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
-        origin_mrq=wt_coefs, interval_size=size)
+    wt_leaders = WaveletLeader(
+        gamint=gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
+        origin_mrq=wt_coefs, interval_size=size, wt_name=wt_coefs.wt_name)
 
     max_level = wt_coefs.j2_eff()
 
@@ -436,10 +436,8 @@ def integrate_wavelet(wt_coefs, gamint):
         raise ValueError(
             'Input multi-resolution quantity should be wavelet coef')
 
-    wt_int = MultiResolutionQuantity(
-        'wavelet coef', gamint, wt_coefs.wt_name, wt_coefs.n_sig,
-        interval_size=1
-    )
+    wt_int = WaveletDec(
+        gamint=gamint, wt_name=wt_coefs.wt_name, n_sig=wt_coefs.n_sig)
 
     for scale in wt_coefs.values:
 
@@ -520,9 +518,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
     approx = signal
 
     # Initialize structures
-    wt_coefs = MultiResolutionQuantity('wavelet coef', 0, wt_name,
-                                       n_sig=signal.shape[1],
-                                       interval_size=1)
+    wt_coefs = WaveletDec(gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
 
     for scale in range(1, max_level + 1):
 
@@ -563,8 +559,9 @@ def compute_wse(wt_coefs, theta=0.5, gamint=0):
     Computes weak scaling exponent from wavelet coefs
     """
 
-    wse_coef = MultiResolutionQuantity(
-        'weak scaling exponent', gamint, wt_coefs.wt_name)
+    wse_coef = Wtwse(
+        n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
+        gamint=gamint, theta=theta)
 
     gamint_coefs = {
         j : 2 ** (gamint * j) for j in wt_coefs.values

@@ -13,14 +13,14 @@ from .regression import prepare_weights, prepare_regression, \
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum
 from .viz import plot_cumulants
-from .cumulants import compute_robust_cumulants
+# from .cumulants import compute_robust_cumulants
 
 
 @dataclass
 class ScalingFunction:
+    scaling_ranges: list[tuple[int]]
     mrq: InitVar[WaveletDec]
     idx_reject: InitVar[dict[int, np.ndarray]] = field(default=None)
-    scaling_ranges: list[tuple[int]]
     weighted: str = None
     bootstrapped_sf: Any = None
     gamint: float = None
