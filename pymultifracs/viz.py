@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.signal import welch
 
 # from .wavelet import _estimate_eta_p, wavelet_analysis
-from . import wavelet
+from . import wavelet, multiresquantity
 
 
 def plot_multiscale(results, seg2color, ax=None):
@@ -256,11 +256,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
 
     ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
 
-    ax.set_xlabel('Temporal scale $j$')
-    ax.set_ylabel(f'$C_{m}(j)$')
-
-    # ax.grid()
-    # plt.draw()
+    ax.set(xlabel='Temporal scale $j$', ylabel=f'$C_{m}(j)$')
 
     if len(cm.log_cumulants) > 0 and plot_fit:
 
@@ -295,7 +291,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         if plot_legend:
             ax.legend()
 
-        ax.tick_params(bottom=False, top=False, which='minor')
+        ax.tick_params(top=False, right=False, which='minor')
 
         ax.set(xlim=(j1-.5, j2+.5))
 
@@ -324,8 +320,6 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
 
     if figsize is None:
         figsize = (3.3 * plot_dim_2, 1 * plot_dim_1)
-        # figsize = (20 * plot_dim_1, 3.3 * plot_dim_2)
-        # print(figsize)
 
     fig, axes = plt.subplots(plot_dim_1,
                              plot_dim_2,
@@ -334,10 +328,6 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
                              figsize=figsize,
                              sharex=True)
 
-    # fig.suptitle(cm.formalism + r' - cumulants $C_m(j)$')
-
-    # x = cm.j[j_min:]
-
     for ind_m, m in enumerate(cm.m[:n_cumul]):
 
         ax = axes[ind_m % nrow][ind_m // nrow]
@@ -345,78 +335,26 @@ def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
         plot_cm(cm, ind_m, j1, None, scaling_range, ax, plot_legend=True,
                 signal_idx=signal_idx, **kw)
         
-        # y = getattr(cm, f'C{m}')[j_min:, scaling_range]
-
-        # if cm.bootstrapped_mrq is not None:
-
-        #     if cm.bootstrapped_mrq.j.min() > j1:
-        #         raise ValueError(f"Expected bootstrapped mrq to have minimum scale {j1=}, got {cm.bootstrapped_mrq.j.min()} instead")
-
-        #     CI = getattr(cm, f'CIE_C{m}')[j1 - cm.bootstrapped_mrq.j.min():]
-
-        #     CI -= y[:, None]
-        #     CI[:, 1] *= -1
-        #     assert (CI < 0).sum() == 0
-        #     CI = CI.transpose()
-
-        # else:
-        #     CI = None
-
-        # ax = axes[ind_m % nrow][ind_m // nrow]
-
-        # ax.errorbar(x, y, CI, fmt='--.', color='grey', zorder=-1)
-        # ax.set_xlabel('j')
-        # ax.set_ylabel('m = ' + str(m))
-        # # ax.grid()
-        # # plt.draw()
-
-        # if len(cm.log_cumulants) > 0:
-
-        #     x0, x1 = cm.scaling_ranges[scaling_range]
-        #     slope_log2_e = cm.log_cumulants[ind_m, scaling_range, 0]
-        #     slope = cm.slope[ind_m, scaling_range, 0]
-        #     intercept = cm.intercept[ind_m, scaling_range, 0]
-
-        #     y0 = slope*x0 + intercept
-        #     y1 = slope*x1 + intercept
-
-        #     if cm.bootstrapped_mrq is not None:
-        #         CI = getattr(cm, f"CIE_c{m}")
-        #         CI_legend = (
-        #             f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
-        #             f"{cp_string_format(CI[scaling_range, 1], True)}]")
-        #     else:
-        #         CI_legend = ""
-
-        #     legend = (rf'$c_{m}$ = {cp_string_format(slope_log2_e)}'
-        #               + CI_legend)
-
-        #     ax.plot([x0, x1], [y0, y1], color='k',
-        #             linestyle='-', linewidth=2, label=legend, zorder=0)
-        #     if legend:
-        #         ax.legend()
-        #     plt.draw()
-
     for j in range(ind_m):
+
+        if j % nrow == nrow-1:
+            continue
+
         axes[j % nrow][j // nrow].xaxis.set_visible(False)
 
     for j in range(ind_m + 1, len(axes.flat)):
         fig.delaxes(axes[j % nrow][j // nrow])
 
-    # plt.tight_layout()
-
     if filename is not None:
         plt.savefig(filename)
-
-    # return fig
 
 
 def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
               figsize=(2.5, 1), gamma=.3, nan_idx=None, signal_idx=0,
               cbar_kw=None, cmap='magma'):
 
-    leader = 'leader' in mrq.formalism
-    leader_idx_correction = mrq.interval_size > 1
+    leader = isinstance(mrq, multiresquantity.WaveletLeader)
+    leader_idx_correction = True
 
     if vmax is None:
         max_scale = [
@@ -430,7 +368,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
             for s in range(j1, j2+1) if s in mrq.values
         ]
 
-    if mrq.formalism == 'wavelet p-leader':
+    if leader and not np.isinf(mrq.p_exp):
 
         if mrq.eta_p is None:
 
@@ -470,11 +408,15 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         if scale not in mrq.values:
             continue
 
-        temp = mrq.values[scale][:, signal_idx]
+        temp = mrq.get_values(scale)[:, 0, signal_idx]
 
         X = ((np.arange(temp.shape[0] + 1)
-              + (1 if leader and leader_idx_correction else 0))
-             * (2 ** (scale - j1)))
+            #   + (1 if leader and leader_idx_correction else 0))
+            #   + 1
+              ) * (2 ** (scale - j1)))
+        # X += scale - 1
+        # if leader and scale > 1:
+        #     X += 2 ** (scale - j1 - 1)
         X = np.tile(X[:, None], (1, 2))
 
         C = np.copy(temp[:, None])
@@ -483,8 +425,8 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
             C = np.abs(C)
 
         # Correcting potential p_leaders
-        if mrq.formalism == 'wavelet p-leader':
-            C *= ZPJCorr[:, scale - j1]
+        # if leader and not np.isinf(mrq.p_exp):
+        #     C *= ZPJCorr[:, scale - j1]
 
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()

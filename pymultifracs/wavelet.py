@@ -135,7 +135,7 @@ def filtering(approx, high_filter, low_filter):
     return detail, approx
 
 
-def filtering2(approx, wt, standard='pywt'):
+def filtering2(approx, wt, standard='matlab'):
     """
     """
 
@@ -163,13 +163,13 @@ def filtering2(approx, wt, standard='pywt'):
     low[lp:] = np.nan
 
     if standard == 'matlab':
-        return -high[:-fp-1], low[fp:-1]
+        return -high[:], low[fp:-1]
 
     # if fp > 1:
     #     return -high[(fp-1):(lp+1)], low[1:-1]
     # else:
 
-    return -high[1:], low[fp-1:-1]
+    return -high[:], low[fp-1:-1]
 
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
@@ -269,15 +269,13 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
     return wt_leaders
 
 
-def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
+def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     """
     Computes the wavelet (p)-leaders from the wavelet coefficients
     """
 
-    formalism = _check_formalism(p_exp)
-
     wt_leaders = WaveletLeader(
-        gamint=gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
+        gamint=wt_coefs.gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
         origin_mrq=wt_coefs, interval_size=size, wt_name=wt_coefs.wt_name)
 
     max_level = wt_coefs.j2_eff()
@@ -287,7 +285,8 @@ def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
     for scale in range(1, max_level + 1):
 
         # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]), p_exp)
-        coefs = fast_power(np.abs(wt_coefs.values[scale]), p_exp)
+        coefs = fast_power(
+            np.abs(wt_coefs.values[scale]), p_exp)
 
         # if (idx_reject is not None and idx_reject[scale].sum() > 0
         #         and scale >= j1 and scale <= j2_reg):
@@ -299,7 +298,9 @@ def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
         #     # print(scale_contrib_reject_count)
         #     print(idx.sum())
 
-        scale_contribution = np.stack([
+        scale_contribution = np.zeros((size, *coefs.shape)) + np.nan
+
+        scale_contribution[:, 1:-1] = np.stack([
             coefs[size-i:-(i-1) or None] for i in range(1, size+1)
         ], axis=0)
 
@@ -314,21 +315,29 @@ def compute_leaders(wt_coefs, gamint=0, p_exp=np.inf, size=3):
 
             leaders = np.sum(scale_contribution, axis=0)
             pleader_p[scale] = leaders
+
             # pleader_p[scale] = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
             # print(pleader_p[scale].shape)
             continue
 
-        # max_index = int(np.floor(len(coefs) / 2))
+        max_index = pleader_p[scale-1].shape[0] // 2
 
         # max_index = (pleader_p[scale-1].shape[0] - 3) // 2 * 2
 
         # print(pleader_p[scale-1][:-3:2].shape,
         #       pleader_p[scale-1][3::2].shape)
 
-        lower_contribution = np.stack([
-            pleader_p[scale-1][:-size:2],
-            pleader_p[scale-1][size::2]
-        ], axis=0)
+        lower_contribution = np.zeros((2, max_index, coefs.shape[1])) + np.nan
+
+        lower_contribution[0] = pleader_p[scale-1][::2][:max_index]
+        lower_contribution[1] = pleader_p[scale-1][1::2][:max_index]
+
+        # lower_contribution = np.stack([
+        #     pleader_p[scale-1][:-size:2],
+        #     pleader_p[scale-1][size::2]
+        # ], axis=0)
+
+        print(scale_contribution.shape, lower_contribution.shape)
 
         # assert scale_contribution.shape[1] == lower_contribution.shape[1],\
         #     print(scale_contribution.shape, lower_contribution.shape, scale)
@@ -432,7 +441,7 @@ def integrate_wavelet(wt_coefs, gamint):
     Fractionally integrates the wavelet coef decomposition of a signal
     """
 
-    if wt_coefs.formalism != 'wavelet coef':
+    if isinstance(wt_coefs, Wtwse) or isinstance(wt_coefs, WaveletLeader):
         raise ValueError(
             'Input multi-resolution quantity should be wavelet coef')
 
@@ -448,7 +457,7 @@ def integrate_wavelet(wt_coefs, gamint):
 
 
 def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
-                     dectype='pywt', ftype=None):
+                     dectype='matlab', ftype=None):
     """
     Compute wavelet coefficient and wavelet leaders.
 

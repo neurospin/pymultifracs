@@ -5,6 +5,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from dataclasses import dataclass, field
 import inspect
+import warnings
 from typing import Any
 
 import numpy as np
@@ -12,14 +13,13 @@ import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
     mask_reject
-from . import viz
-
+from . import viz, wavelet, estimation
 
 @dataclass
 class MultiResolutionQuantityBase:
     n_sig: int
-    bootstrapped_mrq: Any | None
-    origin_mrq: Any | None
+    bootstrapped_mrq: Any | None = None
+    origin_mrq: Any | None = None
 
     # def get_nj(self):
     #     """
@@ -236,6 +236,7 @@ class WaveletDec(MultiResolutionQuantityBase):
     values: dict = field(default_factory=dict)
     nj: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase | None = None
+    interval_size: int = field(init=False, default=1)
 
     def bootstrap(self, R, min_scale=1):
 
@@ -287,7 +288,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         self.values[j] = coeffs
         self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
-    def get_values(self, j, ind_j):
+    def get_values(self, j):
         return self.values[j][:, None, :]
 
     def plot(self, j1, j2, **kwargs):
@@ -295,6 +296,55 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     def get_formalism(self):
         return 'wavelet coef'
+    
+    def integrate(self, gamint):
+        return wavelet.integrate_wavelet(self, gamint)
+    
+    def get_leaders(self, p_exp, interval_size=3, gamint=0):
+
+        if self.origin_mrq is not None:
+            return self.origin_mrq.derive_leaders(p_exp, interval_size, gamint)
+        
+        if gamint != 0 and gamint != self.gamint:
+            
+            int = self.integrate(gamint)
+
+            if p_exp is None:
+                return self
+
+            return wavelet.compute_leaders(int, p_exp, interval_size)
+        
+        return wavelet.compute_leaders(
+            self, p_exp, interval_size)
+    
+    def _check_regularity(self, scaling_ranges, weighted, idx_reject,
+                          gamint=None):
+
+        hmin, _ = estimation.estimate_hmin(
+            self, scaling_ranges, weighted, idx_reject)
+        
+        if isinstance(gamint, str) and gamint == 'auto':
+            if hmin // .5 > 0:
+                gamint = 0
+            else:
+                gamint = -.5 * (hmin.min() // .5)
+
+                if gamint + hmin < 0.25:
+                    gamint += .5
+
+            return gamint
+
+        if hmin.max() <= 0:
+            raise ValueError(
+                f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
+                "analyzed. A larger value of gamint or different scaling range"
+                " should be selected.")
+
+        if hmin.min() <= 0:
+            warnings.warn(
+                f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
+                "cannot be applied. A larger value of gamint) should be "
+                "selected.")
 
     def __getattribute__(self, name: str) -> Any:
 
@@ -327,15 +377,27 @@ class WaveletLeader(WaveletDec):
             return 'wavelet leader'
         return 'wavelet p-leader'
     
-    def get_values(self, j, ind_j):
+    def get_values(self, j):
 
         if self.p_exp == np.inf:
             return super().get_values(j)
 
         if self.ZPJCorr is None:
-            self.correct_pleaders(self.j.min(), self.j.max())
+            self.correct_pleaders(min(self.values), max(self.values))
 
-        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j, ind_j)
+        ind_j = j - min(self.values)
+
+        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j)
+
+    def get_leaders(self, p_exp, interval_size=3, gamint=0):
+
+        if (p_exp == self.p_exp
+            and interval_size == self.interval_size
+            and gamint == self.gamint):
+
+            return self
+
+        return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
 
     def correct_pleaders(self, min_scale, max_scale):
 
@@ -348,6 +410,46 @@ class WaveletLeader(WaveletDec):
 
         return self.ZPJCorr
 
+    def _check_regularity(self, scaling_ranges, weighted, idx_reject,
+                          gamint=None):
+
+        if self.p_exp == np.inf:
+            return super()._check_regularity(
+                scaling_ranges, weighted, idx_reject, gamint)
+
+        eta_p = estimation._estimate_eta_p(
+            self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
+
+        if isinstance(gamint, str) and gamint == 'auto':
+            # gamint = -.5 * (eta_p // .5)
+            # gamint[eta_p // .5 > 0] = 0
+            # gamint[(gamint + eta_p) < 0.25] += .5
+            if eta_p // .5 > 0:
+                gamint = 0
+            else:
+                gamint = -.5 * (eta_p.min() // .5)
+
+                if gamint + eta_p < 0.25:
+                    gamint += .5
+
+            return gamint
+
+        if eta_p.max() <= 0:
+            # raise ValueError(
+            warnings.warn(
+                f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
+                "analyzed. A smaller value of p (or larger value of gamint) "
+                "should be selected.")
+
+        if eta_p.min() <= 0:
+            warnings.warn(
+                f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
+                "cannot be applied. A smaller value of p (or larger value of "
+                "gamint) should be selected.")
+
+        self.eta_p = eta_p
+
+        self.correct_pleaders(min([*self.values]), max([*self.values]))
 
 @dataclass(kw_only=True)
 class Wtwse(WaveletDec):
@@ -355,3 +457,6 @@ class Wtwse(WaveletDec):
 
     def get_formalism(self):
         return 'weak scaling exponent'
+
+    def _check_regularity(self, *args):
+        return None

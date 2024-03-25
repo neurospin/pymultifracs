@@ -18,12 +18,12 @@ from .viz import plot_cumulants
 
 @dataclass
 class ScalingFunction:
-    scaling_ranges: list[tuple[int]]
     mrq: InitVar[WaveletDec]
-    idx_reject: InitVar[dict[int, np.ndarray]] = field(default=None)
-    weighted: str = None
-    bootstrapped_sf: Any = None
-    gamint: float = None
+    scaling_ranges: list[tuple[int]]
+    idx_reject: InitVar[dict[int, np.ndarray] | None] = None
+    weighted: str | None = None
+    bootstrapped_sf: Any | None = None
+    gamint: float = field(init=False)
     n_sig: int = field(init=False)
     values: np.array = field(init=False)
     slope: np.array = field(init=False)
@@ -95,7 +95,7 @@ class ScalingFunction:
     def compute_Lambda(self):
 
         R = self.compute_R()
-        R_b = self.bootstrapped_mrq.compute_R()
+        R_b = self.bootstrapped_sf.compute_R()
 
         print(R.shape, R_b.shape)
 
@@ -110,7 +110,7 @@ class ScalingFunction:
             values = getattr(self, value_name)
         else:
             values = self.values
-        
+
         slope = np.zeros(
             (values.shape[0], len(self.scaling_ranges),
              values.shape[-1]))
@@ -118,7 +118,7 @@ class ScalingFunction:
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
 
-        self.intercept = np.zeros_like(self.slope)
+        self.intercept = np.zeros_like(slope)
         
         y = values[:, j_min_idx:j_max_idx, :, :]
 
@@ -136,8 +136,8 @@ class ScalingFunction:
                         f"scale {j_min} used in estimation")
                 
                 std_slice = np.s_[
-                    int(j_min - self.bootstrapped_mrq.j.min()):
-                    int(j_max - self.bootstrapped_mrq.j.min() + 1)]
+                    int(j_min - self.bootstrapped_sf.j.min()):
+                    int(j_max - self.bootstrapped_sf.j.min() + 1)]
 
                 std = self.bootstrapped_sf.std_values()[:, std_slice]
 
@@ -183,7 +183,12 @@ class StructureFunction(ScalingFunction):
             self.bootstrapped_sf = self.bootstrapped_sf.structure
 
         self._compute(mrq, idx_reject)
-        self._compute_fit(mrq.n_rep)
+
+        self.slope = np.zeros(
+            (len(self.q), len(self.scaling_ranges), mrq.n_rep))
+        self.intercept = np.zeros_like(self.slope)
+
+        self._compute_fit()
 
     def _compute(self, mrq, idx_reject):
 
@@ -192,7 +197,7 @@ class StructureFunction(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            c_j = mrq.get_values(j, ind_j)
+            c_j = mrq.get_values(j)
 
             c_j = mask_reject(c_j, idx_reject, j, mrq.interval_size)
 
@@ -227,6 +232,9 @@ class StructureFunction(ScalingFunction):
         if name == 'S2':
             out = self.values[self.q == 2]
             return out.reshape(out.shape[0], self.n_sig, -1)
+        
+        if name == 'zeta':
+            return self.slope
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
@@ -262,8 +270,8 @@ class StructureFunction(ScalingFunction):
                                  figsize=figsize,
                                  sharex=True)
 
-        fig.suptitle(self.formalism +
-                     r' - structure functions $\log_2(S(j,q))$')
+        # fig.suptitle(self.formalism +
+        #              r' - structure functions $\log_2(S(j,q))$')
 
         if plot_scales is None:
             idx = np.s_[:]
@@ -282,7 +290,7 @@ class StructureFunction(ScalingFunction):
 
             y = self.S_q(q)[idx]
 
-            if self.bootstrapped_mrq is not None and plot_CI is not None:
+            if self.bootstrapped_sf is not None and plot_CI is not None:
 
                 CI = self.CIE_S_q(q)[idx]
 
@@ -314,7 +322,7 @@ class StructureFunction(ScalingFunction):
                 y0 = slope*x0 + intercept
                 y1 = slope*x1 + intercept
 
-                if self.bootstrapped_mrq is not None:
+                if self.bootstrapped_sf is not None:
                     CI = self.CIE_s_q(q)[scaling_range]
                     CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
                 else:
@@ -402,14 +410,14 @@ class Cumulants(ScalingFunction):
     --------
     """
     n_cumul: int
-    robust_kwargs: dict[str, object] = field(default_factory=dict)
     robust: InitVar[bool] = False
+    robust_kwargs: InitVar[dict[str, object]] = dict()
     m: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq, robust_kwargs, robust, idx_reject):
+    def __post_init__(self, mrq, idx_reject, robust, robust_kwargs):
 
-        self.formalism = mrq.formalism
+        # self.formalism = mrq.formalism
         self.nj = mrq.nj
         self.n_sig = mrq.n_sig
         self.gamint = mrq.gamint
@@ -427,21 +435,22 @@ class Cumulants(ScalingFunction):
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
         else:
             self._compute(mrq, idx_reject)
-        self._compute_log_cumulants(mrq.n_rep)
+        
+        self._compute_fit()
         self.log_cumulants = self.slope * np.log2(np.e)
 
     def __repr__(self):
 
         out = "Cumulants"
         display_params = (
-            'formalism scaling_ranges weighted n_cumul').split(' ')
+            'scaling_ranges weighted n_cumul').split(' ')
 
         for param in display_params:
             out += f" {param} = {getattr(self, param)}"
 
         return out
  
-    def _compute_robust(self, mrq, idx_reject):
+    def _compute_robust(self, mrq, idx_reject, **robust_kwargs):
 
         moments = np.zeros_like(self.values)
         aux = np.zeros_like(moments)
@@ -459,7 +468,8 @@ class Cumulants(ScalingFunction):
             # dropping infinite coefsx
             log_T_X_j[np.isinf(log_T_X_j)] = np.nan
 
-            log_T_X_j = mask_reject(log_T_X_j, idx_reject, j, mrq.interval_size)
+            log_T_X_j = mask_reject(
+                log_T_X_j, idx_reject, j, mrq.interval_size)
 
             values = compute_robust_cumulants(
                 log_T_X_j, self.m, **self.robust_kwargs)
@@ -472,7 +482,7 @@ class Cumulants(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(mrq.get_values(j, ind_j))
+            T_X_j = np.abs(mrq.get_values(j))
 
             np.log(T_X_j, out=T_X_j)
 
@@ -684,7 +694,7 @@ class MFSpectrum(ScalingFunction):
 
         ax = plt.gca() if ax is None else ax
 
-        if self.bootstrapped_mrq is not None:
+        if self.bootstrapped_sf is not None:
 
             CI_Dq = self.CIE_Dq
             CI_hq = self.CIE_hq

@@ -104,101 +104,116 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
             bootstrap_weighted, R, estimates[i], robust, robust_kwargs,
             idx_reject, return_mrq)
                  for i, m in enumerate(mrq)])
-
-    if (mrq.formalism == 'wavelet coef' and p_exp is None
-        and mrq.gamint==0 and not isinstance(gamint, str) and gamint!=0):
-        
-        mrq = integrate_wavelet(mrq, gamint)
-
-        return mfa_wt(
-            mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
-            bootstrap_weighted, R, estimates, robust, robust_kwargs,
-            idx_reject, return_mrq)
     
-    elif (mrq.formalism == 'wavelet coef' and p_exp is not None
-            and not isinstance(gamint, str)):
+    mrq = mrq.get_leaders(p_exp, gamint=gamint)
 
-        mrq = compute_leaders(mrq, gamint, p_exp)
+    # if (mrq.formalism == 'wavelet coef' and p_exp is None
+    #     and mrq.gamint==0 and not isinstance(gamint, str) and gamint!=0):
+        
+    #     mrq = integrate_wavelet(mrq, gamint)
 
-        return mfa_wt(
-            mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
-            bootstrap_weighted, R, estimates, robust, robust_kwargs,
-            idx_reject, return_mrq)
+    #     return mfa_wt(
+    #         mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
+    #         bootstrap_weighted, R, estimates, robust, robust_kwargs,
+    #         idx_reject, return_mrq)
+    
+    # elif (mrq.formalism == 'wavelet coef' and p_exp is not None
+    #         and not isinstance(gamint, str)):
+
+    #     mrq = mrq.derive_leaders(gamint, p_exp)
+
+    #     return mfa_wt(
+    #         mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
+    #         bootstrap_weighted, R, estimates, robust, robust_kwargs,
+    #         idx_reject, return_mrq)
 
     j1 = min([sr[0] for sr in scaling_ranges])
     j2 = max([sr[1] for sr in scaling_ranges])
 
     # Check minimal regularity constraint
-    if p_exp is not None:
+    # if p_exp is not None:
 
-        eta_p = _estimate_eta_p(
-            mrq, p_exp, scaling_ranges, weighted, idx_reject)
+    #     eta_p = _estimate_eta_p(
+    #         mrq, p_exp, scaling_ranges, weighted, idx_reject)
 
-        if isinstance(gamint, str) and gamint == 'auto':
-            # gamint = -.5 * (eta_p // .5)
-            # gamint[eta_p // .5 > 0] = 0
-            # gamint[(gamint + eta_p) < 0.25] += .5
-            if eta_p // .5 > 0:
-                gamint = 0
-            else:
-                gamint = -.5 * (eta_p.min() // .5)
+    #     if isinstance(gamint, str) and gamint == 'auto':
+    #         # gamint = -.5 * (eta_p // .5)
+    #         # gamint[eta_p // .5 > 0] = 0
+    #         # gamint[(gamint + eta_p) < 0.25] += .5
+    #         if eta_p // .5 > 0:
+    #             gamint = 0
+    #         else:
+    #             gamint = -.5 * (eta_p.min() // .5)
 
-                if gamint + eta_p < 0.25:
-                    gamint += .5
+    #             if gamint + eta_p < 0.25:
+    #                 gamint += .5
 
-            return mfa_wt(
-                mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
-                bootstrap_weighted, R, estimates, robust, robust_kwargs,
-                idx_reject, return_mrq)
+    #         return mfa_wt(
+    #             mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+    #             bootstrap_weighted, R, estimates, robust, robust_kwargs,
+    #             idx_reject, return_mrq)
 
-        if eta_p.max() <= 0:
-            # raise ValueError(
-            warnings.warn(
-                f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
-                "analyzed. A smaller value of p (or larger value of gamint) "
-                "should be selected.")
+    #     if eta_p.max() <= 0:
+    #         # raise ValueError(
+    #         warnings.warn(
+    #             f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
+    #             "analyzed. A smaller value of p (or larger value of gamint) "
+    #             "should be selected.")
 
-        if eta_p.min() <= 0:
-            warnings.warn(
-                f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
-                "cannot be applied. A smaller value of p (or larger value of "
-                "gamint) should be selected.")
+    #     if eta_p.min() <= 0:
+    #         warnings.warn(
+    #             f"Minimum eta(p) = {eta_p.min()} <= 0, p-Leaders correction "
+    #             "cannot be applied. A smaller value of p (or larger value of "
+    #             "gamint) should be selected.")
 
-        mrq.eta_p = eta_p
-        mrq.correct_pleaders(min([*mrq.values]), max([*mrq.values]))
+    #     mrq.eta_p = eta_p
+    #     mrq.correct_pleaders(min([*mrq.values]), max([*mrq.values]))
 
-    else:
+    # else:
 
-        hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted, idx_reject)
+    #     hmin, _ = estimate_hmin(mrq, scaling_ranges, weighted, idx_reject)
 
-        if isinstance(gamint, str) and gamint == 'auto':
-            if hmin // .5 > 0:
-                gamint = 0
-            else:
-                gamint = -.5 * (hmin.min() // .5)
+    #     if isinstance(gamint, str) and gamint == 'auto':
+    #         if hmin // .5 > 0:
+    #             gamint = 0
+    #         else:
+    #             gamint = -.5 * (hmin.min() // .5)
 
-                if gamint + hmin < 0.25:
-                    gamint += .5
+    #             if gamint + hmin < 0.25:
+    #                 gamint += .5
 
-            return mfa_wt(
-                mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
-                bootstrap_weighted, R, estimates, robust, robust_kwargs,
-                idx_reject, return_mrq)
+    #         return mfa_wt(
+    #             mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+    #             bootstrap_weighted, R, estimates, robust, robust_kwargs,
+    #             idx_reject, return_mrq)
 
-        if hmin.max() <= 0:
-            raise ValueError(
-                f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
-                "analyzed. A larger value of gamint or different scaling range"
-                " should be selected.")
+    #     if hmin.max() <= 0:
+    #         raise ValueError(
+    #             f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
+    #             "analyzed. A larger value of gamint or different scaling range"
+    #             " should be selected.")
 
-        if hmin.min() <= 0:
-            warnings.warn(
-                f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
-                "cannot be applied. A larger value of gamint) should be "
-                "selected.")
+    #     if hmin.min() <= 0:
+    #         warnings.warn(
+    #             f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
+    #             "cannot be applied. A larger value of gamint) should be "
+    #             "selected.")
+
+    gamint = mrq._check_regularity(scaling_ranges, weighted, idx_reject)
+
+    if gamint is not None:
+        return mfa_wt(
+            mrq, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
+            bootstrap_weighted, R, estimates, robust, robust_kwargs,
+            idx_reject, return_mrq)
 
     if R > 1:
-        mrq.bootstrap(R, j1)
+        mfa_boot = mfa_wt(
+            mrq.bootstrap(R, j1), scaling_ranges, p_exp, gamint, weighted,
+            n_cumul, q, bootstrap_weighted, R, estimates, robust,
+            robust_kwargs, idx_reject, return_mrq=False
+        )
+
     else:
         mfa_boot = None
 
@@ -210,7 +225,7 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         'weighted': weighted,
         'scaling_ranges': scaling_ranges,
         'mrq': mrq,
-        'bootstrapped_mfa': mfa_boot,
+        'bootstrapped_sf': mfa_boot,
         'robust': robust,
         'idx_reject': idx_reject,
     }
@@ -227,10 +242,10 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     if 'c' in estimates or estimates == 'auto':
         cumul = Cumulants.from_dict(parameters)
     if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
-        spec = MultifractalSpectrum.from_dict(parameters)
+        spec = MFSpectrum.from_dict(parameters)
 
     if return_mrq:
-        return mrq,  MFractalVar(struct, cumul, spec)
+        return mrq, MFractalVar(struct, cumul, spec)
 
     return MFractalVar(struct, cumul, spec)
 
