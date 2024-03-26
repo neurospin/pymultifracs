@@ -7,22 +7,21 @@ from scipy import special
 
 import matplotlib.pyplot as plt
 
-from .multiresquantity import WaveletDec
+# from .multiresquantity import WaveletDec
 from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum
-from .viz import plot_cumulants
-# from .cumulants import compute_robust_cumulants
-
+from . import multiresquantity, viz, robust
 
 @dataclass
 class ScalingFunction:
-    mrq: InitVar[WaveletDec]
+    mrq: InitVar[multiresquantity.WaveletDec]
     scaling_ranges: list[tuple[int]]
     idx_reject: InitVar[dict[int, np.ndarray] | None] = None
     weighted: str | None = None
     bootstrapped_sf: Any | None = None
+    formalism: str = field(init=False)
     gamint: float = field(init=False)
     n_sig: int = field(init=False)
     values: np.array = field(init=False)
@@ -97,12 +96,34 @@ class ScalingFunction:
         R = self.compute_R()
         R_b = self.bootstrapped_sf.compute_R()
 
-        print(R.shape, R_b.shape)
-
         return compute_Lambda(R, R_b)
 
     def find_best_range(self):
         return find_max_lambda(self.compute_Lambda())
+
+    def get_jrange(self, j1=None, j2=None, bootstrap=False):
+
+        if self.bootstrapped_sf is not None and bootstrap:
+            if j1 is None:
+                j1 = self.bootstrapped_sf.j.min()
+            if j2 is None:
+                j2 = self.bootstrapped_sf.j.max()
+
+        else:
+
+            if j1 is None:
+                j1 = self.j.min()
+            if j2 is None:
+                j2 = self.j.min()
+
+        if self.j.min() > j1:
+            raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+                             f"{self.j.min()} instead")
+
+        j_min = int(j1 - self.j.min())
+        j_max = int(j2 - self.j.min() + 1)
+
+        return j1, j2, j_min, j_max
 
     def _compute_fit(self, value_name=None, out_name=None):
 
@@ -159,10 +180,86 @@ class ScalingFunction:
         else:
             self.slope = slope
 
+    def _check_enough_rep_bootstrap(self):
+
+        if (ratio := self.n_rep // self.n_sig) < 2:
+            raise ValueError(
+                f'n_rep = {ratio} per original signal too small to build '
+                'confidence intervals'
+                )
+
+    def _get_bootstrapped_sf(self):
+
+        if self.bootstrapped_sf is None:
+            bootstrapped_sf = self
+        else:
+            bootstrapped_sf = self.bootstrapped_sf
+
+        bootstrapped_sf._check_enough_rep_bootstrap()
+
+        return bootstrapped_sf
+    
+    def _check_bootstrap_sf(self):
+
+        if self.bootstrapped_sf is None:
+            raise ValueError(
+                "Bootstrapped mrq needs to be computed prior to estimating "
+                "empirical estimators")
+
+        self.bootstrapped_sf._check_enough_rep_bootstrap()
+
     def __getattr__(self, name):
 
-        if name == 'n_rep':
-            return self.slope.shape[-1]
+        if name[:3] == 'CI_':
+            from .bootstrap import get_confidence_interval
+
+            bootstrapped_sf = self._get_bootstrapped_sf()
+
+            return get_confidence_interval(bootstrapped_sf, name[3:])
+
+        elif name[:4] == 'CIE_':
+            from .bootstrap import get_empirical_CI
+
+            self._check_bootstrap_sf()
+
+            return get_empirical_CI(self.bootstrapped_sf, self, name[4:])
+
+        elif name[:3] == 'VE_':
+            from .bootstrap import get_empirical_variance
+
+            self._check_bootstrap_sf()
+
+            return get_empirical_variance(self.bootstrapped_sf, self,
+                                          name[3:])
+
+        elif name[:3] == 'SE_':
+
+            from .bootstrap import get_empirical_variance
+
+            self._check_bootstrap_sf()
+
+            return np.sqrt(
+                get_empirical_variance(self.bootstrapped_sf, self,
+                                       name[3:](self)))
+
+        elif name[:2] == 'V_':
+
+            from .bootstrap import get_variance
+
+            bootstrapped_sf = self._get_bootstrapped_sf()
+
+            return get_variance(bootstrapped_sf, name[2:])
+
+        elif name[:4] == 'STD_':
+
+            from .bootstrap import get_std
+
+            bootstrapped_sf = self._get_bootstrapped_sf()
+
+            return get_std(bootstrapped_sf, name[4:])
+
+        elif name == 'n_rep':
+            return self.intercept.shape[-1]
 
         return self.__getattribute__(name)
 
@@ -176,7 +273,7 @@ class StructureFunction(ScalingFunction):
 
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
-        # self.nj = mrq.nj
+        self.formalism = mrq.get_formalism()
         self.j = np.array(list(mrq.values))
 
         if self.bootstrapped_sf is not None:
@@ -197,12 +294,10 @@ class StructureFunction(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            c_j = mrq.get_values(j)
-
-            c_j = mask_reject(c_j, idx_reject, j, mrq.interval_size)
+            c_j = mrq.get_values(j, idx_reject)
 
             for ind_q, q in enumerate(self.q):
-                self.values[ind_q, ind_j, :, ] = np.log2(
+                self.values[ind_q, ind_j, :] = np.log2(
                     np.nanmean(fast_power(np.abs(c_j), q), axis=0))
 
         self.values[np.isinf(self.values)] = np.nan
@@ -213,7 +308,7 @@ class StructureFunction(ScalingFunction):
     def S_q(self, q):
 
         out = self.values[isclose(q, self.q)][0]
-        out = out.reshape(out.shape[0], self.n_sig, -1)
+        out = out.reshape(out.shape[0], len(self.scaling_ranges), self.n_sig, -1)
 
         return out
 
@@ -243,14 +338,21 @@ class StructureFunction(ScalingFunction):
 
     def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
              ignore_q0=True, figsize=None, scaling_range=0, plot_scales=None,
-             plot_CI=True):
+             plot_CI=True, signal_idx=0):
         """
         Plots the structure functions.
         """
 
-        if self.n_rep > 1:
-            raise ValueError('Cannot plot structure functions for more than '
-                             '1 repetition at a time')
+        if plot_scales is None:
+            j1, j2, j_min, j_max = self.get_jrange(None, None, plot_CI)
+        else:
+            j1, j2, j_min, j_max = self.get_jrange(*plot_scales, plot_CI)
+
+        idx = np.s_[j_min:j_max]
+
+        # if self.n_rep > 1:
+        #     raise ValueError('Cannot plot structure functions for more than '
+        #                      '1 repetition at a time')
 
         nrow = min(nrow, len(self.q))
         nq = len(self.q) + (-1 if 0.0 in self.q and ignore_q0 else 0)
@@ -273,12 +375,6 @@ class StructureFunction(ScalingFunction):
         # fig.suptitle(self.formalism +
         #              r' - structure functions $\log_2(S(j,q))$')
 
-        if plot_scales is None:
-            idx = np.s_[:]
-        else:
-            j_min = self.j.min()
-            idx = np.s_[plot_scales[0] - j_min:plot_scales[1] - j_min + 1]
-
         x = self.j[idx]
 
         counter = 0
@@ -288,13 +384,16 @@ class StructureFunction(ScalingFunction):
             if q == 0.0 and ignore_q0:
                 continue
 
-            y = self.S_q(q)[idx]
+            y = self.S_q(q)[idx, scaling_range, signal_idx, 0]
 
-            if self.bootstrapped_sf is not None and plot_CI is not None:
+            if self.bootstrapped_sf is not None and plot_CI:
 
-                CI = self.CIE_S_q(q)[idx]
+                _, _, j_min_CI, j_max_CI = self.bootstrapped_sf.get_jrange(
+                    j1, j2)
 
-                CI -= y
+                CI = self.CIE_S_q(q)[j_min_CI:j_max_CI, scaling_range, signal_idx]
+
+                CI -= y[:, None]
                 CI[:, 1] *= -1
                 assert (CI < 0).sum() == 0
                 CI = CI.transpose()
@@ -303,36 +402,34 @@ class StructureFunction(ScalingFunction):
                 CI = None
 
             ax = axes[counter % nrow][counter // nrow]
-            ax.errorbar(x, y[:, 0], CI, fmt='r--.', zorder=4)
+            ax.errorbar(x, y, CI, fmt='r--.', zorder=4)
             ax.set_xlabel('j')
             ax.set_ylabel(f'q = {q:.3f}')
             ax.tick_params(bottom=False, top=False, which='minor')
 
             counter += 1
 
-            if len(self.slope) > 0:
+            x0, x1 = self.scaling_ranges[scaling_range]
+            slope = self.slope[ind_q, scaling_range, 0]
+            intercept = self.intercept[ind_q, scaling_range, 0]
 
-                x0, x1 = self.scaling_ranges[scaling_range]
-                slope = self.slope[ind_q, scaling_range, 0]
-                intercept = self.intercept[ind_q, scaling_range, 0]
+            assert x0 in x, "Scaling range not included in plotting range"
+            assert x1 in x, "Scaling range not included in plotting range"
 
-                assert x0 in x, "Scaling range not included in plotting range"
-                assert x1 in x, "Scaling range not included in plotting range"
+            y0 = slope*x0 + intercept
+            y1 = slope*x1 + intercept
 
-                y0 = slope*x0 + intercept
-                y1 = slope*x1 + intercept
+            if self.bootstrapped_sf is not None and plot_CI:
+                CI = self.CIE_s_q(q)[scaling_range, signal_idx]
+                CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
+            else:
+                CI_legend = ""
 
-                if self.bootstrapped_sf is not None:
-                    CI = self.CIE_s_q(q)[scaling_range]
-                    CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
-                else:
-                    CI_legend = ""
+            legend = rf'$s_{{{q:.2f}}}$ = {slope:.2f}' + CI_legend
 
-                legend = rf'$s_{{{q:.2f}}}$ = {slope:.2f}' + CI_legend
-
-                ax.plot([x0, x1], [y0, y1], color='k',
-                        linestyle='-', linewidth=2, label=legend, zorder=5)
-                ax.legend()
+            ax.plot([x0, x1], [y0, y1], color='k',
+                    linestyle='-', linewidth=2, label=legend, zorder=5)
+            ax.legend()
 
         for j in range(counter, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
@@ -417,8 +514,7 @@ class Cumulants(ScalingFunction):
 
     def __post_init__(self, mrq, idx_reject, robust, robust_kwargs):
 
-        # self.formalism = mrq.formalism
-        self.nj = mrq.nj
+        self.formalism = mrq.get_formalism()
         self.n_sig = mrq.n_sig
         self.gamint = mrq.gamint
         self.j = np.array(list(mrq.values))
@@ -471,7 +567,7 @@ class Cumulants(ScalingFunction):
             log_T_X_j = mask_reject(
                 log_T_X_j, idx_reject, j, mrq.interval_size)
 
-            values = compute_robust_cumulants(
+            values = robust.compute_robust_cumulants(
                 log_T_X_j, self.m, **self.robust_kwargs)
 
             self.values[:, ind_j] = values
@@ -482,7 +578,7 @@ class Cumulants(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(mrq.get_values(j))
+            T_X_j = np.abs(mrq.get_values(j, None))
 
             np.log(T_X_j, out=T_X_j)
 
@@ -499,12 +595,14 @@ class Cumulants(ScalingFunction):
 
             for ind_m, m in enumerate(self.m):
 
-                np.sum(fast_power(T_X_j, m), axis=0, out=moments[ind_m, ind_j])
+                moments[ind_m, ind_j] = np.sum(fast_power(T_X_j, m), axis=0)
                 np.divide(
                     moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
 
                 idx_unreliable = N_useful < 3
-                moments[ind_m, ind_j, idx_unreliable] = np.nan
+
+                for i in range(idx_unreliable.shape[0]):
+                    moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
 
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
@@ -530,7 +628,7 @@ class Cumulants(ScalingFunction):
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
 
             out = self.values[self.m == int(name[1])][0]
-            out = out.reshape(out.shape[0], self.n_sig, -1)
+            out = out.reshape(out.shape[0], out.shape[1], self.n_sig, -1)
 
             return out
 
@@ -545,7 +643,7 @@ class Cumulants(ScalingFunction):
     def plot(self, figsize=None, fignum=1, nrow=3, j1=None, filename=None,
              scaling_range=0, n_cumul=None, signal_idx=0, **kwargs):
 
-        return plot_cumulants(
+        return viz.plot_cumulants(
             self, figsize, fignum, nrow, j1, filename, scaling_range,
             n_cumul=n_cumul, signal_idx=signal_idx, **kwargs)
 
@@ -609,15 +707,14 @@ class MFSpectrum(ScalingFunction):
 
     def __post_init__(self, mrq, idx_reject):
 
-        self.formalism = mrq.formalism
-        self.nj = mrq.nj
-        self.n_sig = mrq.n_sig
+        self.formalism = mrq.get_formalism()
         self.gamint = mrq.gamint
+        self.n_sig = mrq.n_sig
         self.j = np.array(list(mrq.values))
 
         self.U = np.zeros(
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
-        V = np.zeros_like(self.U)
+        self.V = np.zeros_like(self.U)
 
         if self.bootstrapped_sf is not None:
             self.bootstrapped_sf = self.bootstrapped_sf.spectrum
@@ -640,13 +737,13 @@ class MFSpectrum(ScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             # nj = mrq.nj[j]
-            mrq_values_j = np.abs(mrq.get_values(j, ind_j))
+            mrq_values_j = np.abs(mrq.get_values(j, idx_reject))
 
             # if self.formalism == 'wavelet p-leader':
             #     mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
 
-            mrq_values_j = mask_reject(
-                mrq_values_j, idx_reject, j, mrq.interval_size)
+            # mrq_values_j = mask_reject(
+            #     mrq_values_j, idx_reject, j, mrq.interval_size)
 
             idx_nan = np.isnan(mrq_values_j)
             temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
@@ -677,6 +774,18 @@ class MFSpectrum(ScalingFunction):
     def U_q(self, q):
         out = self.U[np.isclose(q, self.q)][0]
         return out.reshape(out.shape[0], self.n_sig, -1)
+    
+    def D_q(self):
+        return self.Dq.reshape(
+            len(self.q), len(self.scaling_ranges), self.n_sig, -1)#[
+            #     :
+            # ]
+    
+    def h_q(self):
+        return self.hq.reshape(
+            len(self.q), len(self.scaling_ranges), self.n_sig, -1)#[
+            #     :
+            # ]
 
     def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
              fmt='ko-', scaling_range=0, signal_idx=0, shift_gamint=False,
@@ -696,11 +805,14 @@ class MFSpectrum(ScalingFunction):
 
         if self.bootstrapped_sf is not None:
 
-            CI_Dq = self.CIE_Dq
-            CI_hq = self.CIE_hq
+            CI_Dq = self.CIE_D_q()
+            CI_hq = self.CIE_h_q()
 
-            CI_Dq -= self.Dq
-            CI_hq -= self.hq
+            CI_Dq -= self.D_q()
+            CI_hq -= self.h_q()
+
+            CI_Dq = CI_Dq[:, scaling_range, signal_idx]
+            CI_hq = CI_hq[:, scaling_range, signal_idx]
 
             CI_Dq[:, 1] *= -1
             CI_hq[:, 1] *= -1
@@ -711,11 +823,8 @@ class MFSpectrum(ScalingFunction):
             assert(CI_Dq < 0).sum() == 0
             assert(CI_hq < 0).sum() == 0
 
-            CI_Dq = CI_Dq.transpose(1, 2, 0)
-            CI_hq = CI_hq.transpose(1, 2, 0)
-
-            CI_Dq = CI_Dq[:, scaling_range]
-            CI_hq = CI_hq[:, scaling_range]
+            CI_Dq = CI_Dq.transpose()
+            CI_hq = CI_hq.transpose()
 
         else:
             CI_Dq, CI_hq = None, None

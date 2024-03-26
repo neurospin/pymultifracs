@@ -142,7 +142,7 @@ def get_filter_length(wt_name):
     return len(wt.dec_hi)
 
 
-def max_scale_bootstrap(mrq):
+def max_scale_bootstrap(mrq, idx_reject=None):
     """
     Determines maximum scale possible to perform bootstrapping
 
@@ -154,12 +154,16 @@ def max_scale_bootstrap(mrq):
 
     filt_len = mrq.filt_len
 
-    for i, nj in mrq.nj.items():
-        if (nj < filt_len).any():
-            i -= 1
+    for j in mrq.values:
+        val = mrq.values[j]
+
+        mask_reject(val[:, None, :], idx_reject, j, mrq.interval_size)
+
+        if ((~np.isnan(val)).sum(axis=0) < filt_len).any():
+            j -= 1
             break
 
-    return i
+    return j
 
 
 def isclose(a, b, rel_tol=1.98e-03):

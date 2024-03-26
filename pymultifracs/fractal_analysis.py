@@ -5,7 +5,6 @@ Authors: Merlin Dumeur <merlin@dumeur.net>
 from collections import namedtuple
 
 import numpy as np
-# from sklearn.linear_model import LinearRegression
 
 from .psd import welch_estimation, wavelet_estimation, log_plot, _log_psd
 
@@ -143,6 +142,8 @@ def estimate_beta(freq, psd, freq_band=(0.01, 2), log='log2'):
     regressor = LinearRegression()
 
     regressor.fit(freq, psd)
+
+    # TODO: replace LinearRegression with np.polyfit
 
     return FractalValues(beta=regressor.coef_[0],
                          log_C=regressor.intercept_,

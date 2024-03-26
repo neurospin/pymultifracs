@@ -17,7 +17,7 @@ if version is None:
 extras = {
     'bootstrap': 'recombinator',
     'robust': 'statsmodels',
-    'test': ['pytest', 'pytest-xdist', 'pytest-cov'],
+    'test': ['pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator'],
     'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme']
 }
 

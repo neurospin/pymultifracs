@@ -92,6 +92,97 @@ def _qn(a, c):
     return output
 
 
+def compute_robust_cumulants(X, m_array, alpha=1):
+
+    from statsmodels.robust.scale import qn_scale
+    from statsmodels.robust.norms import estimate_location, TukeyBiweight
+    from statsmodels.tools.validation import array_like, float_like
+
+    # shape X (n_j, n_ranges, n_rep)
+
+    n_j, n_range, n_rep = X.shape
+    moments = np.zeros((len(m_array), n_range, n_rep))
+    values = np.zeros_like(moments)
+
+    idx_unreliable = (~np.isnan(X)).sum(axis=0) < 3
+
+    # compute robust moments
+    for range, rep in np.ndindex(n_range, n_rep):
+
+        if idx_unreliable[range, rep]:
+            values[:, range, rep] = np.nan
+            continue
+
+        X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]), range, rep]
+
+        if X_norm.shape[0] > 10000:
+            values[:, range, rep] = np.nan
+            continue
+
+        q_est = qn_scale(X_norm)
+
+        if np.isclose(q_est, 0):
+            values[m_array == 1, range, rep] = np.median(X_norm, axis=0)
+            continue
+
+        try:
+            m_est = estimate_location(X_norm, q_est, norm=TukeyBiweight(),
+                                      maxiter=1000)
+        except ValueError:
+
+            if X_norm.shape[0] < 20:
+                values[:, range, rep] = np.nan
+                continue
+
+            m_est = np.median(X_norm)
+
+        X_norm -= m_est
+        X_norm /= q_est
+
+        # X_norm -= X_norm.mean()
+        # X_norm /= X_norm.std()
+
+        # print(X_norm.mean(), X_norm.std())
+
+        for ind_m, m in enumerate(m_array):
+
+            decaying_factor = (alpha
+                               * np.exp(-.5 * (alpha ** 2 - 1) * X_norm ** 2))
+
+            moments[ind_m, range, rep] = np.mean(
+                fast_power(alpha * X_norm, m) * decaying_factor, axis=0)
+
+            if m == 1:
+                values[ind_m, range, rep] = m_est
+            elif m == 2:
+                values[ind_m, range, rep] = q_est ** 2
+            else:
+                aux = 0
+
+                for ind_n, n in enumerate(np.arange(1, m)):
+
+                    if m_array[ind_m - ind_n - 1] > 2:
+                        temp_moment = moments[ind_m - ind_n - 1, range, rep]
+                    elif m_array[ind_m - ind_n - 1] == 2:
+                        temp_moment = X_norm.var()
+                    elif m_array[ind_m - ind_n - 1] == 1:
+                        temp_moment = X_norm.mean()
+
+                    if m_array[ind_n] > 2:
+                        temp_value = values[ind_n, range, rep]
+                    elif m_array[ind_n] == 2:
+                        temp_value = X_norm.var()
+                    elif m_array[ind_n] == 1:
+                        temp_value = X_norm.mean()
+
+                    aux += (binomial_coefficient(m-1, n-1)
+                            * temp_value * temp_moment)
+
+                values[ind_m, :, rep] = moments[ind_m, range, rep] - aux
+
+    return values
+
+
 def C4_to_m4(C4, C2):
     return C4 + 3 * C2 ** 2
 

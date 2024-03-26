@@ -39,35 +39,45 @@ class MultiResolutionQuantityBase:
     #         for scale in self.values
     #     }
 
-    # @classmethod
-    # def from_dict(cls, d):
-    #     r"""Method to instanciate a dataclass by passing a dictionary with
-    #     extra keywords
+    def from_dict(self, d):
+        r"""Method to instanciate a dataclass by passing a dictionary with
+        extra keywords
 
-    #     Parameters
-    #     ----------
-    #     d : dict
-    #         Dictionary containing at least all the parameters required by
-    #         __init__, but can also contain other parameters, which will be
-    #         ignored
+        Parameters
+        ----------
+        d : dict
+            Dictionary containing at least all the parameters required by
+            __init__, but can also contain other parameters, which will be
+            ignored
 
-    #     Returns
-    #     -------
-    #     MultiResolutionQuantityBase
-    #         Properly initialized multi resolution quantity
+        Returns
+        -------
+        MultiResolutionQuantityBase
+            Properly initialized multi resolution quantity
 
-    #     Notes
-    #     -----
-    #     .. note:: Normally, dataclasses can only be instantiated by only
-    #               specifiying parameters expected by the automatically
-    #               generated __init__ method.
-    #               Using this method instead allows us to discard extraneous
-    #               parameters, similarly to introducing a \*\*kwargs parameter.
-    #     """
-    #     return cls(**{
-    #         k: v for k, v in d.items()
-    #         if k in inspect.signature(cls).parameters
-    #     })
+        Notes
+        -----
+        .. note:: Normally, dataclasses can only be instantiated by only
+                  specifiying parameters expected by the automatically
+                  generated __init__ method.
+                  Using this method instead allows us to discard extraneous
+                  parameters, similarly to introducing a \*\*kwargs parameter.
+        """
+
+        cls = type(self)
+
+        parameters = {
+            name: getattr(self, name)
+            for name in inspect.signature(cls).parameters.keys()
+        }
+
+        input = parameters.copy()
+        input.update(d)
+
+        return cls(**{
+            k: v for k, v in input.items()
+            if k in parameters
+        })
 
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
@@ -76,9 +86,11 @@ class MultiResolutionQuantityBase:
         for i, (j1, j2) in enumerate(scaling_ranges):
             for j in range(j1, j2 + 1):
 
-                c_j = np.abs(self.values[j])[:, None, :]
+                # c_j = np.abs(self.values[j])[:, None, :]
 
-                c_j = mask_reject(c_j, idx_reject, j, 1)
+                c_j = np.abs(self.get_values(j, idx_reject))
+
+                # c_j = mask_reject(c_j, idx_reject, j, 1)
                 
                 sup_c_j = np.nanmax(c_j, axis=0)
                 sup_coeffs[j-j_min, i] = sup_c_j
@@ -86,7 +98,7 @@ class MultiResolutionQuantityBase:
         return sup_coeffs
 
     def j2_eff(self):
-        return max(list(self.nj))
+        return max(list(self.values))
 
     def _get_j_min_max(self):
 
@@ -109,8 +121,6 @@ class MultiResolutionQuantityBase:
             bootstrapped_mrq = self
         else:
             bootstrapped_mrq = self.bootstrapped_mrq
-
-        print(bootstrapped_mrq.n_rep, bootstrapped_mrq.S2.shape)
 
         bootstrapped_mrq._check_enough_rep_bootstrap()
 
@@ -234,16 +244,15 @@ class WaveletDec(MultiResolutionQuantityBase):
     wt_name: str
     gamint: float = 0
     values: dict = field(default_factory=dict)
-    nj: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase | None = None
     interval_size: int = field(init=False, default=1)
 
-    def bootstrap(self, R, min_scale=1):
+    def bootstrap(self, R, min_scale=1, idx_reject=None):
 
         from .bootstrap import circular_leader_bootstrap
 
         block_length = get_filter_length(self.wt_name)
-        max_scale = max_scale_bootstrap(self)
+        max_scale = max_scale_bootstrap(self, idx_reject)
 
         self.bootstrapped_mrq = circular_leader_bootstrap(
             self, min_scale, max_scale, block_length, R)
@@ -284,12 +293,21 @@ class WaveletDec(MultiResolutionQuantityBase):
                                          block_length, R)
 
     def add_values(self, coeffs, j):
-
         self.values[j] = coeffs
-        self.nj[j] = (~np.isnan(coeffs)).sum(axis=0)
 
-    def get_values(self, j):
-        return self.values[j][:, None, :]
+    def get_values(self, j, idx_reject=None, reshape=False):
+
+        out = self.values[j][:, None, :]
+        
+        # Bootstrapped mrq needs to realign into signal and repetitions
+        if self.n_rep != self.n_sig and reshape:
+            out = out.reshape(self.values[j].shape[0], 1, self.n_sig, -1)
+
+        if idx_reject is None:
+            return out
+
+        return mask_reject(
+            out, idx_reject, j, self.interval_size)
 
     def plot(self, j1, j2, **kwargs):
         viz.plot_coef(self, j1, j2, **kwargs)
@@ -303,7 +321,7 @@ class WaveletDec(MultiResolutionQuantityBase):
     def get_leaders(self, p_exp, interval_size=3, gamint=0):
 
         if self.origin_mrq is not None:
-            return self.origin_mrq.derive_leaders(p_exp, interval_size, gamint)
+            return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
         
         if gamint != 0 and gamint != self.gamint:
             
@@ -317,9 +335,16 @@ class WaveletDec(MultiResolutionQuantityBase):
         return wavelet.compute_leaders(
             self, p_exp, interval_size)
     
+    def get_wse(self, theta=.5, gamint=0):
+
+        if self.origin_mrq is not None:
+            return self.origin_mrq.get_wse(theta, gamint)
+        
+        return wavelet.compute_wse(self, theta, gamint)
+
     def _check_regularity(self, scaling_ranges, weighted, idx_reject,
                           gamint=None):
-
+        
         hmin, _ = estimation.estimate_hmin(
             self, scaling_ranges, weighted, idx_reject)
         
@@ -351,25 +376,24 @@ class WaveletDec(MultiResolutionQuantityBase):
         if name == 'filt_len':
             return get_filter_length(self.wt_name)
 
+        if name == 'n_rep':
+            if len(self.values) > 0:
+                return self.values[[*self.values][0]].shape[1]
+
         # if name == 'n_sig' and super().__getattribute__('n_sig') is None:
         #     return 1
 
         return super().__getattribute__(name)
 
-    def __getattr__(self, name):
-
-        if name == 'n_rep':
-            if len(self.values) > 0:
-                return self.values[[*self.values][0]].shape[1]
-
-        return super().__getattr__(name)
+    # def __getattr__(self, name):
+    #     return super().__getattr__(name)
 
 
 @dataclass(kw_only=True)
 class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
-    eta_p: np.ndarray = field(init=False, default=None)
+    eta_p: np.ndarray = field(init=False)
     ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def get_formalism(self):
@@ -377,17 +401,20 @@ class WaveletLeader(WaveletDec):
             return 'wavelet leader'
         return 'wavelet p-leader'
     
-    def get_values(self, j):
+    def get_values(self, j, idx_reject=None, reshape=False):
 
-        if self.p_exp == np.inf:
-            return super().get_values(j)
+        if self.p_exp == np.inf or self.eta_p is None:
+            return super().get_values(j, idx_reject)
 
         if self.ZPJCorr is None:
             self.correct_pleaders(min(self.values), max(self.values))
 
         ind_j = j - min(self.values)
 
-        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j)
+        # if reshape and self.n_rep != self.n_sig:
+        #     ZPJCorr = ZPJCorr[..., None]
+
+        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j, idx_reject)
 
     def get_leaders(self, p_exp, interval_size=3, gamint=0):
 
@@ -407,7 +434,7 @@ class WaveletLeader(WaveletDec):
 
         self.ZPJCorr = _correct_pleaders(
             self, self.p_exp, min_scale, max_scale)
-
+        
         return self.ZPJCorr
 
     def _check_regularity(self, scaling_ranges, weighted, idx_reject,

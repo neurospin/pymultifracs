@@ -12,8 +12,8 @@ import pywt
 import numpy as np
 from scipy import signal
 
-from .scalingfunction import StructureFunction
-from .multiresquantity import WaveletDec, Wtwse, WaveletLeader
+from . import multiresquantity
+# from .multiresquantity import WaveletDec, Wtwse, WaveletLeader
 from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
@@ -241,7 +241,7 @@ def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
     formalism = _check_formalism(p_exp)
 
     sans_voisin = None
-    wt_leaders = WaveletLeader(
+    wt_leaders = multiresquantity.WaveletLeader(
         gamint=gamint, p_exp=p_exp, origin_mrq=wt_coefs, interval_size=size,
         wt_name=wt_coefs.wt_name)
 
@@ -274,11 +274,16 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     Computes the wavelet (p)-leaders from the wavelet coefficients
     """
 
-    wt_leaders = WaveletLeader(
+    wt_leaders = multiresquantity.WaveletLeader(
         gamint=wt_coefs.gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
         origin_mrq=wt_coefs, interval_size=size, wt_name=wt_coefs.wt_name)
 
     max_level = wt_coefs.j2_eff()
+
+    leader_flag = p_exp == np.inf
+
+    if leader_flag:
+        p_exp = 1
 
     pleader_p = {}
 
@@ -337,8 +342,6 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
         #     pleader_p[scale-1][size::2]
         # ], axis=0)
 
-        print(scale_contribution.shape, lower_contribution.shape)
-
         # assert scale_contribution.shape[1] == lower_contribution.shape[1],\
         #     print(scale_contribution.shape, lower_contribution.shape, scale)
         #     print(pleader_p[scale-1].shape, coefs.shape, max_index)
@@ -350,11 +353,20 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 
         # print(scale_contribution.shape, lower_contribution.shape)
 
-        leaders = np.sum(np.r_[
-            scale_contribution[:, :max_index],
-            .5 * lower_contribution
-        ], axis=0)
-        pleader_p[scale] = leaders
+        if leader_flag:
+
+            pleader_p[scale] = np.max(np.r_[
+                scale_contribution[:, :max_index],
+                .5 * lower_contribution
+            ], axis=0)
+
+        else:
+
+            leaders = np.sum(np.r_[
+                scale_contribution[:, :max_index],
+                .5 * lower_contribution
+            ], axis=0)
+            pleader_p[scale] = leaders
 
         # finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
         # leaders[~finite_idx_wl] = np.nan
@@ -441,11 +453,11 @@ def integrate_wavelet(wt_coefs, gamint):
     Fractionally integrates the wavelet coef decomposition of a signal
     """
 
-    if isinstance(wt_coefs, Wtwse) or isinstance(wt_coefs, WaveletLeader):
+    if isinstance(wt_coefs, multiresquantity.Wtwse) or isinstance(wt_coefs, multiresquantity.WaveletLeader):
         raise ValueError(
             'Input multi-resolution quantity should be wavelet coef')
 
-    wt_int = WaveletDec(
+    wt_int = multiresquantity.WaveletDec(
         gamint=gamint, wt_name=wt_coefs.wt_name, n_sig=wt_coefs.n_sig)
 
     for scale in wt_coefs.values:
@@ -527,7 +539,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
     approx = signal
 
     # Initialize structures
-    wt_coefs = WaveletDec(gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
+    wt_coefs = multiresquantity.WaveletDec(gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
 
     for scale in range(1, max_level + 1):
 
@@ -568,7 +580,7 @@ def compute_wse(wt_coefs, theta=0.5, gamint=0):
     Computes weak scaling exponent from wavelet coefs
     """
 
-    wse_coef = Wtwse(
+    wse_coef = multiresquantity.Wtwse(
         n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
         gamint=gamint, theta=theta)
 

@@ -115,11 +115,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
               fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
               C_fmt='--.', lw_C=None, offset=0, plot_CI=True, **C_kwargs):
 
-    if j1 is None:
-        j1 = cm.j.min()
-
-    if j2 is None:
-        j2 = cm.j.max()
+    j1, j2 = cm.get_jrange(j1, j2)
 
     if cm.j.min() > j1:
         raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
@@ -200,28 +196,13 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
             C_fmt='--.', lw_C=None, offset=0, plot_CI=True, signal_idx=0,
             shift_gamint=False, **C_kwargs):
 
-    if j1 is None:
-        if cm.bootstrapped_sf is not None:
-            j1 = cm.bootstrapped_sf.j.min()
-        else:
-            j1 = cm.j.min()
-
-
-    if j2 is None:
-        j2 = cm.j.max()
-
-    if cm.j.min() > j1:
-        raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
-                         f"{cm.j.min()} instead")
-
-    j_min = int(j1 - cm.j.min())
-    j_max = int(j2 - cm.j.min() + 1)
+    j1, j2, j_min, j_max = cm.get_jrange(j1, j2, plot_CI)
 
     m = cm.m[ind_m]
 
     x = cm.j[j_min:j_max]
 
-    y = getattr(cm, f'C{m}')[j_min:j_max, signal_idx, 0]
+    y = getattr(cm, f'C{m}')[j_min:j_max, scaling_range, signal_idx, 0]
 
     if shift_gamint and ind_m == 0:
         y -= x * cm.gamint / np.log2(np.e)
@@ -236,7 +217,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         CI_slice = np.s_[int(j1 - cm.bootstrapped_sf.j.min()):
                          int(j2 - cm.bootstrapped_sf.j.min() + 1)]
 
-        CI = getattr(cm, f'CIE_C{m}')[CI_slice, signal_idx]
+        CI = getattr(cm, f'CIE_C{m}')[CI_slice, scaling_range, signal_idx]
 
         CI -= y[:, None]
         CI[:, 1] *= -1
@@ -296,7 +277,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         ax.set(xlim=(j1-.5, j2+.5))
 
 
-def plot_cumulants(cm, figsize, fignum=1, nrow=3, j1=None, filename=None,
+def plot_cumulants(cm, figsize, fignum=1, nrow=2, j1=None, filename=None,
                    scaling_range=0, legend=True, n_cumul=None, signal_idx=0,
                    **kw):
     """

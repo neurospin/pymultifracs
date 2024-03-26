@@ -45,7 +45,18 @@ def estimate_confidence_interval_from_bootstrap(
 
     bootstrap_confidence_interval[:, idx_unreliable] = np.nan
 
-    return bootstrap_confidence_interval.transpose(1, 2, 0)
+    if bootstrap_confidence_interval.ndim > 2:
+        return np.rollaxis(
+            bootstrap_confidence_interval, 0,
+            bootstrap_confidence_interval.ndim)
+
+    # if bootstrap_confidence_interval.ndim > 3:
+    #     return bootstrap_confidence_interval.transpose(1, 2, 3, 0)
+
+    # if bootstrap_confidence_interval.ndim > 2:
+    #     return bootstrap_confidence_interval.transpose(1, 2, 0)
+    
+    return bootstrap_confidence_interval
 
 
 def get_empirical_variance(mrq, ref_mrq, name):
@@ -173,11 +184,10 @@ def _get_align_slice(attribute, mrq, ref_mrq):
     """
 
     # Case where not scaling function (no dependence on j)
-    if (attribute.shape[0] != mrq.j.shape[0]
-            and attribute.shape[0] == mrq.scaling_ranges.shape[0]):
+    if (attribute.shape[0] != mrq.j.shape[0]):
         return np.s_[:], np.s_[:]
 
-    assert attribute.shape[0] == mrq.j.shape[0]
+    # assert attribute.shape[0] == mrq.j.shape[0]
 
     mrq_start = 0
     ref_mrq_start = 0
@@ -365,7 +375,7 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
         if scale < min_scale:
             continue
 
-        data = mrq.values[scale]
+        data = mrq.get_values(scale)
 
         if data.ndim == 1:
             data = np.hstack((data, data[:block_length]))
@@ -409,36 +419,35 @@ def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
                      for rep2 in range(replications)])
 
         out = np.zeros(
-            (replications, *mrq.values[1].shape),
+            (replications, *mrq.get_values(1).shape),
             dtype=float) + np.nan
 
         out[indices_scale >= 0] = data[idx]
 
-        compact_idx = np.all(np.isnan(out), axis=(0, 2))
+        compact_idx = np.all(
+            np.isnan(out), axis=tuple(k for k in range(out.ndim) if k != 1))
         # print(compact_idx.shape, out.shape)
-        values[scale] = out[:, ~compact_idx].transpose(1, 2, 0)
+        values[scale] = out[:, ~compact_idx].transpose(*[*range(out.ndim)[1:], 0])
         values[scale] = values[scale].reshape(values[scale].shape[0], -1)
 
         nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq.from_dict({
-        'formalism': mrq.formalism,
-        'gamint': mrq.gamint,
-        'nj': nj,
         'values': values,
-        'n_sig': mrq.n_rep
     })
+
+    new_mrq.eta_p = None
 
     if double:
 
         double_mrq = {
             rep: mrq.from_dict({
-                'formalism': mrq.formalism,
-                'gamint': mrq.gamint,
-                'nj': nj_double[rep],
                 'values': values_double[rep]
             })
             for rep in values_double}
+        
+        for rep in double_mrq:
+            double_mrq[rep].eta_p = None
 
         return new_mrq, double_mrq
 
