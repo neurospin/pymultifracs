@@ -274,6 +274,9 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     Computes the wavelet (p)-leaders from the wavelet coefficients
     """
 
+    if p_exp is None:
+        return wt_coefs
+
     wt_leaders = multiresquantity.WaveletLeader(
         gamint=wt_coefs.gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
         origin_mrq=wt_coefs, interval_size=size, wt_name=wt_coefs.wt_name)

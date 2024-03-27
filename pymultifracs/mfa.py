@@ -19,10 +19,9 @@ from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
-def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
-           n_cumul=2, q=None, bootstrap_weighted=None, R=1,
-           estimates="auto", robust=False, robust_kwargs=None,
-           idx_reject=None, return_mrq=False, check_regularity=True):
+def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
+        bootstrap_weighted=None, R=1, estimates="auto", robust=False,
+        robust_kwargs=None, idx_reject=None, check_regularity=True):
     """Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
@@ -77,6 +76,22 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
         as an Iterable.
     """
 
+    if isinstance(mrq, Iterable):
+
+        if isinstance(estimates, str):
+            estimates = [estimates] * len(mrq)
+
+        elif (n := len(estimates)) != (m := len(mrq)):
+            raise ValueError(
+                f"Length of `estimates` = {n} does not match `mrq` = {m}"
+            )
+
+        return ([mfa(
+            m, scaling_ranges, weighted, n_cumul, q,
+            bootstrap_weighted, R, estimates[i], robust, robust_kwargs,
+            idx_reject, check_regularity=check_regularity)
+                 for i, m in enumerate(mrq)])
+
     # In case no value of q is specified, we still include q=2 in order to be
     # able to estimate H
     if q is None:
@@ -89,64 +104,21 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. ")
 
-    if isinstance(mrq, Iterable):
-
-        if isinstance(estimates, str):
-            estimates = [estimates] * len(mrq)
-
-        elif (n := len(estimates)) != (m := len(mrq)):
-            raise ValueError(
-                f"Length of `estimates` = {n} does not match `mrq` = {m}"
-            )
-
-        return ([mfa_wt(
-            m, scaling_ranges, p_exp, gamint, weighted, n_cumul, q,
-            bootstrap_weighted, R, estimates[i], robust, robust_kwargs,
-            idx_reject, return_mrq, check_regularity=check_regularity)
-                 for i, m in enumerate(mrq)])
     
-    mrq = mrq.get_leaders(p_exp, gamint=gamint)
-
-    # if (mrq.formalism == 'wavelet coef' and p_exp is None
-    #     and mrq.gamint==0 and not isinstance(gamint, str) and gamint!=0):
-        
-    #     mrq = integrate_wavelet(mrq, gamint)
-
-    #     return mfa_wt(
-    #         mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
-    #         bootstrap_weighted, R, estimates, robust, robust_kwargs,
-    #         idx_reject, return_mrq)
-    
-    # elif (mrq.formalism == 'wavelet coef' and p_exp is not None
-    #         and not isinstance(gamint, str)):
-
-    #     mrq = mrq.derive_leaders(gamint, p_exp)
-
-    #     return mfa_wt(
-    #         mrq, scaling_ranges, None, 0, weighted, n_cumul, q,
-    #         bootstrap_weighted, R, estimates, robust, robust_kwargs,
-    #         idx_reject, return_mrq)
-
     j1 = min([sr[0] for sr in scaling_ranges])
 
     if check_regularity:
-        gamint_auto = mrq._check_regularity(scaling_ranges, weighted, idx_reject)
+        mrq._check_regularity(scaling_ranges, weighted, idx_reject)
 
     if R > 1:
-        mfa_boot = mfa_wt(
-            mrq.bootstrap(R, j1), scaling_ranges, p_exp, gamint, weighted,
+        mfa_boot = mfa(
+            mrq.bootstrap(R, j1), scaling_ranges, weighted,
             n_cumul, q, bootstrap_weighted, 1, estimates, robust,
-            robust_kwargs, idx_reject, return_mrq=False, check_regularity=False
+            robust_kwargs, idx_reject, check_regularity=False
         )
     else:
         mfa_boot = None
 
-    if gamint == 'auto':
-        return mfa_wt(
-            mrq, scaling_ranges, p_exp, gamint_auto, weighted, n_cumul, q,
-            bootstrap_weighted, R, estimates, robust, robust_kwargs,
-            idx_reject, return_mrq, check_regularity)
-    
     parameters = {
         'q': q,
         'n_cumul': n_cumul,
@@ -172,9 +144,6 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
     if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
         spec = MFSpectrum.from_dict(parameters)
 
-    if return_mrq:
-        return mrq, MFractalVar(struct, cumul, spec)
-
     return MFractalVar(struct, cumul, spec)
 
 
@@ -186,7 +155,7 @@ def mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, weighted=None,
 
 #     mrq = compute_wse(wt_coef, theta, gamint)
 
-#     return mfa_wt(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
+#     return mfa(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
 
 
 # def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,

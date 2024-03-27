@@ -327,9 +327,6 @@ class WaveletDec(MultiResolutionQuantityBase):
             
             int = self.integrate(gamint)
 
-            if p_exp is None:
-                return self
-
             return wavelet.compute_leaders(int, p_exp, interval_size)
         
         return wavelet.compute_leaders(
@@ -341,24 +338,33 @@ class WaveletDec(MultiResolutionQuantityBase):
             return self.origin_mrq.get_wse(theta, gamint)
         
         return wavelet.compute_wse(self, theta, gamint)
+    
+    def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
 
-    def _check_regularity(self, scaling_ranges, weighted, idx_reject,
-                          gamint=None):
+        hmin, _ = estimation.estimate_hmin(
+            self, scaling_ranges, weighted, idx_reject)
+
+        hmin = hmin.min()
+
+        if hmin // .5 > 0:
+            gamint = 0
+        else:
+            gamint = -.5 * (hmin.min() // .5)
+
+            if gamint + hmin < 0.25:
+                gamint += .5
+
+        if gamint != self.gamint:
+            return self.integrate(gamint)
+
+        return self
+
+    def _check_regularity(self, scaling_ranges, weighted=None,
+                          idx_reject=None):
         
         hmin, _ = estimation.estimate_hmin(
             self, scaling_ranges, weighted, idx_reject)
         
-        if isinstance(gamint, str) and gamint == 'auto':
-            if hmin // .5 > 0:
-                gamint = 0
-            else:
-                gamint = -.5 * (hmin.min() // .5)
-
-                if gamint + hmin < 0.25:
-                    gamint += .5
-
-            return gamint
-
         if hmin.max() <= 0:
             raise ValueError(
                 f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
@@ -393,7 +399,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
-    eta_p: np.ndarray = field(init=False)
+    eta_p: np.ndarray = field(init=False, repr=False)
     ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def get_formalism(self):
@@ -401,6 +407,9 @@ class WaveletLeader(WaveletDec):
             return 'wavelet leader'
         return 'wavelet p-leader'
     
+    def integrate(self, gamint):
+        return self.get_leaders(self.p_exp, self.interval_size, gamint)
+
     def get_values(self, j, idx_reject=None, reshape=False):
 
         if self.p_exp == np.inf or self.eta_p is None:
@@ -436,34 +445,45 @@ class WaveletLeader(WaveletDec):
             self, self.p_exp, min_scale, max_scale)
         
         return self.ZPJCorr
-
-    def _check_regularity(self, scaling_ranges, weighted, idx_reject,
-                          gamint=None):
+    
+    def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
 
         if self.p_exp == np.inf:
-            return super()._check_regularity(
-                scaling_ranges, weighted, idx_reject, gamint)
+            return super().auto_integrate(
+                scaling_ranges, weighted, idx_reject).get_leaders(
+                    self.p_exp, self.interval_size, self.gamint)
 
         eta_p = estimation._estimate_eta_p(
             self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
 
-        if isinstance(gamint, str) and gamint == 'auto':
-            # gamint = -.5 * (eta_p // .5)
-            # gamint[eta_p // .5 > 0] = 0
-            # gamint[(gamint + eta_p) < 0.25] += .5
-            if eta_p // .5 > 0:
-                gamint = 0
-            else:
-                gamint = -.5 * (eta_p.min() // .5)
+        eta_p = eta_p.min()
 
-                if gamint + eta_p < 0.25:
-                    gamint += .5
+        if eta_p // .5 > 0:
+            gamint = 0
+        else:
+            gamint = -.5 * (eta_p.min() // .5)
 
-            return gamint
+            if gamint + eta_p < 0.25:
+                gamint += .5
+
+        if gamint != self.gamint:
+            return self.origin_mrq.get_leaders(
+                self.p_exp, self.interval_size, gamint)
+        
+        return self
+
+    def _check_regularity(self, scaling_ranges, weighted=None,
+                          idx_reject=None):
+
+        if self.p_exp == np.inf:
+            return super()._check_regularity(
+                scaling_ranges, weighted, idx_reject)
+
+        eta_p = estimation._estimate_eta_p(
+            self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
 
         if eta_p.max() <= 0:
-            # raise ValueError(
-            warnings.warn(
+            raise ValueError(
                 f"Maximum eta(p) = {eta_p.max()} <= 0, no signal can be "
                 "analyzed. A smaller value of p (or larger value of gamint) "
                 "should be selected.")

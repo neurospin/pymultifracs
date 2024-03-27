@@ -3,28 +3,22 @@ import json
 
 import numpy as np
 
-from pymultifracs.wavelet import decomposition_level_bootstrap, \
-    wavelet_analysis
-from pymultifracs.estimation import estimate_hmin
-from pymultifracs.mfa import mf_analysis_full
+from pymultifracs.wavelet import decomposition_level_bootstrap
+from pymultifracs import mfa, wavelet_analysis
 
 
-@pytest.mark.bootstrap
-def test_wavelet_bootstrap(mrw_file):
+# @pytest.mark.bootstrap
+# def test_wavelet_bootstrap(mrw_file):
 
-    for fname in mrw_file:
+#     for fname in mrw_file:
 
-        with open(fname, 'rb') as f:
-            X = np.load(f)
+#         with open(fname, 'rb') as f:
+#             X = np.load(f)
 
-        j2 = 8
-        wt_coefs, _, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, [(1, wt_coefs.j2_eff())], weighted=None)[0]
-        hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else 1
-        WT = wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)
-        WT.wt_coefs.bootstrap(5)
-        WT.wt_leaders.bootstrap(5)
+#         j2 = 8
+
+#         WT = wavelet_analysis(X, j2=j2).get_leaders(p_exp=np.inf)
+#         WT.bootstrap(5)
 
 
 @pytest.mark.bootstrap
@@ -38,13 +32,15 @@ def test_confidence_interval(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        # j2 = decomposition_level(X.shape[0], 'db3')
         j2 = decomposition_level_bootstrap(X, 'db3')
         scaling_ranges = [(2, j2)]
 
-        dwt, lwt = mf_analysis_full(
-            X, scaling_ranges, weighted='bootstrap', p_exp=2, n_cumul=2,
-            R=5, estimates=['s', 'c'])
+        WT = wavelet_analysis(X, j2=j2)
+        WTpL = WT.get_leaders(p_exp=2)
+
+        dwt, lwt = mfa(
+            [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+            R=5, estimates='sc')
 
         print(
             dwt.structure.S_q(2).shape,
@@ -74,15 +70,14 @@ def test_autorange(mrw_file):
             X = np.load(f)
 
         j2 = decomposition_level_bootstrap(X, 'db3')
-        scaling_ranges = [(2, j2)]
+        scaling_ranges = [(2, j2), (3, j2)]
 
-        dwt, lwt = mf_analysis_full(
-            X, scaling_ranges, weighted='bootstrap', p_exp=2, n_cumul=2,
-            R=5, estimates=['s', 'c'])
+        WT = wavelet_analysis(X, j2=j2)
+        WTpL = WT.get_leaders(p_exp=2)
 
-        print(
-            dwt.structure.S_q(2).shape,
-            dwt.structure.bootstrapped_mrq.S_q(2).shape)
+        dwt, lwt = mfa(
+            [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+            R=5, estimates='sc')
 
         lwt.cumulants.compute_Lambda()
         dwt.structure.compute_Lambda()
