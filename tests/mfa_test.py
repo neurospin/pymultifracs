@@ -53,18 +53,20 @@ def test_mfa_mrw(mrw_file):
 
         j2 = int(np.log2(X.shape[0]) - 3)
         
-        WTpL = wavelet_analysis(X, j2=j2).get_leaders(p_exp=2)
+        WT = wavelet_analysis(X, j2=j2)
+        WTpL = WT.get_leaders(p_exp=2)
 
         scaling_ranges = [(3, WTpL.j2_eff())]
 
         WTpL = WTpL.auto_integrate(scaling_ranges)
+        WT = WT.auto_integrate(scaling_ranges)
 
         assert WTpL.gamint == 0
 
         q = np.array([-2, -1, 0, 1, 2])
 
         dwt, lwt = mfa(
-            [WTpL.origin_mrq, WTpL], scaling_ranges, n_cumul=4, q=q)
-        assert abs(dwt.structure.H.mean() - WTpL.gamint - config_list[i]['H']) < 0.11
+            [WT, WTpL], scaling_ranges, n_cumul=4, q=q)
+        assert abs(dwt.structure.H.mean() - WT.gamint - config_list[i]['H']) < 0.11
         assert abs(lwt.cumulants.c2.mean()
                    + (config_list[i]['lam'] ** 2)) < 0.025

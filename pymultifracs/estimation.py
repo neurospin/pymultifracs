@@ -34,13 +34,13 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     else:
         std = None
 
-    w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
-                        scaling_ranges, std=std)
-
     sup_coeffs = mrq.sup_coeffs(
         n_ranges, j_max, j_min, scaling_ranges, idx_reject)
 
     y = np.log2(sup_coeffs)[None, :]
+    
+    w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
+                        scaling_ranges, y, std=std)
 
     slope, intercept = linear_regression(x, y, w)
 

@@ -4,7 +4,7 @@ import numpy as np
 
 
 def prepare_weights(mrq, weighted, n_ranges, j_min, j_max, scaling_ranges,
-                    std=None):
+                    y, std=None):
 
     if weighted == 'Nj':
 
@@ -35,6 +35,11 @@ def prepare_weights(mrq, weighted, n_ranges, j_min, j_max, scaling_ranges,
 
         w[:, int(j2-j_min+1):, i, :] = 0
         w[:, :int(j1-j_min), i, :] = 0
+
+    if np.isnan(y).any():
+        mask = np.ones_like(y)
+        mask[np.isnan(y)] = 0
+        w = mask * w
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     return w

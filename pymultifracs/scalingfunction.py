@@ -114,7 +114,7 @@ class ScalingFunction:
             if j1 is None:
                 j1 = self.j.min()
             if j2 is None:
-                j2 = self.j.min()
+                j2 = self.j.max()
 
         if self.j.min() > j1:
             raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
@@ -138,11 +138,11 @@ class ScalingFunction:
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
-
-        self.intercept = np.zeros_like(slope)
         
-        y = values[:, j_min_idx:j_max_idx, :, :]
+        self.intercept = np.zeros_like(slope)
 
+        y = values[:, j_min_idx:j_max_idx, :, :]
+        
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_sf is None:
@@ -166,7 +166,7 @@ class ScalingFunction:
             std = None
 
         self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
-                                       j_max, self.scaling_ranges, std)
+                                       j_max, self.scaling_ranges, y, std)
         
         nan_weighting = np.ones_like(y)
         nan_weighting[np.isnan(y)] = np.nan
@@ -640,11 +640,11 @@ class Cumulants(ScalingFunction):
 
         return self.__getattribute__(name)
 
-    def plot(self, figsize=None, fignum=1, nrow=3, j1=None, filename=None,
+    def plot(self, figsize=None, nrow=3, j1=None, filename=None,
              scaling_range=0, n_cumul=None, signal_idx=0, **kwargs):
 
         return viz.plot_cumulants(
-            self, figsize, fignum, nrow, j1, filename, scaling_range,
+            self, figsize, nrow, j1, filename, scaling_range,
             n_cumul=n_cumul, signal_idx=signal_idx, **kwargs)
 
 
