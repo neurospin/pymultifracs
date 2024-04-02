@@ -22,8 +22,8 @@ from ..multiresquantity import WaveletDec
 class BiScalingFunction:
     mrq1: InitVar[WaveletDec]
     mrq2: InitVar[WaveletDec]
-    mode: InitVar[str] = 'all2all'
     scaling_ranges: list[tuple[int]]
+    mode: InitVar[str] = 'all2all'
     bootstrapped_sf: Any | None = None
     formalism: str = field(init=False)
     gamint1: float = field(init=False)
@@ -83,29 +83,32 @@ class BiStructureFunction(BiScalingFunction):
 
     def __post_init__(self, mrq1, mrq2, mode):
 
-        if mrq1.formalism != mrq2.formalism:
+        if mrq1.get_formalism() != mrq2.get_formalism():
             raise ValueError(
                 'Multi-resolution quantities should have the same formalism, '
                 f'currently is {mrq1.formalism=}, {mrq2.formalism=}')
 
-        self.formalism = mrq1.formalism
+        self.formalism = mrq1.get_formalism()
         self.gamint1 = mrq1.gamint
         self.gamint2 = mrq2.gamint
+
+        if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
+                != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
+            raise ValueError(
+                'Mrq 1 and 2 have different number of bootstrapping '
+                f'repetitions: {ratio1} and {ratio2}, respectively.')
 
         if mode == 'all2all':
             self.n_sig = mrq1.n_sig * mrq2.n_sig
         elif mode == 'pairwise':
             if mrq1.n_sig != mrq2.n_sig:
                 raise ValueError(
-                    'Pairwise mode needs equal number of signals on each multi-resolution quantity, '
-                    f'currently {mrq1.n_sig=} and {mrq2.n_sig=}')
+                    'Pairwise mode needs equal number of signals on each '
+                    f'multi-resolution quantity, currently {mrq1.n_sig=} and '
+                    f'{mrq2.n_sig=}')
             self.n_sig = mrq1.n_sig
 
-        # self.n_rep = 1
-
-        # if any([(mrq1.nj[s] != mrq2.nj[s]).any() for s in mrq1.nj]):
-        #     raise ValueError("Mismatch in number of coefficients between the "
-        #                      "mrq")
+        n_rep = ratio1 * self.n_sig
 
         # self.nj = mrq1.nj
         self.j = np.array(list(mrq1.values))
@@ -114,46 +117,62 @@ class BiStructureFunction(BiScalingFunction):
             self.bootstrapped_mrq = self.bootstrapped_sf.structure
 
         self._compute(mrq1, mrq2)
-        self._compute_zeta()
+        self._compute_fit()
 
     def _compute(self, mrq1, mrq2):
 
-        self.values = np.zeros((len(self.q1), len(self.q2), len(self.j), ))
-        self.coherence = np.zeros(self.values[2:])
-
-        pow1 = {
-            q1: fast_power(np.abs(mrq1.values[j]), q1)
-            for q1 in self.q1 if q2 != 0
-        }
-        pow2 = {
-            q2: fast_power(np.abs(mrq2.values[j]), q2)
-            for q2 in self.q2 if q2 != 0
-        }
+        self.values = np.zeros(
+            (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges), mrq1.n_rep, mrq2.n_rep))
+        self.coherence = np.zeros(self.values.shape[2:])
 
         for ind_j, j in enumerate(self.j):
+
+            pow1 = {
+                q1: fast_power(np.abs(mrq1.get_values(j)), q1)[..., None]
+                for q1 in self.q1 if q1 != 0
+            }
+            pow2 = {
+                q2: fast_power(np.abs(mrq2.get_values(j)), q2)[..., None, :]
+                for q2 in self.q2 if q2 != 0
+            }
+
             for ind_q1, q1 in enumerate(self.q1):
                 for ind_q2, q2 in enumerate(self.q2):
 
+                    if q1 == q2 == 0:
+                        self.values[ind_q1, ind_q2, ind_j] = 0
+                        continue
+
                     if q1 == 0:
-                        self.values[ind_q1, ind_q2, ind_j] = np.log2(np.nanmean(pow2[q2], axis=0))
+                        self.values[ind_q1, ind_q2, ind_j] = np.log2(
+                            np.nanmean(pow2[q2], axis=0))
                         continue
 
                     if q2 == 0:
-                        self.values[ind_q1, ind_q2, ind_j] = np.log2(np.nanmean(pow1[q1], axis=0))
+                        self.values[ind_q1, ind_q2, ind_j] = np.log2(
+                            np.nanmean(pow1[q1], axis=0))
                         continue
 
-                    self.values[ind_q1, ind_q2, ind_j] = np.log2(np.nanmean(pow1[q1] * pow2[q2], axis=0))
+                    self.values[ind_q1, ind_q2, ind_j] = np.log2(
+                        np.nanmean(pow1[q1] * pow2[q2], axis=0))
 
-            self.coherence[j] = mrq1.values[j] * mrq2.values[j] / np.sqrt(
-            np.nanmean(fast_power(mrq1.values[j], 2)) * fast_power(mrq2.values[j], 2)
-        )
-
-    def _compute_zeta(self):
+            self.coherence[ind_j] = (
+                np.nanmean(mrq1.values[j][..., None]
+                           * mrq2.values[j][..., None, :],
+                           axis=0)
+                / np.sqrt(np.nanmean(
+                    fast_power(mrq1.values[j], 2)[..., None]
+                    * fast_power(mrq2.values[j], 2)[..., None, :],
+                    axis = 0)))
+            
+    def _compute_fit(self):
         """
         Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
         """
 
-        self.slope = np.zeros((len(self.q1), len(self.q2), len(self.scaling_ranges), self.values.shape[-1]))
+        self.slope = np.zeros(
+            (len(self.q1), len(self.q2), len(self.scaling_ranges),
+             self.values.shape[-1]))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
@@ -162,41 +181,51 @@ class BiStructureFunction(BiScalingFunction):
 
         # TODO adapt to new regression factorization
 
-        y = self.values.reshape(-1, *self.slope.shape[2:])
+        nq1 = len(self.q1)
+        nq2 = len(self.q2)
 
-        y = self.logvalues.reshape(-1, n_j)[:, j_min_idx:j_max_idx, None, None]
+        N1, N2 = self.values.shape[-2:]
+
+        y = self.values.reshape(nq1 * nq2, len(self.j), N1 * N2)[
+            :, j_min_idx:j_max_idx]
 
         if self.weighted == 'bootstrap':
 
-            # case where self is the bootstrapped mrq
-            if self.bootstrapped_mrq is None:
-                std = self.STD_logvalues.reshape(-1, n_j)[
-                    :, j_min_idx:j_max_idx]
+            if self.bootstrapped_sf is None:
+                std = self.std_values()[:, j_min_idx:j_max_idx]
 
             else:
-                std = self.bootstrapped_mrq.STD_logvalues.reshape(-1, n_j)[
-                    :,
-                    j_min - self.bootstrapped_mrq.j.min():
-                    j_max - self.bootstrapped_mrq.j.min() + 1]
+
+                if j_min < self.bootstrapped_sf.j.min():
+                    raise ValueError(
+                        'Bootstrapped minimum scale '
+                        f'{self.bootstrapped_sf.j.min()} inferior to minimum'
+                        f'scale {j_min} used in estimation')
+                
+                std_slice = np.s_[
+                    int(j_min - self.bootstrapped_sf.j.min()):
+                    int(j_max - self.bootstrapped_sf.j.min() + 1)]
+                
+                std = self.bootstrapped_sf.std_values()[:, std_slice]
 
         else:
             std = None
 
-        weights = prepare_weights(self, self.weighted, n_ranges, j_min, j_max,
-                                  self.scaling_ranges, std)[:, :, :, 0, None]
-        # No broadcasting repetitions for now
+        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
+                                       j_max, self.scaling_ranges, y, std)
 
-        nan_weighting = np.ones_like(y)
-        nan_weighting[np.isnan(y)] = np.nan
-        weights = weights * nan_weighting
+        # nan_weighting = np.ones_like(y)
+        # nan_weighting[np.isnan(y)] = np.nan
 
-        zeta, intercept = linear_regression(x, y, weights)
+        # weights = weights * nan_weighting
 
-        n1 = self.logvalues.shape[0]
-        n2 = self.logvalues.shape[1]
+        self.slope, self.intercept = linear_regression(x, y, self.weights)
 
-        self.zeta = zeta.reshape(n1, n2, n_ranges)
-        self.intercept = intercept.reshape(n1, n2, n_ranges)
+        n1 = self.values.shape[0]
+        n2 = self.values.shape[1]
+
+        self.slope = self.slope.reshape(n1, n2, n_ranges, -1)
+        self.intercept = self.intercept.reshape(n1, n2, n_ranges, -1)
 
     def plot(self):
 
@@ -237,3 +266,8 @@ class BiStructureFunction(BiScalingFunction):
         sns.despine()
 
         return fig
+
+
+@dataclass(kw_only=True)
+class BiCumulants(BiScalingFunction):
+    cm: int = field(init=False)

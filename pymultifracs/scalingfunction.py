@@ -168,10 +168,10 @@ class ScalingFunction:
         self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
                                        j_max, self.scaling_ranges, y, std)
         
-        nan_weighting = np.ones_like(y)
-        nan_weighting[np.isnan(y)] = np.nan
+        # nan_weighting = np.ones_like(y)
+        # nan_weighting[np.isnan(y)] = np.nan
 
-        self.weights * nan_weighting
+        # self.weights *= nan_weighting
         
         slope, self.intercept = linear_regression(x, y, self.weights)
 

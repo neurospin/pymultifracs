@@ -5,11 +5,11 @@ import numpy as np
 from ..autorange import sanitize_scaling_ranges
 from ..utils import MFractalBiVar
 from ..wavelet import wavelet_analysis
-from .bivariate_cumulants import BiCumulants
-from .bivariate_structurefunction import BiStructureFunction
+from .biscaling_function import BiStructureFunction, BiCumulants
 
 
-def bimfa(mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
+def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
+          q2=None, mode='all2all',
           bootstrap_weighted=None, R=1, estimates='auto', robust=False,
           robust_kwargs=None, idx_reject=None, check_regularity=True):
 
@@ -86,6 +86,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
     parameters = {
         'q1': q1,
         'q2': q2,
+        'mode': mode,
         'weighted': weighted,
         'scaling_ranges': scaling_ranges,
         'mrq1': mrq1,
