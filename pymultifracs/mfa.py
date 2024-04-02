@@ -104,13 +104,11 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. ")
 
-    
-    j1 = min([sr[0] for sr in scaling_ranges])
-
     if check_regularity:
         mrq._check_regularity(scaling_ranges, weighted, idx_reject)
 
     if R > 1:
+        j1 = min([sr[0] for sr in scaling_ranges])
         mfa_boot = mfa(
             mrq.bootstrap(R, j1), scaling_ranges, weighted,
             n_cumul, q, bootstrap_weighted, 1, estimates, robust,

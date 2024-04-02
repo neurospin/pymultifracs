@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from scipy.io import loadmat
 
-from pymultifracs.bivariate import bivariate_analysis_full
+from pymultifracs.bivariate import bimfa
 
 
 @pytest.mark.bivariate
@@ -58,7 +58,7 @@ def test_bivariate():
 
         scaling_ranges = [(j1, j2)]
 
-        dwt, lwt = bivariate_analysis_full(
+        dwt, lwt = bimfa(
             X[:, 0], X[:, 1], scaling_ranges, p_exp=p_exp, gamint=gamint,
             weighted=None, n_cumul=2, q1=np.array([0, 1, 2]),
             q2=np.array([0, 1, 2]), R=1)
