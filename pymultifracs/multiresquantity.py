@@ -300,7 +300,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         out = self.values[j][:, None, :]
         
         # Bootstrapped mrq needs to realign into signal and repetitions
-        if self.n_rep != self.n_sig and reshape:
+        if reshape: # and self.n_rep != self.n_sig
             out = out.reshape(self.values[j].shape[0], 1, self.n_sig, -1)
 
         if idx_reject is None:
@@ -413,17 +413,17 @@ class WaveletLeader(WaveletDec):
     def get_values(self, j, idx_reject=None, reshape=False):
 
         if self.p_exp == np.inf or self.eta_p is None:
-            return super().get_values(j, idx_reject)
+            return super().get_values(j, idx_reject, reshape)
 
         if self.ZPJCorr is None:
             self.correct_pleaders(min(self.values), max(self.values))
 
-        ind_j = j - min(self.values)
+        ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
 
-        # if reshape and self.n_rep != self.n_sig:
-        #     ZPJCorr = ZPJCorr[..., None]
+        if reshape:
+            ZPJCorr = ZPJCorr[..., None]
 
-        return self.ZPJCorr[None, :, :, ind_j] * super().get_values(j, idx_reject)
+        return ZPJCorr * super().get_values(j, idx_reject, reshape)
 
     def get_leaders(self, p_exp, interval_size=3, gamint=0):
 

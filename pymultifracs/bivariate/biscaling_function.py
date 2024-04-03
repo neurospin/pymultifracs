@@ -14,7 +14,7 @@ from ..regression import prepare_regression, prepare_weights
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-from ..utils import fast_power
+from ..utils import fast_power, isclose
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
 
@@ -25,11 +25,15 @@ class BiScalingFunction:
     scaling_ranges: list[tuple[int]]
     mode: InitVar[str] = 'all2all'
     bootstrapped_sf: Any | None = None
+    weighted: str = None
     formalism: str = field(init=False)
     gamint1: float = field(init=False)
     gamint2: float = field(init=False)
-    n_sig: int = field(init=False)
+    n_sig: tuple[int] = field(init=False)
     j: np.ndarray = field(init=False)
+    values: np.ndarray = field(init=False, repr=False)
+    slope: np.ndarray = field(init=False, repr=False)
+    intercept: np.ndarray = field(init=False, repr=False)
 
     @classmethod
     def from_dict(cls, d):
@@ -68,17 +72,35 @@ class BiScalingFunction:
                 'confidence intervals'
                 )
 
+    def get_jrange(self, j1=None, j2=None, bootstrap=False):
+
+        if self.bootstrapped_sf is not None and bootstrap:
+            if j1 is None:
+                j1 = self.bootstrapped_sf.j.min()
+            if j2 is None:
+                j2 = self.bootstrapped_sf.j.max()
+
+        else:
+
+            if j1 is None:
+                j1 = self.j.min()
+            if j2 is None:
+                j2 = self.j.max()
+
+        if self.j.min() > j1:
+            raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+                             f"{self.j.min()} instead")
+
+        j_min = int(j1 - self.j.min())
+        j_max = int(j2 - self.j.min() + 1)
+
+        return j1, j2, j_min, j_max
+
 
 @dataclass(kw_only=True)
 class BiStructureFunction(BiScalingFunction):
     q1: np.ndarray
     q2: np.ndarray
-    weighted: str = None
-    j: np.ndarray = field(init=False)
-    logvalues: np.ndarray = field(init=False)
-    slope: np.ndarray = field(init=False)
-    intercept: np.ndarray = field(init=False)
-    gamint: float = field(init=False)
     coherence: np.ndarray = field(init=False)
 
     def __post_init__(self, mrq1, mrq2, mode):
@@ -92,49 +114,64 @@ class BiStructureFunction(BiScalingFunction):
         self.gamint1 = mrq1.gamint
         self.gamint2 = mrq2.gamint
 
+        # if mode == 'all2all':
+        #     self.n_sig = mrq1.n_sig * mrq2.n_sig
+        # elif mode == 'pairwise':
+        #     if mrq1.n_sig != mrq2.n_sig:
+        #         raise ValueError(
+        #             'Pairwise mode needs equal number of signals on each '
+        #             f'multi-resolution quantity, currently {mrq1.n_sig=} and '
+        #             f'{mrq2.n_sig=}')
+        #     self.n_sig = mrq1.n_sig
+
+        # self.nj = mrq1.nj
+
+        if max(mrq1.values) < max(mrq2.values):
+            self.j = np.array(list(mrq1.values))
+        else:
+            self.j = np.array(list(mrq2.values))
+
+        if self.bootstrapped_sf is not None:
+            self.bootstrapped_mrq = self.bootstrapped_sf.structure
+
+        self._compute(mrq1, mrq2, mode)
+        self._compute_fit()
+
+    def _compute(self, mrq1, mrq2, mode):
+
         if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
                 != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
             raise ValueError(
                 'Mrq 1 and 2 have different number of bootstrapping '
                 f'repetitions: {ratio1} and {ratio2}, respectively.')
 
-        if mode == 'all2all':
-            self.n_sig = mrq1.n_sig * mrq2.n_sig
-        elif mode == 'pairwise':
-            if mrq1.n_sig != mrq2.n_sig:
-                raise ValueError(
-                    'Pairwise mode needs equal number of signals on each '
-                    f'multi-resolution quantity, currently {mrq1.n_sig=} and '
-                    f'{mrq2.n_sig=}')
-            self.n_sig = mrq1.n_sig
-
-        n_rep = ratio1 * self.n_sig
-
-        # self.nj = mrq1.nj
-        self.j = np.array(list(mrq1.values))
-
-        if self.bootstrapped_sf is not None:
-            self.bootstrapped_mrq = self.bootstrapped_sf.structure
-
-        self._compute(mrq1, mrq2)
-        self._compute_fit()
-
-    def _compute(self, mrq1, mrq2):
+        match mode:
+            case 'all2all':
+                n_rep = (mrq1.n_sig, mrq2.n_sig, ratio1)
+            case 'pairwise':
+                n_rep = (mrq1.n_sig, 1, ratio1)
 
         self.values = np.zeros(
-            (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges), mrq1.n_rep, mrq2.n_rep))
+            (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges),
+             *n_rep))
         self.coherence = np.zeros(self.values.shape[2:])
 
         for ind_j, j in enumerate(self.j):
 
             pow1 = {
-                q1: fast_power(np.abs(mrq1.get_values(j)), q1)[..., None]
+                q1: fast_power(np.abs(mrq1.get_values(j, reshape=True)), q1)[
+                    ..., None, :]
                 for q1 in self.q1 if q1 != 0
             }
             pow2 = {
-                q2: fast_power(np.abs(mrq2.get_values(j)), q2)[..., None, :]
+                q2: fast_power(np.abs(mrq2.get_values(j, reshape=True)), q2)
                 for q2 in self.q2 if q2 != 0
             }
+
+            if mode == 'all2all':
+                pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
+            elif mode == 'pairwise':
+                pow2 = {k: v[..., None, :] for k, v in pow2.items()}
 
             for ind_q1, q1 in enumerate(self.q1):
                 for ind_q2, q2 in enumerate(self.q2):
@@ -156,14 +193,19 @@ class BiStructureFunction(BiScalingFunction):
                     self.values[ind_q1, ind_q2, ind_j] = np.log2(
                         np.nanmean(pow1[q1] * pow2[q2], axis=0))
 
+            # Computing coherence
+            val1 = mrq1.get_values(j, reshape=True)[..., None, :]
+
+            match mode:
+                case 'all2all':
+                    val2 = mrq2.get_values(j, reshape=True)[..., None, :, :]
+                case 'pairwise':
+                    val2 = mrq2.get_values(j, reshape=True)[..., None, :]
+
             self.coherence[ind_j] = (
-                np.nanmean(mrq1.values[j][..., None]
-                           * mrq2.values[j][..., None, :],
-                           axis=0)
-                / np.sqrt(np.nanmean(
-                    fast_power(mrq1.values[j], 2)[..., None]
-                    * fast_power(mrq2.values[j], 2)[..., None, :],
-                    axis = 0)))
+                np.nanmean(val1 * val2, axis=0)
+                / np.sqrt(np.nanmean(fast_power(val1, 2) * fast_power(val2, 2),
+                                     axis = 0)))
             
     def _compute_fit(self):
         """
@@ -172,7 +214,7 @@ class BiStructureFunction(BiScalingFunction):
 
         self.slope = np.zeros(
             (len(self.q1), len(self.q2), len(self.scaling_ranges),
-             self.values.shape[-1]))
+             np.prod(self.values.shape[4:])))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
@@ -184,10 +226,9 @@ class BiStructureFunction(BiScalingFunction):
         nq1 = len(self.q1)
         nq2 = len(self.q2)
 
-        N1, N2 = self.values.shape[-2:]
-
-        y = self.values.reshape(nq1 * nq2, len(self.j), N1 * N2)[
-            :, j_min_idx:j_max_idx]
+        y = self.values.reshape(
+            nq1 * nq2, len(self.j), len(self.scaling_ranges),
+            self.slope.shape[3])[:, j_min_idx:j_max_idx]
 
         if self.weighted == 'bootstrap':
 
@@ -227,40 +268,67 @@ class BiStructureFunction(BiScalingFunction):
         self.slope = self.slope.reshape(n1, n2, n_ranges, -1)
         self.intercept = self.intercept.reshape(n1, n2, n_ranges, -1)
 
-    def plot(self):
+    def S_qq(self, q1, q2):
+        return self.values[isclose(q1, self.q1), isclose(q2, self.q2)][0]
 
-        fig, ax = plt.subplots(len(self.q1), len(self.q2), sharex=True,
-                               figsize=(len(self.q1) * 5 + 2,
-                                        len(self.q2) * 3 + 2))
+    def s_qq(self, q):
 
-        j_support = np.arange(self.j1, self.j2+1)
+        out = self.slope[isclose(q, self.q)][0]
+        out = out.reshape(len(self.scaling_ranges), *self.values.shape[4:])
 
-        slope_param = {
-            'c': 'black',
-            'linestyle': '--',
-            'linewidth': 1.25
-        }
+        return out
 
-        plot_param = {
-            'linewidth': 2.5
-        }
+    def plot(self, figsize=None, scaling_range=0, signal_idx_pair = (0, 0),
+             plot_CI=True, plot_scales=None):
 
+        if plot_scales is None:
+            j1, j2, j_min, j_max = self.get_jrange(None, None, plot_CI)
+        else:
+            j1, j2, j_min, j_max = self.get_jrange(*plot_scales, plot_CI)
+
+        idx = np.s_[j_min:j_max]
+
+        fig, axes = plt.subplots(len(self.q1), len(self.q2), sharex=True,
+                                 figsize=figsize)
+
+        x = self.j[idx]
+        
         for ind_q1, q1 in enumerate(self.q1):
             for ind_q2, q2 in enumerate(self.q2):
 
-                ax[ind_q1, ind_q2].plot(self.j, self.logvalues[ind_q1, ind_q2],
-                                        **plot_param)
-                ax[ind_q1, ind_q2].plot(j_support,
+                y = self.S_qq(q1, q2)[idx, scaling_range, *signal_idx_pair, 0]
+
+                if self.bootstrapped_sf is not None and plot_CI:
+
+                    __, _, j_min_CI, j_max_CI = self.bootstrapped_sf.get_jrange(
+                    j1, j2)
+
+                    CI = self.CIE_S_qq(q1, q2)[
+                        j_min_CI:j_max_CI, scaling_range, *signal_idx_pair]
+
+                    CI -= y[:, None]
+                    CI[:, 1] *= -1
+                    assert (CI < 0).sum() == 0
+                    CI = CI.transpose()
+
+                else:
+                    CI = None
+
+                ax = axes[ind_q1, ind_q2]
+                ax.errorbar(x, y, CI)
+                ax.set(xlabel='Temporal scale $j$',
+                       ylabel=f'q_1={q1:.3f}, q_2={q2:.3f}')
+
+                ax.plot(j_support,
                                         (j_support * self.zeta[ind_q1, ind_q2])
                                         + self.intercept[ind_q1, ind_q2],
-                                        **slope_param,
                                         label=rf'$\zeta({q1}, {q2}): '
                                         f'{self.zeta[ind_q1, ind_q2]:.2f}$')
-                ax[ind_q1, ind_q2].legend()
+                ax.legend()
 
-                ax[ind_q1, ind_q2].set_ylabel(rf'$S_{{{q1}, {q2}}}(j)$',
+                ax.set_ylabel(rf'$S_{{{q1}, {q2}}}(j)$',
                                               size='large')
-                ax[ind_q1, ind_q2].set_title(f'{q1=}, {q2=}', size='large')
+                ax.set_title(f'{q1=}, {q2=}', size='large')
                 ax[-1, ind_q2].set_xlabel('j', size='large')
 
         sns.despine()

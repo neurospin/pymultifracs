@@ -1,6 +1,6 @@
 from typing import Any
 from dataclasses import dataclass, field, InitVar
-import inspect
+import inspect  
 
 import numpy as np
 from scipy import special
