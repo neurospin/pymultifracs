@@ -11,70 +11,38 @@ import matplotlib.pyplot as plt
 from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2
 from .autorange import compute_Lambda, compute_R, find_max_lambda
-from .utils import fast_power, mask_reject, isclose, fixednansum
+from .utils import fast_power, mask_reject, isclose, fixednansum, \
+    AbstractDataclass
 from . import multiresquantity, viz, robust
 
-@dataclass
-class ScalingFunction:
-    mrq: InitVar[multiresquantity.WaveletDec]
+
+@dataclass(kw_only=True)
+class AbstractScalingFunction(AbstractDataclass):
     scaling_ranges: list[tuple[int]]
     idx_reject: InitVar[dict[int, np.ndarray] | None] = None
     weighted: str | None = None
-    bootstrapped_sf: Any | None = None
-    formalism: str = field(init=False)
-    gamint: float = field(init=False)
     n_sig: int = field(init=False)
-    values: np.array = field(init=False)
-    slope: np.array = field(init=False)
-    intercept: np.array = field(init=False)
-    weights: np.ndarray = field(init=False)
     j: np.ndarray = field(init=False)
+    formalism: str = field(init=False)
+    values: np.array = field(init=False, repr=False)
+    slope: np.array = field(init=False, repr=False)
+    intercept: np.array = field(init=False, repr=False)
+    weights: np.ndarray = field(init=False)
 
-    @classmethod
-    def from_dict(cls, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
-        extra keywords
+    def __getattr__(self, name):
 
-        Parameters
-        ----------
-        d : dict
-            Dictionary containing at least all the parameters required by
-            __init__, but can also contain other parameters, which will be
-            ignored
+        if name == 'n_rep':
+            return self.intercept.shape[-1]
+        
+        if (super_attr := super().__getattr__(name)) is not None:
+            return super_attr
 
-        Returns
-        -------
-        MultiResolutionQuantityBase
-            Properly initialized multi resolution quantity
+        return self.__getattribute__(name)
 
-        Notes
-        -----
-        .. note:: Normally, dataclasses can only be instantiated by only
-                  specifiying parameters expected by the automatically
-                  generated __init__ method.
-                  Using this method instead allows us to discard extraneous
-                  parameters, similarly to introducing a \*\*kwargs parameter.
-        """
-        return cls(**{
-            k: v for k, v in d.items()
-            if k in inspect.signature(cls).parameters
-        })
-    
-    def _check_enough_rep_bootstrap(self):
-
-        if (ratio := self.n_rep // self.n_sig) < 2:
-            raise ValueError(
-                f'n_rep = {ratio} per original signal too small to build '
-                'confidence intervals'
-                )
-
-    def std_values(self):
-
-        from .bootstrap import get_std
-
-        self._check_enough_rep_bootstrap()
-
-        return get_std(self, 'values')
+@dataclass(kw_only=True)
+class ScalingFunction(AbstractScalingFunction):
+    mrq: InitVar[multiresquantity.WaveletDec]
+    gamint: float = field(init=False)
     
     def compute_R2(self):
         return compute_R2(self.values, self.slope, self.intercept, self.weights,
@@ -94,7 +62,7 @@ class ScalingFunction:
     def compute_Lambda(self):
 
         R = self.compute_R()
-        R_b = self.bootstrapped_sf.compute_R()
+        R_b = self.bootstrapped_obj.compute_R()
 
         return compute_Lambda(R, R_b)
 
@@ -103,11 +71,11 @@ class ScalingFunction:
 
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
 
-        if self.bootstrapped_sf is not None and bootstrap:
+        if self.bootstrapped_obj is not None and bootstrap:
             if j1 is None:
-                j1 = self.bootstrapped_sf.j.min()
+                j1 = self.bootstrapped_obj.j.min()
             if j2 is None:
-                j2 = self.bootstrapped_sf.j.max()
+                j2 = self.bootstrapped_obj.j.max()
 
         else:
 
@@ -145,22 +113,22 @@ class ScalingFunction:
         
         if self.weighted == 'bootstrap':
 
-            if self.bootstrapped_sf is None:
+            if self.bootstrapped_obj is None:
                 std = self.std_values()[:, j_min_idx:j_max_idx]
         
             else:
 
-                if j_min < self.bootstrapped_sf.j.min():
+                if j_min < self.bootstrapped_obj.j.min():
                     raise ValueError(
                         f"Bootstrap minimum scale "
-                        f"{self.bootstrapped_sf.j.min()} inferior to minimum "
+                        f"{self.bootstrapped_obj.j.min()} inferior to minimum "
                         f"scale {j_min} used in estimation")
                 
                 std_slice = np.s_[
-                    int(j_min - self.bootstrapped_sf.j.min()):
-                    int(j_max - self.bootstrapped_sf.j.min() + 1)]
+                    int(j_min - self.bootstrapped_obj.j.min()):
+                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
 
-                std = self.bootstrapped_sf.std_values()[:, std_slice]
+                std = self.bootstrapped_obj.std_values()[:, std_slice]
 
         else:
             std = None
@@ -180,104 +148,21 @@ class ScalingFunction:
         else:
             self.slope = slope
 
-    def _check_enough_rep_bootstrap(self):
-
-        if (ratio := self.n_rep // self.n_sig) < 2:
-            raise ValueError(
-                f'n_rep = {ratio} per original signal too small to build '
-                'confidence intervals'
-                )
-
-    def _get_bootstrapped_sf(self):
-
-        if self.bootstrapped_sf is None:
-            bootstrapped_sf = self
-        else:
-            bootstrapped_sf = self.bootstrapped_sf
-
-        bootstrapped_sf._check_enough_rep_bootstrap()
-
-        return bootstrapped_sf
-    
-    def _check_bootstrap_sf(self):
-
-        if self.bootstrapped_sf is None:
-            raise ValueError(
-                "Bootstrapped mrq needs to be computed prior to estimating "
-                "empirical estimators")
-
-        self.bootstrapped_sf._check_enough_rep_bootstrap()
-
-    def __getattr__(self, name):
-
-        if name[:3] == 'CI_':
-            from .bootstrap import get_confidence_interval
-
-            bootstrapped_sf = self._get_bootstrapped_sf()
-
-            return get_confidence_interval(bootstrapped_sf, name[3:])
-
-        elif name[:4] == 'CIE_':
-            from .bootstrap import get_empirical_CI
-
-            self._check_bootstrap_sf()
-
-            return get_empirical_CI(self.bootstrapped_sf, self, name[4:])
-
-        elif name[:3] == 'VE_':
-            from .bootstrap import get_empirical_variance
-
-            self._check_bootstrap_sf()
-
-            return get_empirical_variance(self.bootstrapped_sf, self,
-                                          name[3:])
-
-        elif name[:3] == 'SE_':
-
-            from .bootstrap import get_empirical_variance
-
-            self._check_bootstrap_sf()
-
-            return np.sqrt(
-                get_empirical_variance(self.bootstrapped_sf, self,
-                                       name[3:](self)))
-
-        elif name[:2] == 'V_':
-
-            from .bootstrap import get_variance
-
-            bootstrapped_sf = self._get_bootstrapped_sf()
-
-            return get_variance(bootstrapped_sf, name[2:])
-
-        elif name[:4] == 'STD_':
-
-            from .bootstrap import get_std
-
-            bootstrapped_sf = self._get_bootstrapped_sf()
-
-            return get_std(bootstrapped_sf, name[4:])
-
-        elif name == 'n_rep':
-            return self.intercept.shape[-1]
-
-        return self.__getattribute__(name)
-
 
 @dataclass(kw_only=True)
 class StructureFunction(ScalingFunction):
     q: np.array
     H: np.array = field(init=False)
 
-    def __post_init__(self, mrq, idx_reject):
+    def __post_init__(self, idx_reject, mrq):
 
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
         self.formalism = mrq.get_formalism()
         self.j = np.array(list(mrq.values))
 
-        if self.bootstrapped_sf is not None:
-            self.bootstrapped_sf = self.bootstrapped_sf.structure
+        if self.bootstrapped_obj is not None:
+            self.bootstrapped_obj = self.bootstrapped_obj.structure
 
         self._compute(mrq, idx_reject)
 
@@ -386,9 +271,9 @@ class StructureFunction(ScalingFunction):
 
             y = self.S_q(q)[idx, scaling_range, signal_idx, 0]
 
-            if self.bootstrapped_sf is not None and plot_CI:
+            if self.bootstrapped_obj is not None and plot_CI:
 
-                _, _, j_min_CI, j_max_CI = self.bootstrapped_sf.get_jrange(
+                _, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
                     j1, j2)
 
                 CI = self.CIE_S_q(q)[j_min_CI:j_max_CI, scaling_range, signal_idx]
@@ -419,7 +304,7 @@ class StructureFunction(ScalingFunction):
             y0 = slope*x0 + intercept
             y1 = slope*x1 + intercept
 
-            if self.bootstrapped_sf is not None and plot_CI:
+            if self.bootstrapped_obj is not None and plot_CI:
                 CI = self.CIE_s_q(q)[scaling_range, signal_idx]
                 CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
             else:
@@ -512,15 +397,15 @@ class Cumulants(ScalingFunction):
     m: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq, idx_reject, robust, robust_kwargs):
+    def __post_init__(self, idx_reject, mrq, robust, robust_kwargs):
 
         self.formalism = mrq.get_formalism()
         self.n_sig = mrq.n_sig
         self.gamint = mrq.gamint
         self.j = np.array(list(mrq.values))
 
-        if self.bootstrapped_sf is not None:
-            self.bootstrapped_sf = self.bootstrapped_sf.cumulants
+        if self.bootstrapped_obj is not None:
+            self.bootstrapped_obj = self.bootstrapped_obj.cumulants
 
         self.m = np.arange(1, self.n_cumul+1)
         
@@ -705,7 +590,7 @@ class MFSpectrum(ScalingFunction):
     U: np.array = field(init=False)
     V: np.array = field(init=False)
 
-    def __post_init__(self, mrq, idx_reject):
+    def __post_init__(self, idx_reject, mrq):
 
         self.formalism = mrq.get_formalism()
         self.gamint = mrq.gamint
@@ -716,8 +601,8 @@ class MFSpectrum(ScalingFunction):
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
         self.V = np.zeros_like(self.U)
 
-        if self.bootstrapped_sf is not None:
-            self.bootstrapped_sf = self.bootstrapped_sf.spectrum
+        if self.bootstrapped_obj is not None:
+            self.bootstrapped_obj = self.bootstrapped_obj.spectrum
 
         self._compute(mrq, idx_reject)
         self._compute_fit('U', 'Dq')
@@ -803,7 +688,7 @@ class MFSpectrum(ScalingFunction):
 
         ax = plt.gca() if ax is None else ax
 
-        if self.bootstrapped_sf is not None:
+        if self.bootstrapped_obj is not None:
 
             CI_Dq = self.CIE_D_q()
             CI_hq = self.CIE_h_q()

@@ -123,7 +123,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         'weighted': weighted,
         'scaling_ranges': scaling_ranges,
         'mrq': mrq,
-        'bootstrapped_sf': mfa_boot,
+        'bootstrapped_obj': mfa_boot,
         'robust': robust,
         'idx_reject': idx_reject,
     }

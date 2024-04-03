@@ -3,6 +3,9 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
+from dataclasses import dataclass
+from typing import Any
+import inspect
 from collections import namedtuple
 import warnings
 
@@ -35,6 +38,139 @@ hmin : float
 """
 
 MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
+
+
+@dataclass
+class AbstractDataclass:
+    bootstrapped_obj: Any | None = None
+
+    def from_dict(self, d):
+        r"""Method to instanciate a dataclass by passing a dictionary with
+        extra keywords
+
+        Parameters
+        ----------
+        d : dict
+            Dictionary containing at least all the parameters required by
+            __init__, but can also contain other parameters, which will be
+            ignored
+
+        Returns
+        -------
+        MultiResolutionQuantityBase
+            Properly initialized multi resolution quantity
+
+        Notes
+        -----
+        .. note:: Normally, dataclasses can only be instantiated by only
+                    specifiying parameters expected by the automatically
+                    generated __init__ method.
+                    Using this method instead allows us to discard extraneous
+                    parameters, similarly to introducing a \*\*kwargs parameter.
+        """
+
+        cls = type(self)
+
+        parameters = {
+            name: getattr(self, name)
+            for name in inspect.signature(cls).parameters.keys()
+        }
+
+        input = parameters.copy()
+        input.update(d)
+
+        return cls(**{
+            k: v for k, v in input.items()
+            if k in parameters
+        })
+    
+    def _check_enough_rep_bootstrap(self):
+
+        if (ratio := self.n_rep // self.n_sig) < 2:
+            raise ValueError(
+                f'n_rep = {ratio} per original signal too small to build '
+                'confidence intervals'
+                )
+        
+    def _get_bootstrapped_obj(self):
+
+        if self.bootstrapped_obj is None:
+            bootstrapped_obj = self
+        else:
+            bootstrapped_obj = self.bootstrapped_obj
+
+        bootstrapped_obj._check_enough_rep_bootstrap()
+
+        return bootstrapped_obj
+    
+    def _check_bootstrap_obj(self):
+
+        if self.bootstrapped_obj is None:
+            raise ValueError(
+                "Bootstrapped mrq needs to be computed prior to estimating "
+                "empirical estimators")
+
+        self.bootstrapped_obj._check_enough_rep_bootstrap()
+
+    def std_values(self):
+
+        from .bootstrap import get_std
+
+        self._check_enough_rep_bootstrap()
+
+        return get_std(self, 'values')
+
+    def __getattr__(self, name):
+
+        if name[:3] == 'CI_':
+            from .bootstrap import get_confidence_interval
+
+            bootstrapped_obj = self._get_bootstrapped_obj()
+
+            return get_confidence_interval(bootstrapped_obj, name[3:])
+
+        elif name[:4] == 'CIE_':
+            from .bootstrap import get_empirical_CI
+
+            self._check_bootstrap_obj()
+
+            return get_empirical_CI(self.bootstrapped_obj, self, name[4:])
+
+        elif name[:3] == 'VE_':
+            from .bootstrap import get_empirical_variance
+
+            self._check_bootstrap_obj()
+
+            return get_empirical_variance(self.bootstrapped_obj, self,
+                                          name[3:])
+
+        elif name[:3] == 'SE_':
+
+            from .bootstrap import get_empirical_variance
+
+            self._check_bootstrap_obj()
+
+            return np.sqrt(
+                get_empirical_variance(self.bootstrapped_obj, self,
+                                       name[3:](self)))
+
+        elif name[:2] == 'V_':
+
+            from .bootstrap import get_variance
+
+            bootstrapped_obj = self._get_bootstrapped_obj()
+
+            return get_variance(bootstrapped_obj, name[2:])
+
+        elif name[:4] == 'STD_':
+
+            from .bootstrap import get_std
+
+            bootstrapped_obj = self._get_bootstrapped_obj()
+
+            return get_std(bootstrapped_obj, name[4:])
+
+        return self.__getattribute__(name)
 
 
 def scale2freq(scale, sfreq):

@@ -17,10 +17,10 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
 
     #     # for m1, m2 in zip(mrq1, mrq2):
     #     #     if R > 1:
-    #     #         m1.bootstrapped_mrq, m2.bootstrapped_mrq = \
+    #     #         m1.bootstrapped_obj, m2.bootstrapped_obj = \
     #     #             m1.bootstrap_multiple(R, j1, [m1, m2])
     #     #     else:
-    #     #         m1.bootstrapped_mrq, m2.bootstrapped_mrq = None, None
+    #     #         m1.bootstrapped_obj, m2.bootstrapped_obj = None, None
 
     #     if isinstance(estimates, str):
     #         estimates = [estimates] * len(mrq1)
@@ -77,10 +77,10 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         mrq1._check_regularity(scaling_ranges, weighted, idx_reject)
         mrq2._check_regularity(scaling_ranges, weighted, idx_reject)
 
-    if mrq1.bootstrapped_mrq is not None:
+    if mrq1.bootstrapped_obj is not None:
 
         bimfa_boot = bimfa(
-            mrq1.bootstrapped_mrq, mrq2.bootsrapped_mrq, scaling_ranges,
+            mrq1.bootstrapped_obj, mrq2.bootsrapped_mrq, scaling_ranges,
             bootstrap_weighted, n_cumul, q1, q2, None, 1, estimates)
 
     parameters = {
@@ -92,7 +92,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         'mrq1': mrq1,
         'mrq2': mrq2,
         'n_cumul': n_cumul,
-        'bootstrapped_sf': bimfa_boot,
+        'bootstrapped_obj': bimfa_boot,
         'robust': robust,
         'idx_reject': idx_reject,
     }

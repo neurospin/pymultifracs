@@ -41,7 +41,7 @@ class BiCumulants(MultiResolutionQuantityBase):
         self.formalism = mrq1.formalism
 
         if bootstrapped_mfa is not None:
-            self.bootstrapped_mrq = bootstrapped_mfa.cumulants
+            self.bootstrapped_obj = bootstrapped_mfa.cumulants
 
         if any([(mrq1.nj[s] != mrq2.nj[s]).any() for s in mrq1.nj]):
             raise ValueError("Mismatch in number of coefficients between the "

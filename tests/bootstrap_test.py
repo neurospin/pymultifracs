@@ -44,7 +44,7 @@ def test_confidence_interval(mrw_file):
 
         print(
             dwt.structure.S_q(2).shape,
-            dwt.structure.bootstrapped_mrq.S_q(2).shape)
+            dwt.structure.bootstrapped_obj.S_q(2).shape)
 
         dwt.structure.CIE_S_q(2)
         dwt.structure.CI_S_q(2)

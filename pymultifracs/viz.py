@@ -130,16 +130,16 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
     x = cm.j[j_min:j_max]
     y = getattr(cm, f'C{m1}{m2}')[j_min:j_max]
 
-    if cm.bootstrapped_mrq is not None and plot_CI:
+    if cm.bootstrapped_obj is not None and plot_CI:
 
-        if cm.bootstrapped_mrq.j.min() > j1:
+        if cm.bootstrapped_obj.j.min() > j1:
             raise ValueError(
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
-                f"{cm.bootstrapped_mrq.j.min()} instead")
+                f"{cm.bootstrapped_obj.j.min()} instead")
 
         CI = getattr(cm, f'CIE_C{m1}{m2}')[
-            j1 - cm.bootstrapped_mrq.j.min():
-            j2 - cm.bootstrapped_mrq.j.min() + 1]
+            j1 - cm.bootstrapped_obj.j.min():
+            j2 - cm.bootstrapped_obj.j.min() + 1]
 
         CI -= y[:, None]
         CI[:, :, 1] *= -1
@@ -174,7 +174,7 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept
 
-        if cm.bootstrapped_mrq is not None:
+        if cm.bootstrapped_obj is not None:
             CI = getattr(cm, f"CIE_c{m1}{m2}")
             CI_legend = (
                 f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
@@ -207,15 +207,15 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
     if shift_gamint and ind_m == 0:
         y -= x * cm.gamint / np.log2(np.e)
 
-    if cm.bootstrapped_sf is not None and plot_CI:
+    if cm.bootstrapped_obj is not None and plot_CI:
 
-        if cm.bootstrapped_sf.j.min() > j1:
+        if cm.bootstrapped_obj.j.min() > j1:
             raise ValueError(
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
-                f"{cm.bootstrapped_sf.j.min()} instead")
+                f"{cm.bootstrapped_obj.j.min()} instead")
 
-        CI_slice = np.s_[int(j1 - cm.bootstrapped_sf.j.min()):
-                         int(j2 - cm.bootstrapped_sf.j.min() + 1)]
+        CI_slice = np.s_[int(j1 - cm.bootstrapped_obj.j.min()):
+                         int(j2 - cm.bootstrapped_obj.j.min() + 1)]
 
         CI = getattr(cm, f'CIE_C{m}')[CI_slice, scaling_range, signal_idx]
 
@@ -255,7 +255,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset
 
-        if cm.bootstrapped_sf is not None:
+        if cm.bootstrapped_obj is not None:
             CI = getattr(cm, f"CIE_c{m}")[scaling_range, signal_idx]
 
             CI_legend = (

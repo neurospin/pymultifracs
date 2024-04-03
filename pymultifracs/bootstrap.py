@@ -359,7 +359,7 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
     return indices
 
 
-def _create_bootstrapped_mrq(mrq, indices, min_scale, block_length, double,
+def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                              indices_double, replications):
 
     if double:
@@ -488,12 +488,12 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
 
     Returns
     -------
-    bootstrap_mrq: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
+    bootstrap_obj: :class:`~pymultifracs.multiresquantity.MultiResQuantity`
         A single MRQ that contains all the bootstrapped repetitions
 
     double_mrq: dict(int,
                      :class:`~pymultifracs.multiresquantity.MultiResQuantity`)
-        A dictionary that relates a repetition in the bootstrap_mrq to the
+        A dictionary that relates a repetition in the bootstrap_obj to the
         MRQ containing the double-bootstrapped repetitions
         if `double` was passed as True
     """
@@ -520,11 +520,11 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
 
     if isinstance(mrq, Iterable):
 
-        return [_create_bootstrapped_mrq(
+        return [_create_bootstrapped_obj(
             m, indices, min_scale, block_length, double, indices_double,
             replications)
             for m in mrq]
 
     else:
-        return _create_bootstrapped_mrq(mrq, indices, min_scale, block_length,
+        return _create_bootstrapped_obj(mrq, indices, min_scale, block_length,
                                         double, indices_double, replications)

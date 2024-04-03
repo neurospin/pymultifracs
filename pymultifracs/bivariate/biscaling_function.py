@@ -17,23 +17,17 @@ from ..regression import prepare_regression, prepare_weights
 from ..utils import fast_power, isclose
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
+from ..scalingfunction import AbstractScalingFunction
 
-@dataclass
-class BiScalingFunction:
+
+@dataclass(kw_only=True)
+class BiScalingFunction(AbstractScalingFunction):
     mrq1: InitVar[WaveletDec]
     mrq2: InitVar[WaveletDec]
-    scaling_ranges: list[tuple[int]]
-    mode: InitVar[str] = 'all2all'
-    bootstrapped_sf: Any | None = None
-    weighted: str = None
-    formalism: str = field(init=False)
+    mode: str = 'all2all'
     gamint1: float = field(init=False)
     gamint2: float = field(init=False)
     n_sig: tuple[int] = field(init=False)
-    j: np.ndarray = field(init=False)
-    values: np.ndarray = field(init=False, repr=False)
-    slope: np.ndarray = field(init=False, repr=False)
-    intercept: np.ndarray = field(init=False, repr=False)
 
     @classmethod
     def from_dict(cls, d):
@@ -74,11 +68,11 @@ class BiScalingFunction:
 
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
 
-        if self.bootstrapped_sf is not None and bootstrap:
+        if self.bootstrapped_obj is not None and bootstrap:
             if j1 is None:
-                j1 = self.bootstrapped_sf.j.min()
+                j1 = self.bootstrapped_obj.j.min()
             if j2 is None:
-                j2 = self.bootstrapped_sf.j.max()
+                j2 = self.bootstrapped_obj.j.max()
 
         else:
 
@@ -103,7 +97,7 @@ class BiStructureFunction(BiScalingFunction):
     q2: np.ndarray
     coherence: np.ndarray = field(init=False)
 
-    def __post_init__(self, mrq1, mrq2, mode):
+    def __post_init__(self, idx_reject, mrq1, mrq2):
 
         if mrq1.get_formalism() != mrq2.get_formalism():
             raise ValueError(
@@ -131,13 +125,13 @@ class BiStructureFunction(BiScalingFunction):
         else:
             self.j = np.array(list(mrq2.values))
 
-        if self.bootstrapped_sf is not None:
-            self.bootstrapped_mrq = self.bootstrapped_sf.structure
+        if self.bootstrapped_obj is not None:
+            self.bootstrapped_obj = self.bootstrapped_obj.structure
 
-        self._compute(mrq1, mrq2, mode)
+        self._compute(mrq1, mrq2, idx_reject)
         self._compute_fit()
 
-    def _compute(self, mrq1, mrq2, mode):
+    def _compute(self, mrq1, mrq2, idx_reject):
 
         if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
                 != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
@@ -145,7 +139,7 @@ class BiStructureFunction(BiScalingFunction):
                 'Mrq 1 and 2 have different number of bootstrapping '
                 f'repetitions: {ratio1} and {ratio2}, respectively.')
 
-        match mode:
+        match self.mode:
             case 'all2all':
                 n_rep = (mrq1.n_sig, mrq2.n_sig, ratio1)
             case 'pairwise':
@@ -159,19 +153,21 @@ class BiStructureFunction(BiScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             pow1 = {
-                q1: fast_power(np.abs(mrq1.get_values(j, reshape=True)), q1)[
-                    ..., None, :]
+                q1: fast_power(np.abs(
+                    mrq1.get_values(j, idx_reject, True)), q1)[..., None, :]
                 for q1 in self.q1 if q1 != 0
             }
             pow2 = {
-                q2: fast_power(np.abs(mrq2.get_values(j, reshape=True)), q2)
+                q2: fast_power(np.abs(
+                    mrq2.get_values(j, idx_reject, True)), q2)
                 for q2 in self.q2 if q2 != 0
             }
 
-            if mode == 'all2all':
-                pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
-            elif mode == 'pairwise':
-                pow2 = {k: v[..., None, :] for k, v in pow2.items()}
+            match self.mode:
+                case 'all2all':
+                    pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
+                case 'pairwise':
+                    pow2 = {k: v[..., None, :] for k, v in pow2.items()}
 
             for ind_q1, q1 in enumerate(self.q1):
                 for ind_q2, q2 in enumerate(self.q2):
@@ -196,7 +192,7 @@ class BiStructureFunction(BiScalingFunction):
             # Computing coherence
             val1 = mrq1.get_values(j, reshape=True)[..., None, :]
 
-            match mode:
+            match self.mode:
                 case 'all2all':
                     val2 = mrq2.get_values(j, reshape=True)[..., None, :, :]
                 case 'pairwise':
@@ -232,22 +228,22 @@ class BiStructureFunction(BiScalingFunction):
 
         if self.weighted == 'bootstrap':
 
-            if self.bootstrapped_sf is None:
+            if self.bootstrapped_obj is None:
                 std = self.std_values()[:, j_min_idx:j_max_idx]
 
             else:
 
-                if j_min < self.bootstrapped_sf.j.min():
+                if j_min < self.bootstrapped_obj.j.min():
                     raise ValueError(
                         'Bootstrapped minimum scale '
-                        f'{self.bootstrapped_sf.j.min()} inferior to minimum'
+                        f'{self.bootstrapped_obj.j.min()} inferior to minimum'
                         f'scale {j_min} used in estimation')
                 
                 std_slice = np.s_[
-                    int(j_min - self.bootstrapped_sf.j.min()):
-                    int(j_max - self.bootstrapped_sf.j.min() + 1)]
+                    int(j_min - self.bootstrapped_obj.j.min()):
+                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
                 
-                std = self.bootstrapped_sf.std_values()[:, std_slice]
+                std = self.bootstrapped_obj.std_values()[:, std_slice]
 
         else:
             std = None
@@ -271,15 +267,18 @@ class BiStructureFunction(BiScalingFunction):
     def S_qq(self, q1, q2):
         return self.values[isclose(q1, self.q1), isclose(q2, self.q2)][0]
 
-    def s_qq(self, q):
+    def s_qq(self, q1, q2):
 
-        out = self.slope[isclose(q, self.q)][0]
+        out = self.slope[isclose(q1, self.q1), isclose(q2, self.q2)][0]
         out = out.reshape(len(self.scaling_ranges), *self.values.shape[4:])
 
         return out
 
-    def plot(self, figsize=None, scaling_range=0, signal_idx_pair = (0, 0),
-             plot_CI=True, plot_scales=None):
+    def plot(self, figsize=None, scaling_range=0, signal_idx1=0,
+             signal_idx2=0, plot_CI=True, plot_scales=None, filename=None):
+
+        if self.mode == 'pairwise':
+            signal_idx2 = 0
 
         if plot_scales is None:
             j1, j2, j_min, j_max = self.get_jrange(None, None, plot_CI)
@@ -296,15 +295,17 @@ class BiStructureFunction(BiScalingFunction):
         for ind_q1, q1 in enumerate(self.q1):
             for ind_q2, q2 in enumerate(self.q2):
 
-                y = self.S_qq(q1, q2)[idx, scaling_range, *signal_idx_pair, 0]
+                y = self.S_qq(q1, q2)[
+                    idx, scaling_range, signal_idx1, signal_idx2, 0]
 
-                if self.bootstrapped_sf is not None and plot_CI:
+                if self.bootstrapped_obj is not None and plot_CI:
 
-                    __, _, j_min_CI, j_max_CI = self.bootstrapped_sf.get_jrange(
+                    __, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
                     j1, j2)
 
                     CI = self.CIE_S_qq(q1, q2)[
-                        j_min_CI:j_max_CI, scaling_range, *signal_idx_pair]
+                        j_min_CI:j_max_CI, scaling_range, signal_idx1,
+                        signal_idx2]
 
                     CI -= y[:, None]
                     CI[:, 1] *= -1
@@ -316,24 +317,39 @@ class BiStructureFunction(BiScalingFunction):
 
                 ax = axes[ind_q1, ind_q2]
                 ax.errorbar(x, y, CI)
+                # ax.tick_params(bottom=False, top=False, which='minor')
                 ax.set(xlabel='Temporal scale $j$',
-                       ylabel=f'q_1={q1:.3f}, q_2={q2:.3f}')
+                       ylabel=f'$q_1={q1:.1f}$, $q_2={q2:.1f}$')
+                
+                x0, x1 = self.scaling_ranges[scaling_range]
 
-                ax.plot(j_support,
-                                        (j_support * self.zeta[ind_q1, ind_q2])
-                                        + self.intercept[ind_q1, ind_q2],
-                                        label=rf'$\zeta({q1}, {q2}): '
-                                        f'{self.zeta[ind_q1, ind_q2]:.2f}$')
+                idx_a = np.s_[ind_q1, ind_q2, scaling_range]
+                idx_b = np.s_[signal_idx1, signal_idx2, 0]
+
+                slope = self.slope[idx_a].reshape(self.values.shape[4:])[idx_b]
+                intercept = self.intercept[idx_a].reshape(
+                    self.values.shape[4:])[idx_b]
+                
+                assert x0 in x, "Scaling range not included in plotting range"
+                assert x1 in x, "Scaling range not included in plotting range"
+
+                y0 = slope*x0 + intercept
+                y1 = slope*x1 + intercept
+
+                if self.bootstrapped_obj is not None and plot_CI:
+                    CI = self.CIE_s_qq(q1, q2)[scaling_range]
+                    CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
+                else:
+                    CI_legend = ""
+
+                legend = rf'$s_{{{q1:d}{q2:d}}}$ = {slope:.2f}' + CI_legend
+
+                ax.plot([x0, x1], [y0, y1], color='k',
+                    linestyle='-', linewidth=2, label=legend, zorder=5)
                 ax.legend()
 
-                ax.set_ylabel(rf'$S_{{{q1}, {q2}}}(j)$',
-                                              size='large')
-                ax.set_title(f'{q1=}, {q2=}', size='large')
-                ax[-1, ind_q2].set_xlabel('j', size='large')
-
-        sns.despine()
-
-        return fig
+        if filename is not None:
+            plt.savefig(filename)
 
 
 @dataclass(kw_only=True)

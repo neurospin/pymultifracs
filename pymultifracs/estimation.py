@@ -24,10 +24,10 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
         scaling_ranges, np.array([*mrq.values])
     )
 
-    if weighted == 'bootstrap' and mrq.bootstrapped_mrq is not None:
+    if weighted == 'bootstrap' and mrq.bootstrapped_obj is not None:
 
         std = np.std(
-            mrq.bootstrapped_mrq.sup_coeffs(
+            mrq.bootstrapped_obj.sup_coeffs(
                 n_ranges, j_max, j_min, scaling_ranges, idx_reject),
             axis=-1)[None, :]
 

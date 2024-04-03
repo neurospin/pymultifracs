@@ -53,7 +53,7 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         self.j = np.array(list(mrq1.values))
 
         if bootstrapped_mfa is not None:
-            self.bootstrapped_mrq = bootstrapped_mfa.structure
+            self.bootstrapped_obj = bootstrapped_mfa.structure
 
         self._compute(mrq1, mrq2)
         self._compute_zeta()
@@ -100,15 +100,15 @@ class BiStructureFunction(MultiResolutionQuantityBase):
         if self.weighted == 'bootstrap':
 
             # case where self is the bootstrapped mrq
-            if self.bootstrapped_mrq is None:
+            if self.bootstrapped_obj is None:
                 std = self.STD_logvalues.reshape(-1, n_j)[
                     :, j_min_idx:j_max_idx]
 
             else:
-                std = self.bootstrapped_mrq.STD_logvalues.reshape(-1, n_j)[
+                std = self.bootstrapped_obj.STD_logvalues.reshape(-1, n_j)[
                     :,
-                    j_min - self.bootstrapped_mrq.j.min():
-                    j_max - self.bootstrapped_mrq.j.min() + 1]
+                    j_min - self.bootstrapped_obj.j.min():
+                    j_max - self.bootstrapped_obj.j.min() + 1]
 
         else:
             std = None

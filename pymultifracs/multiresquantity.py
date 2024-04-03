@@ -12,13 +12,13 @@ import numpy as np
 import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
-    mask_reject
+    mask_reject, AbstractDataclass
 from . import viz, wavelet, estimation
 
-@dataclass
-class MultiResolutionQuantityBase:
+@dataclass(kw_only=True)
+class MultiResolutionQuantityBase(AbstractDataclass):
     n_sig: int
-    bootstrapped_mrq: Any | None = None
+    bootstrapped_obj: Any | None = None
     origin_mrq: Any | None = None
 
     # def get_nj(self):
@@ -38,46 +38,6 @@ class MultiResolutionQuantityBase:
     #         scale: (~np.isnan(self.values[scale])).sum(axis=0)
     #         for scale in self.values
     #     }
-
-    def from_dict(self, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
-        extra keywords
-
-        Parameters
-        ----------
-        d : dict
-            Dictionary containing at least all the parameters required by
-            __init__, but can also contain other parameters, which will be
-            ignored
-
-        Returns
-        -------
-        MultiResolutionQuantityBase
-            Properly initialized multi resolution quantity
-
-        Notes
-        -----
-        .. note:: Normally, dataclasses can only be instantiated by only
-                  specifiying parameters expected by the automatically
-                  generated __init__ method.
-                  Using this method instead allows us to discard extraneous
-                  parameters, similarly to introducing a \*\*kwargs parameter.
-        """
-
-        cls = type(self)
-
-        parameters = {
-            name: getattr(self, name)
-            for name in inspect.signature(cls).parameters.keys()
-        }
-
-        input = parameters.copy()
-        input.update(d)
-
-        return cls(**{
-            k: v for k, v in input.items()
-            if k in parameters
-        })
 
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
@@ -106,86 +66,6 @@ class MultiResolutionQuantityBase:
         j_max = max([sr[1] for sr in self.scaling_ranges])
 
         return j_min, j_max
-    
-    def _check_enough_rep_bootstrap(self):
-
-        if (ratio := self.n_rep // self.n_sig) < 2:
-            raise ValueError(
-                f'n_rep = {ratio} per original signal too small to build '
-                'confidence intervals'
-                )
-
-    def _get_bootstrapped_mrq(self):
-
-        if self.bootstrapped_mrq is None:
-            bootstrapped_mrq = self
-        else:
-            bootstrapped_mrq = self.bootstrapped_mrq
-
-        bootstrapped_mrq._check_enough_rep_bootstrap()
-
-        return bootstrapped_mrq
-
-    def _check_bootstrap_mrq(self):
-
-        if self.bootstrapped_mrq is None:
-            raise ValueError(
-                "Bootstrapped mrq needs to be computed prior to estimating "
-                "empirical estimators")
-
-        self.bootstrapped_mrq._check_enough_rep_bootstrap()
-
-    def __getattr__(self, name):
-
-        if name[:3] == 'CI_':
-            from .bootstrap import get_confidence_interval
-
-            bootstrapped_mrq = self._get_bootstrapped_mrq()
-
-            return get_confidence_interval(bootstrapped_mrq, name[3:])
-
-        elif name[:4] == 'CIE_':
-            from .bootstrap import get_empirical_CI
-
-            self._check_bootstrap_mrq()
-
-            return get_empirical_CI(self.bootstrapped_mrq, self, name[4:])
-
-        elif name[:3] == 'VE_':
-            from .bootstrap import get_empirical_variance
-
-            self._check_bootstrap_mrq()
-
-            return get_empirical_variance(self.bootstrapped_mrq, self,
-                                          name[3:])
-
-        elif name[:3] == 'SE_':
-
-            from .bootstrap import get_empirical_variance
-
-            self._check_bootstrap_mrq()
-
-            return np.sqrt(
-                get_empirical_variance(self.bootstrapped_mrq, self,
-                                       name[3:](self)))
-
-        elif name[:2] == 'V_':
-
-            from .bootstrap import get_variance
-
-            bootstrapped_mrq = self._get_bootstrapped_mrq()
-
-            return get_variance(bootstrapped_mrq, name[2:])
-
-        elif name[:4] == 'STD_':
-
-            from .bootstrap import get_std
-
-            bootstrapped_mrq = self._get_bootstrapped_mrq()
-
-            return get_std(bootstrapped_mrq, name[4:])
-
-        return self.__getattribute__(name)
     
     def scale2freq(self, scale, sfreq):
         return pywt.scale2frequency(self.wt_name, scale) * sfreq
@@ -237,7 +117,7 @@ class WaveletDec(MultiResolutionQuantityBase):
     ZPJCorr : ndarray | None
         Only for p-leaders, correction factor for the finite size effects,
         dependent on `eta_p`.
-    bootstrapped_mrq : :class:`.MultiResolutionQuantity` | None
+    bootstrapped_obj : :class:`.MultiResolutionQuantity` | None
         Storing the bootstrapped version of the MRQ if bootstraping has been
         used.
     """
@@ -254,7 +134,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         block_length = get_filter_length(self.wt_name)
         max_scale = max_scale_bootstrap(self, idx_reject)
 
-        self.bootstrapped_mrq = circular_leader_bootstrap(
+        self.bootstrapped_obj = circular_leader_bootstrap(
             self, min_scale, max_scale, block_length, R)
 
         # j = np.array([*self.values])
@@ -266,7 +146,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         #     self.nj = {scale: nj for scale, nj in self.nj.items()
         #                if scale >= min_scale}
 
-        return self.bootstrapped_mrq
+        return self.bootstrapped_obj
 
     @classmethod
     def bootstrap_multiple(cls, R, min_scale, mrq_list):
