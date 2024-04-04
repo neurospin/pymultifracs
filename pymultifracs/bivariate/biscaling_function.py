@@ -5,6 +5,8 @@ import inspect
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import special
+
 
 from ..utils import MFractalBiVar
 from ..regression import prepare_regression, prepare_weights
@@ -15,6 +17,7 @@ from ..regression import prepare_regression, prepare_weights
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 from ..utils import fast_power, isclose
+from ..viz import plot_bicm
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
 from ..scalingfunction import AbstractScalingFunction
@@ -89,6 +92,53 @@ class BiScalingFunction(AbstractScalingFunction):
         j_max = int(j2 - self.j.min() + 1)
 
         return j1, j2, j_min, j_max
+    
+    def _compute_fit(self):
+        """
+        Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
+        """
+
+        n1, n2 = self.values.shape[:2]
+
+        self.slope = np.zeros(
+            (n1, n2, len(self.scaling_ranges), np.prod(self.values.shape[4:])))
+
+        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+            self.scaling_ranges, self.j)
+
+        y = self.values.reshape(
+            n1 * n2, len(self.j), len(self.scaling_ranges),
+            self.slope.shape[3])[:, j_min_idx:j_max_idx]
+
+        if self.weighted == 'bootstrap':
+
+            if self.bootstrapped_obj is None:
+                std = self.std_values()[:, j_min_idx:j_max_idx]
+
+            else:
+
+                if j_min < self.bootstrapped_obj.j.min():
+                    raise ValueError(
+                        'Bootstrapped minimum scale '
+                        f'{self.bootstrapped_obj.j.min()} inferior to minimum'
+                        f'scale {j_min} used in estimation')
+                
+                std_slice = np.s_[
+                    int(j_min - self.bootstrapped_obj.j.min()):
+                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
+                
+                std = self.bootstrapped_obj.std_values()[:, std_slice]
+
+        else:
+            std = None
+
+        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
+                                       j_max, self.scaling_ranges, y, std)
+
+        self.slope, self.intercept = linear_regression(x, y, self.weights)
+
+        self.slope = self.slope.reshape(n1, n2, n_ranges, -1)
+        self.intercept = self.intercept.reshape(n1, n2, n_ranges, -1)
 
 
 @dataclass(kw_only=True)
@@ -108,17 +158,16 @@ class BiStructureFunction(BiScalingFunction):
         self.gamint1 = mrq1.gamint
         self.gamint2 = mrq2.gamint
 
-        # if mode == 'all2all':
-        #     self.n_sig = mrq1.n_sig * mrq2.n_sig
-        # elif mode == 'pairwise':
-        #     if mrq1.n_sig != mrq2.n_sig:
-        #         raise ValueError(
-        #             'Pairwise mode needs equal number of signals on each '
-        #             f'multi-resolution quantity, currently {mrq1.n_sig=} and '
-        #             f'{mrq2.n_sig=}')
-        #     self.n_sig = mrq1.n_sig
-
-        # self.nj = mrq1.nj
+        match self.mode:
+            case 'all2all':
+                self.n_sig = (mrq1.n_sig, mrq2.n_sig)
+            case 'pairwise':
+                if mrq1.n_sig != mrq2.n_sig:
+                    raise ValueError(
+                        'Pairwise mode needs equal number of signals on each '
+                        f'multi-resolution quantity, currently {mrq1.n_sig=} and '
+                        f'{mrq2.n_sig=}')
+                self.n_sig = (mrq1.n_sig, 1)
 
         if max(mrq1.values) < max(mrq2.values):
             self.j = np.array(list(mrq1.values))
@@ -202,67 +251,6 @@ class BiStructureFunction(BiScalingFunction):
                 np.nanmean(val1 * val2, axis=0)
                 / np.sqrt(np.nanmean(fast_power(val1, 2) * fast_power(val2, 2),
                                      axis = 0)))
-            
-    def _compute_fit(self):
-        """
-        Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
-        """
-
-        self.slope = np.zeros(
-            (len(self.q1), len(self.q2), len(self.scaling_ranges),
-             np.prod(self.values.shape[4:])))
-
-        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
-            self.scaling_ranges, self.j)
-
-        # x = x[:, :, :]  # No broadcasting repetitions for now
-
-        # TODO adapt to new regression factorization
-
-        nq1 = len(self.q1)
-        nq2 = len(self.q2)
-
-        y = self.values.reshape(
-            nq1 * nq2, len(self.j), len(self.scaling_ranges),
-            self.slope.shape[3])[:, j_min_idx:j_max_idx]
-
-        if self.weighted == 'bootstrap':
-
-            if self.bootstrapped_obj is None:
-                std = self.std_values()[:, j_min_idx:j_max_idx]
-
-            else:
-
-                if j_min < self.bootstrapped_obj.j.min():
-                    raise ValueError(
-                        'Bootstrapped minimum scale '
-                        f'{self.bootstrapped_obj.j.min()} inferior to minimum'
-                        f'scale {j_min} used in estimation')
-                
-                std_slice = np.s_[
-                    int(j_min - self.bootstrapped_obj.j.min()):
-                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
-                
-                std = self.bootstrapped_obj.std_values()[:, std_slice]
-
-        else:
-            std = None
-
-        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
-                                       j_max, self.scaling_ranges, y, std)
-
-        # nan_weighting = np.ones_like(y)
-        # nan_weighting[np.isnan(y)] = np.nan
-
-        # weights = weights * nan_weighting
-
-        self.slope, self.intercept = linear_regression(x, y, self.weights)
-
-        n1 = self.values.shape[0]
-        n2 = self.values.shape[1]
-
-        self.slope = self.slope.reshape(n1, n2, n_ranges, -1)
-        self.intercept = self.intercept.reshape(n1, n2, n_ranges, -1)
 
     def S_qq(self, q1, q2):
         return self.values[isclose(q1, self.q1), isclose(q2, self.q2)][0]
@@ -354,4 +342,297 @@ class BiStructureFunction(BiScalingFunction):
 
 @dataclass(kw_only=True)
 class BiCumulants(BiScalingFunction):
-    cm: int = field(init=False)
+    n_cumul: int = 2
+    m: np.ndarray = field(init=False)
+    RHO_MF: np.ndarray = field(init=False)
+    rho_mf: float = field(init=False)
+    log_cumulants: np.ndarray = field(init=False)
+
+    def __post_init__(self, idx_reject, mrq1, mrq2):
+
+        if self.n_cumul > 2:
+            raise NotImplementedError(
+                'Bivariate analysis for cumulant order >= 3 not yet '
+                'implemented.')
+
+        if mrq1.get_formalism() != mrq2.get_formalism():
+            raise ValueError(
+                'Multi-resolution quantities should have the same formalism, '
+                f'currently is {mrq1.formalism=}, {mrq2.formalism=}')
+
+        self.formalism = mrq1.get_formalism()
+        self.gamint1 = mrq1.gamint
+        self.gamint2 = mrq2.gamint
+
+        match self.mode:
+            case 'all2all':
+                self.n_sig = (mrq1.n_sig, mrq2.n_sig)
+            case 'pairwise':
+                if mrq1.n_sig != mrq2.n_sig:
+                    raise ValueError(
+                        'Pairwise mode needs equal number of signals on each '
+                        f'multi-resolution quantity, currently {mrq1.n_sig=} and '
+                        f'{mrq2.n_sig=}')
+                self.n_sig = (mrq1.n_sig, 1)
+
+        if max(mrq1.values) < max(mrq2.values):
+            self.j = np.array(list(mrq1.values))
+        else:
+            self.j = np.array(list(mrq2.values))
+
+        if self.bootstrapped_obj is not None:
+            self.bootstrapped_obj = self.bootstrapped_obj.structure
+
+        self.m = np.arange(0, self.n_cumul+1)
+
+        self._compute(mrq1, mrq2, idx_reject)
+        
+        self._compute_fit()
+        self.log_cumulants = self.slope * np.log2(np.e)
+        
+        self._compute_rho()
+
+    def _compute(self, mrq1, mrq2, idx_reject):
+
+        if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
+                != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
+            raise ValueError(
+                'Mrq 1 and 2 have different number of bootstrapping '
+                f'repetitions: {ratio1} and {ratio2}, respectively.')
+
+        match self.mode:
+            case 'all2all':
+                n_rep = (mrq1.n_sig, mrq2.n_sig, ratio1)
+            case 'pairwise':
+                n_rep = (mrq1.n_sig, 1, ratio1)
+
+        self.values = np.zeros(
+            (self.n_cumul + 1, self.n_cumul + 1, len(self.j),
+             len(self.scaling_ranges), *n_rep))
+        
+        moments = np.zeros_like(self.values)
+        
+        for ind_j, j in enumerate(self.j):
+
+            pow1 = {
+                m: fast_power(np.log(np.abs(
+                    mrq1.get_values(j, idx_reject, True))), m)[..., None, :]
+                for m in self.m
+            }
+            pow2 = {
+                m: fast_power(np.log(np.abs(
+                    mrq2.get_values(j, idx_reject, True))), m)
+                for m in self.m
+            }
+
+            match self.mode:
+                case 'all2all':
+                    pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
+                case 'pairwise':
+                    pow2 = {k: v[..., None, :] for k, v in pow2.items()}
+
+            for ind_m1, m1 in enumerate(self.m):
+                for ind_m2, m2 in enumerate(self.m):
+
+                    moments[ind_m1, ind_m2, ind_j] = np.nanmean(
+                        np.nanmean(pow1[m1] * pow2[m2])
+                    )
+
+                    if m1 == m2 == 1:
+
+                        self.values[ind_m1, ind_m2, ind_j] = (
+                            moments[ind_m1, ind_m2, ind_j]
+                            - self.values[ind_m1, 0, ind_j]
+                            * self.values[0, ind_m2, ind_j]
+                        )
+
+                    elif m1 + m2 == 1:
+                        self.values[ind_m1, ind_m2, ind_j] = moments[
+                            ind_m1, ind_m2, ind_j]
+
+                    elif (m1 == 0) ^ (m2 == 0):
+
+                        aux = 0
+
+                        for ind_n, n in enumerate(np.arange(1, m2)):
+
+                            aux += (special.binom(m2-1, n-1)
+                                    * self.values[ind_m1, n, ind_j]
+                                    * moments[ind_m1, ind_m2-ind_n-1, ind_j]
+                            )
+
+                        for ind_n, n in enumerate(np.arange(1, m1)):
+
+                            aux += (special.binom(m1-1, n-1)
+                                    * self.values[n, ind_m2, ind_j]
+                                    * moments[ind_m1-ind_n-1, ind_m2, ind_j]
+                            )
+
+                        self.values[ind_m1, ind_m2, ind_j] = \
+                            moments[ind_m1, ind_m2, ind_j] - aux
+
+    def _compute_rho(self):
+
+        if self.formalism == 'wavelet coef':
+            self.RHO_MF = None
+            self.rho_mf = None
+        else:
+            self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))
+            self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
+
+    def __getattr__(self, name):
+
+        if name[0] == 'c' and len(name) == 3 and name[1:].isdigit():
+
+            out = self.log_cumulants[self.m == int(name[1]),
+                                     self.m == int(name[2])][0]
+
+            return out.reshape(
+                len(self.scaling_ranges), *self.values.shape[4:])
+
+        if name[0] == 'C' and len(name) == 3 and name[1:].isdigit():
+            return self.values[self.m == int(name[1]),
+                               self.m == int(name[2])][0]
+
+        if (super_attr := super().__getattr__(name)) is not None:
+            return super_attr
+
+        return super().__getattribute__(name)
+    
+    def plot(self, figsize=None, j1=None, scaling_range=0, filename=None):
+
+        if j1 is None:
+            j1 = self.j.min()
+
+        if self.j.min() > j1:
+            raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+                             f"{self.j.min()} instead")
+
+        ncol = len(self.m)
+
+        fig, axes = plt.subplots(ncol,
+                                 ncol,
+                                 squeeze=False,
+                                 figsize=figsize,
+                                 sharex=True)
+
+        fig.suptitle(self.formalism + r" - bivariate cumulants $C_{m, m'}(j)$")
+
+        for ind_m1, m1 in enumerate(self.m):
+            for ind_m2, m2 in enumerate(self.m):
+
+                plot_bicm(self, ind_m1, ind_m2, j1, None, scaling_range,
+                          axes[ind_m1][ind_m2], plot_legend=True)
+
+        # for j in range(ind_m1):
+        #     axes[j % ncol][j // ncol].xaxis.set_visible(False)
+
+        # for j in range(ind_m1 + 1, len(axes.flat)):
+        #     fig.delaxes(axes[j % ncol][j // ncol])
+
+        plt.tight_layout()
+
+        if filename is not None:
+            plt.savefig(filename)
+    
+    def compute_legendre(self, h_support=(0, 1.5), resolution=100):
+
+        h_support = np.linspace(*h_support, resolution)
+
+        b = (self.c20 * self.c02) - (self.c11 ** 2)
+
+        L = np.ones((resolution, resolution))
+
+        for i, h in enumerate(h_support):
+            L[i, :] += self.c02 * b / 2 * (((h - self.c10) / b) ** 2)
+            L[:, i] += self.c20 * b / 2 * (((h - self.c01) / b) ** 2)
+
+        for i, h1 in enumerate(h_support):
+            for j, h2 in enumerate(h_support):
+                L[i, j] -= (self.c11 * b
+                            * ((h1 - self.c10) / b)
+                            * ((h2 - self.c01) / b))
+
+        return h_support, L
+    
+    def plot_legendre(self, h_support=(0, 1.5), resolution=30,
+                      figsize=(10, 10), cmap=None):
+
+        h, L = self.compute_legendre(h_support=(0, 1.5),
+                                     resolution=200)
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        hmin = min([*h_x, *h_y])
+        hmax = max([*h_x, *h_y])
+
+        h, L = self.compute_legendre((hmin, hmax), resolution)
+
+        cmap = cmap or plt.cm.coolwarm  # pylint: disable=no-member
+
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.gca(projection='3d')
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        L = L[:, L.max(axis=0) >= 0]
+        L = L[L.max(axis=1) >= 0, :]
+
+        colors = cmap(L)
+        colors[L < 0] = 0
+
+        X, Y = np.meshgrid(h_x, h_y)
+
+        # Plot the surface.
+        surf = ax.plot_surface(X, Y, L, cmap=cmap,
+                               linewidth=1, antialiased=False,
+                               vmin=0, vmax=1,
+                               rstride=1, cstride=1,
+                               facecolors=colors, shade=False, linestyle='-',
+                               edgecolors='black', zorder=1)
+        ax.set_zlim(0, 1)
+        ax.view_init(elev=45)
+
+        # TODO manage to plot the contours or switch to 3D plotting libs
+        fig.colorbar(surf, shrink=0.6, aspect=10)
+
+    def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
+                         use_ipyvtk=False):
+
+        import pyvista as pv
+
+        if use_ipyvtk:
+            from ..viz import start_xvfb
+            start_xvfb()
+
+        h, L = self.compute_legendre(resolution=200)
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        hmin = min([*h_x, *h_y])
+        hmax = max([*h_x, *h_y])
+
+        h, L = self.compute_legendre((hmin, hmax), resolution)
+
+        # cmap = cmap or plt.cm.coolwarm  # pylint: disable=no-member
+
+        h_x = h[L.max(axis=0) >= 0]
+        h_y = h[L.max(axis=1) >= 0]
+
+        L = L[:, L.max(axis=0) >= 0]
+        L = L[L.max(axis=1) >= 0, :]
+
+        X, Y = np.meshgrid(h_x, h_y)
+
+        grid = pv.StructuredGrid(X, Y, L)
+        bounds = [h_x.min(), h_x.max(), h_y.min(), h_y.max(), 0, 1]
+        clipped = grid.clip_box(bounds, invert=False)
+
+        p = pv.Plotter()
+        p.add_mesh(clipped, scalars=clipped.points[:, 2])
+        p.show_grid(xlabel='h1', ylabel='h2', zlabel='L(h1, h2)',
+                    bounds=bounds)
+        p.show(use_ipyvtk=use_ipyvtk)

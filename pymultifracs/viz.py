@@ -113,22 +113,26 @@ def cp_string_format(cp, CI=False):
 
 def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
               fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
-              C_fmt='--.', lw_C=None, offset=0, plot_CI=True, **C_kwargs):
+              C_fmt='--.', lw_C=None, offset=0, plot_CI=True, signal_idx1=0,
+              signal_idx2=0, **C_kwargs):
+    
+    if cm.mode == 'pairwise':
+        signal_idx2 = 0
 
-    j1, j2 = cm.get_jrange(j1, j2)
+    j1, j2, j_min, j_max = cm.get_jrange(j1, j2)
 
     if cm.j.min() > j1:
         raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
                          f"{cm.j.min()} instead")
 
-    j_min = j1 - cm.j.min()
-    j_max = j2 - cm.j.min() + 1
-
     m1 = cm.m[ind_m1]
     m2 = cm.m[ind_m2]
 
-    x = cm.j[j_min:j_max]
-    y = getattr(cm, f'C{m1}{m2}')[j_min:j_max]
+    idx = np.s_[j_min:j_max]
+
+    x = cm.j[idx]
+    y = getattr(cm, f'C{m1}{m2}')[
+        idx, scaling_range, signal_idx1, signal_idx2, 0]
 
     if cm.bootstrapped_obj is not None and plot_CI:
 
@@ -167,15 +171,21 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
     if len(cm.log_cumulants) > 0 and plot_fit:
 
         x0, x1 = cm.scaling_ranges[scaling_range]
-        slope_log2_e = cm.log_cumulants[ind_m1, ind_m2, scaling_range]
-        slope = cm.slope[ind_m1, ind_m2, scaling_range]
-        intercept = cm.intercept[ind_m1, ind_m2, scaling_range]
+
+        slope_log2_e = getattr(cm, f'c{m1}{m2}')[
+            scaling_range, signal_idx1, signal_idx2, 0]
+        slope = slope_log2_e / np.log2(np.e)
+        
+        intercept = cm.intercept[ind_m1, ind_m2, scaling_range].reshape(
+            *cm.values.shape[4:]
+        )[signal_idx1, signal_idx2, 0]
 
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept
 
         if cm.bootstrapped_obj is not None:
-            CI = getattr(cm, f"CIE_c{m1}{m2}")
+            CI = getattr(cm, f"CIE_c{m1}{m2}")[
+                scaling_range, signal_idx1, signal_idx2]
             CI_legend = (
                 f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
                 f"{cp_string_format(CI[scaling_range, 0], True)}]")
@@ -189,6 +199,8 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
                 linestyle='-', linewidth=lw_fit, label=legend, zorder=2)
         if plot_legend:
             ax.legend()
+
+    ax.set(xlim=(j1-.5, j2+.5))
 
 
 def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
