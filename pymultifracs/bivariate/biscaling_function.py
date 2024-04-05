@@ -16,7 +16,7 @@ from ..regression import prepare_regression, prepare_weights
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-from ..utils import fast_power, isclose
+from ..utils import fast_power, isclose, pairing
 from ..viz import plot_bicm
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
@@ -63,20 +63,25 @@ class BiScalingFunction(AbstractScalingFunction):
 
         return j1, j2, j_min, j_max
     
-    def _compute_fit(self):
+    def _compute_fit(self, value_name=None, out_prefix=None):
         """
         Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
         """
 
-        n1, n2 = self.values.shape[:2]
+        if value_name is not None:
+            values = getattr(self, value_name)
+        else:
+            values = self.values
+
+        n1, n2 = values.shape[:2]
 
         self.slope = np.zeros(
-            (n1, n2, len(self.scaling_ranges), np.prod(self.values.shape[4:])))
+            (n1, n2, len(self.scaling_ranges), np.prod(values.shape[4:])))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
 
-        y = self.values.reshape(
+        y = values.reshape(
             n1 * n2, len(self.j), len(self.scaling_ranges),
             self.slope.shape[3])[:, j_min_idx:j_max_idx]
 
@@ -102,13 +107,22 @@ class BiScalingFunction(AbstractScalingFunction):
         else:
             std = None
 
-        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
-                                       j_max, self.scaling_ranges, y, std)
+        weights = prepare_weights(self, self.weighted, n_ranges, j_min,
+                                  j_max, self.scaling_ranges, y, std)
 
-        self.slope, self.intercept = linear_regression(x, y, self.weights)
+        slope, intercept = linear_regression(x, y, weights)
 
-        self.slope = self.slope.reshape(n1, n2, n_ranges, -1)
-        self.intercept = self.intercept.reshape(n1, n2, n_ranges, -1)
+        slope = slope.reshape(n1, n2, n_ranges, -1)
+        intercept = intercept.reshape(n1, n2, n_ranges, -1)
+
+        if out_prefix is not None:
+            setattr(self, out_prefix + '_slope', slope)
+            setattr(self, out_prefix + '_intercept', intercept)
+            setattr(self, out_prefix + '_weights', weights)
+        else:
+            self.slope = slope
+            self.intercept = intercept
+            self.weights = weights
 
 
 @dataclass(kw_only=True)
@@ -353,9 +367,18 @@ class BiCumulants(BiScalingFunction):
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
-        self.m = np.arange(0, self.n_cumul+1)
+        self.margin_m = np.arange(1, self.n_cumul+1)
+        self.m = [(m1, m2)
+                  for m1 in range(1, self.n_cumul+1)
+                  for m2 in range(1, self.n_cumul+1)
+                  if m1 + m2 <= self.n_cumul]
 
         self._compute(mrq1, mrq2, idx_reject)
+        
+        self._compute_fit('margin1_values', 'margin1')
+        self._compute_fit('margin2_values', 'margin2')
+        self.margin1_log_cumulants = self.margin1_slope * np.log2(np.e)
+        self.margin2_log_cumulants = self.margin2_slope * np.log2(np.e)
         
         self._compute_fit()
         self.log_cumulants = self.slope * np.log2(np.e)
@@ -376,24 +399,68 @@ class BiCumulants(BiScalingFunction):
             case 'pairwise':
                 n_rep = (mrq1.n_sig, 1, ratio1)
 
-        self.values = np.zeros(
-            (self.n_cumul + 1, self.n_cumul + 1, len(self.j),
-             len(self.scaling_ranges), *n_rep))
+        self.margin1_values = np.zeros(
+            (self.n_cumul, 1, len(self.j), len(self.scaling_ranges),
+             mrq1.n_sig, ratio1)
+        )
+        self.margin2_values = np.zeros(
+            (self.n_cumul, 1, len(self.j), len(self.scaling_ranges),
+             mrq2.n_sig, ratio1)
+        )
+        self.values = np.zeros((
+            len(self.m), 1, len(self.j),
+            len(self.scaling_ranges), *n_rep))
         
         moments = np.zeros_like(self.values)
+        margin1_moments = np.zeros_like(self.margin1_values)
+        margin2_moments = np.zeros_like(self.margin2_values)
         
         for ind_j, j in enumerate(self.j):
 
             pow1 = {
                 m: fast_power(np.log(np.abs(
-                    mrq1.get_values(j, idx_reject, True))), m)[..., None, :]
-                for m in self.m
+                    mrq1.get_values(j, idx_reject, True))), m)
+                for m in self.margin_m
             }
             pow2 = {
                 m: fast_power(np.log(np.abs(
                     mrq2.get_values(j, idx_reject, True))), m)
-                for m in self.m
+                for m in self.margin_m
             }
+
+            # Compute margins
+            for ind_m, m in enumerate(self.margin_m):
+                
+                margin1_moments[ind_m, 0, ind_j] = np.nanmean(pow1[m], axis=0)
+                margin2_moments[ind_m, 0, ind_j] = np.nanmean(pow2[m], axis=0)
+
+                # Margin of mrq1
+                aux = 0
+
+                for ind_n, n in enumerate(np.arange(1, m)):
+
+                    aux += (special.binom(m-1, n-1)
+                            * self.margin1_values[n, 0, ind_j]
+                            * margin1_moments[ind_m-ind_n-1, 0, ind_j]
+                    )
+
+                self.margin1_values[ind_m, 0, ind_j] = \
+                    margin1_moments[ind_m, 0, ind_j] - aux
+                
+                # Margin of mrq2
+                aux = 0
+
+                for ind_n, n in enumerate(np.arange(1, m)):
+
+                    aux += (special.binom(m-1, n-1)
+                            * self.margin2_values[n, 0, ind_j]
+                            * margin2_moments[ind_m-ind_n-1, 0, ind_j]
+                    )
+
+                self.margin2_values[ind_m, 0, ind_j] = \
+                    margin2_moments[ind_m, 0, ind_j] - aux
+
+            pow1 = {k: v[..., None, :] for k, v in pow1.items()}
 
             match self.mode:
                 case 'all2all':
@@ -401,45 +468,20 @@ class BiCumulants(BiScalingFunction):
                 case 'pairwise':
                     pow2 = {k: v[..., None, :] for k, v in pow2.items()}
 
-            for ind_m1, m1 in enumerate(self.m):
-                for ind_m2, m2 in enumerate(self.m):
+            # Compute bivariate cumulants
+            for ind_m, (m1, m2) in enumerate(self.m):
 
-                    moments[ind_m1, ind_m2, ind_j] = np.nanmean(
-                        (pow1[m1] * pow2[m2]), axis=0
+                moments[ind_m, 0, ind_j] = np.nanmean(
+                    (pow1[m1] * pow2[m2]), axis=0
+                )
+
+                if m1 == m2 == 1:
+
+                    self.values[ind_m, 0, ind_j] = (
+                        moments[ind_m, 0, ind_j]
+                        - self.margin1_values[ind_m, 0, ind_j]
+                        * self.margin2_values[ind_m, 0, ind_j]
                     )
-
-                    if m1 == m2 == 1:
-
-                        self.values[ind_m1, ind_m2, ind_j] = (
-                            moments[ind_m1, ind_m2, ind_j]
-                            - self.values[ind_m1, 0, ind_j]
-                            * self.values[0, ind_m2, ind_j]
-                        )
-
-                    elif m1 + m2 == 1:
-                        self.values[ind_m1, ind_m2, ind_j] = moments[
-                            ind_m1, ind_m2, ind_j]
-
-                    elif (m1 == 0) ^ (m2 == 0):
-
-                        aux = 0
-
-                        for ind_n, n in enumerate(np.arange(1, m2)):
-
-                            aux += (special.binom(m2-1, n-1)
-                                    * self.values[ind_m1, n, ind_j]
-                                    * moments[ind_m1, ind_m2-ind_n-1, ind_j]
-                            )
-
-                        for ind_n, n in enumerate(np.arange(1, m1)):
-
-                            aux += (special.binom(m1-1, n-1)
-                                    * self.values[n, ind_m2, ind_j]
-                                    * moments[ind_m1-ind_n-1, ind_m2, ind_j]
-                            )
-
-                        self.values[ind_m1, ind_m2, ind_j] = \
-                            moments[ind_m1, ind_m2, ind_j] - aux
 
     def _compute_rho(self):
 
@@ -453,17 +495,25 @@ class BiCumulants(BiScalingFunction):
 
     def __getattr__(self, name):
 
-        if name[0] == 'c' and len(name) == 3 and name[1:].isdigit():
+        match name:
 
-            out = self.log_cumulants[self.m == int(name[1]),
-                                     self.m == int(name[2])][0]
+            case ['c', '0', m2] if m2.isdigit():
+                out = self.margin2_log_cumulants[
+                    
+                ]
 
-            return out.reshape(
-                len(self.scaling_ranges), *self.values.shape[4:])
 
-        if name[0] == 'C' and len(name) == 3 and name[1:].isdigit():
-            return self.values[self.m == int(name[1]),
-                               self.m == int(name[2])][0]
+        # if name[0] == 'c' and len(name) == 3 and name[1:].isdigit():
+
+        #     out = self.log_cumulants[self.m == int(name[1]),
+        #                              self.m == int(name[2])][0]
+
+        #     return out.reshape(
+        #         len(self.scaling_ranges), *self.values.shape[4:])
+
+        # if name[0] == 'C' and len(name) == 3 and name[1:].isdigit():
+        #     return self.values[self.m == int(name[1]),
+        #                        self.m == int(name[2])][0]
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr

@@ -144,6 +144,10 @@ def fband2scale(fband, sfreq):
             int(np.floor(freq2scale(fband[0], sfreq))))
 
 
+def pairing(long, short):
+    return long * (long - 1) / 2 + short - 1
+
+
 def fast_power(array, exponent):
 
     # import warnings
