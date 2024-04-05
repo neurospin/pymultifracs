@@ -44,46 +44,6 @@ MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
 class AbstractDataclass:
     bootstrapped_obj: Any | None = None
 
-    def from_dict(self, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
-        extra keywords
-
-        Parameters
-        ----------
-        d : dict
-            Dictionary containing at least all the parameters required by
-            __init__, but can also contain other parameters, which will be
-            ignored
-
-        Returns
-        -------
-        MultiResolutionQuantityBase
-            Properly initialized multi resolution quantity
-
-        Notes
-        -----
-        .. note:: Normally, dataclasses can only be instantiated by only
-                    specifiying parameters expected by the automatically
-                    generated __init__ method.
-                    Using this method instead allows us to discard extraneous
-                    parameters, similarly to introducing a \*\*kwargs parameter.
-        """
-
-        cls = type(self)
-
-        parameters = {
-            name: getattr(self, name)
-            for name in inspect.signature(cls).parameters.keys()
-        }
-
-        input = parameters.copy()
-        input.update(d)
-
-        return cls(**{
-            k: v for k, v in input.items()
-            if k in parameters
-        })
-    
     def _check_enough_rep_bootstrap(self):
 
         if (ratio := self.n_rep // self.n_sig) < 2:

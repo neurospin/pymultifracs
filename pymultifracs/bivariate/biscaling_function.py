@@ -31,36 +31,6 @@ class BiScalingFunction(AbstractScalingFunction):
     gamint1: float = field(init=False)
     gamint2: float = field(init=False)
     n_sig: tuple[int] = field(init=False)
-
-    @classmethod
-    def from_dict(cls, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
-        extra keywords
-
-        Parameters
-        ----------
-        d : dict
-            Dictionary containing at least all the parameters required by
-            __init__, but can also contain other parameters, which will be
-            ignored
-
-        Returns
-        -------
-        MultiResolutionQuantityBase
-            Properly initialized multi resolution quantity
-
-        Notes
-        -----
-        .. note:: Normally, dataclasses can only be instantiated by only
-                  specifiying parameters expected by the automatically
-                  generated __init__ method.
-                  Using this method instead allows us to discard extraneous
-                  parameters, similarly to introducing a \*\*kwargs parameter.
-        """
-        return cls(**{
-            k: v for k, v in d.items()
-            if k in inspect.signature(cls).parameters
-        })
     
     def _check_enough_rep_bootstrap(self):
         if (ratio := self.n_rep // self.n_sig) < 2:
@@ -288,8 +258,8 @@ class BiStructureFunction(BiScalingFunction):
 
                 if self.bootstrapped_obj is not None and plot_CI:
 
-                    __, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
-                    j1, j2)
+                    __, _, j_min_CI, j_max_CI = \
+                        self.bootstrapped_obj.get_jrange(j1, j2)
 
                     CI = self.CIE_S_qq(q1, q2)[
                         j_min_CI:j_max_CI, scaling_range, signal_idx1,
@@ -435,7 +405,7 @@ class BiCumulants(BiScalingFunction):
                 for ind_m2, m2 in enumerate(self.m):
 
                     moments[ind_m1, ind_m2, ind_j] = np.nanmean(
-                        np.nanmean(pow1[m1] * pow2[m2])
+                        (pow1[m1] * pow2[m2]), axis=0
                     )
 
                     if m1 == m2 == 1:
@@ -476,9 +446,10 @@ class BiCumulants(BiScalingFunction):
         if self.formalism == 'wavelet coef':
             self.RHO_MF = None
             self.rho_mf = None
-        else:
-            self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))
-            self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
+            return
+
+        self.RHO_MF = (self.C11 / np.abs(np.sqrt(self.C02 * self.C20)))
+        self.rho_mf = -self.c11 / np.abs(np.sqrt(self.c02 * self.c20))
 
     def __getattr__(self, name):
 
@@ -499,7 +470,8 @@ class BiCumulants(BiScalingFunction):
 
         return super().__getattribute__(name)
     
-    def plot(self, figsize=None, j1=None, scaling_range=0, filename=None):
+    def plot(self, figsize=None, j1=None, scaling_range=0, filename=None,
+             signal_idx1=1, signal_idx2=0, **kwargs):
 
         if j1 is None:
             j1 = self.j.min()
@@ -522,7 +494,7 @@ class BiCumulants(BiScalingFunction):
             for ind_m2, m2 in enumerate(self.m):
 
                 plot_bicm(self, ind_m1, ind_m2, j1, None, scaling_range,
-                          axes[ind_m1][ind_m2], plot_legend=True)
+                          axes[ind_m1][ind_m2], plot_legend=True, **kwargs)
 
         # for j in range(ind_m1):
         #     axes[j % ncol][j // ncol].xaxis.set_visible(False)

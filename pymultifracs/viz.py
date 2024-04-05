@@ -369,7 +369,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
                 mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
             )
 
-        ZPJCorr = mrq.correct_pleaders(j1, j2)[None, 0, signal_idx]
+        ZPJCorr = mrq.correct_pleaders()[None, 0, signal_idx]
 
         if vmax is None:
             max_scale = [

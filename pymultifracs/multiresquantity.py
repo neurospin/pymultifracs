@@ -39,6 +39,46 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     #         for scale in self.values
     #     }
 
+    def from_dict(self, d):
+        r"""Method to instanciate a dataclass by passing a dictionary with
+        extra keywords
+
+        Parameters
+        ----------
+        d : dict
+            Dictionary containing at least all the parameters required by
+            __init__, but can also contain other parameters, which will be
+            ignored
+
+        Returns
+        -------
+        MultiResolutionQuantityBase
+            Properly initialized multi resolution quantity
+
+        Notes
+        -----
+        .. note:: Normally, dataclasses can only be instantiated by only
+                    specifiying parameters expected by the automatically
+                    generated __init__ method.
+                    Using this method instead allows us to discard extraneous
+                    parameters, similarly to introducing a \*\*kwargs parameter.
+        """
+
+        cls = type(self)
+
+        parameters = {
+            name: getattr(self, name)
+            for name in inspect.signature(cls).parameters.keys()
+        }
+
+        input = parameters.copy()
+        input.update(d)
+
+        return cls(**{
+            k: v for k, v in input.items()
+            if k in parameters
+        })
+
     def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
         sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.n_rep))
@@ -296,7 +336,7 @@ class WaveletLeader(WaveletDec):
             return super().get_values(j, idx_reject, reshape)
 
         if self.ZPJCorr is None:
-            self.correct_pleaders(min(self.values), max(self.values))
+            self.correct_pleaders()
 
         ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
 
@@ -315,14 +355,14 @@ class WaveletLeader(WaveletDec):
 
         return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
 
-    def correct_pleaders(self, min_scale, max_scale):
+    def correct_pleaders(self):
 
         # No correction if infinite p
         if self.p_exp == np.inf:
             return
 
         self.ZPJCorr = _correct_pleaders(
-            self, self.p_exp, min_scale, max_scale)
+            self, self.p_exp, min(self.values), max(self.values))
         
         return self.ZPJCorr
     
@@ -376,7 +416,7 @@ class WaveletLeader(WaveletDec):
 
         self.eta_p = eta_p
 
-        self.correct_pleaders(min([*self.values]), max([*self.values]))
+        self.correct_pleaders()
 
 @dataclass(kw_only=True)
 class Wtwse(WaveletDec):
