@@ -114,6 +114,12 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             n_cumul, q, bootstrap_weighted, 1, estimates, robust,
             robust_kwargs, idx_reject, check_regularity=False
         )
+    elif mrq.bootstrapped_obj is not None:
+        mfa_boot = mfa(
+            mrq.bootstrapped_obj, scaling_ranges, weighted,
+            n_cumul, q, bootstrap_weighted, 1, estimates, robust,
+            robust_kwargs, idx_reject, check_regularity=False
+        )
     else:
         mfa_boot = None
 

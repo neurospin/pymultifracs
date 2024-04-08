@@ -32,28 +32,11 @@ def test_bivariate():
 
     def test_key(key):
 
-        # X = data[key].copy()
-        # j1 = param[key]['j1'].squeeze()
-        # j2 = param[key]['j2'].squeeze()
-        # # j2 = int(np.log2(X.shape[0]) - 4)
-        # p_exp = 2
-        # gamint = 1
-
-        # dwt, lwt = bivariate_analysis_full(X[:, 0], X[:, 1], p_exp=p_exp,
-        #                                    scaling_ranges=[(j1, j2)],
-        #                                    gamint=gamint, weighted=None,
-        #                                    n_cumul=2,
-        #                                    q1=np.array([0, 1, 2]),
-        #                                    q2=np.array([0, 1, 2]),
-        #                                    R=2)
-
         X = data[key].copy()
 
-        # j1 = param[key]['j1'].squeeze() - 2
         j1 = 3
         j2 = int(np.log2(X.shape[0]) - 4)
         j2 = 9
-        # j2 = param[key]['j2'].squeeze()
         p_exp = 2
         gamint = .75
 
@@ -67,9 +50,6 @@ def test_bivariate():
             q1=np.array([0, 1, 2]), q2=np.array([0, 1, 2]), R=1)
 
         p = param[key]
-
-        # print(p['mft'][0, 0], lwt.cumulants.c20[0])
-        # print(p['mft'][0, 1], lwt.cumulants.c02[0])
 
         assert abs(
             p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20[0, 0, 1, 0])) < 0.02, key
