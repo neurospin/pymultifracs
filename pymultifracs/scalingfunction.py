@@ -24,6 +24,7 @@ class AbstractScalingFunction(AbstractDataclass):
     n_sig: int = field(init=False)
     j: np.ndarray = field(init=False)
     formalism: str = field(init=False)
+    nj: dict[int, np.ndarray] = field(init=False, repr=False)
     values: np.array = field(init=False, repr=False)
     slope: np.array = field(init=False, repr=False)
     intercept: np.array = field(init=False, repr=False)
@@ -59,6 +60,9 @@ class AbstractScalingFunction(AbstractDataclass):
             if k in inspect.signature(cls).parameters
         })
 
+    def get_nj_interv(self, j_min, j_max):
+        return self.nj[j_min-min(self.j):j_max-min(self.j)+1]
+
     def __getattr__(self, name):
 
         if name == 'n_rep':
@@ -73,7 +77,16 @@ class AbstractScalingFunction(AbstractDataclass):
 class ScalingFunction(AbstractScalingFunction):
     mrq: InitVar[multiresquantity.WaveletDec]
     gamint: float = field(init=False)
-    
+
+    def __post_init__(self, idx_reject, mrq):
+
+        self.gamint = mrq.gamint
+        self.n_sig = mrq.n_sig
+        self.formalism = mrq.get_formalism()
+        self.j = np.array(list(mrq.values))
+
+        self.nj = mrq.get_nj_interv()
+
     def compute_R2(self):
         return compute_R2(self.values, self.slope, self.intercept, self.weights,
                           [self._get_j_min_max()], self.j)
@@ -163,8 +176,9 @@ class ScalingFunction(AbstractScalingFunction):
         else:
             std = None
 
-        self.weights = prepare_weights(self, self.weighted, n_ranges, j_min,
-                                       j_max, self.scaling_ranges, y, std)
+        self.weights = prepare_weights(
+            self.get_nj_interv, self.weighted, n_ranges, j_min, j_max,
+            self.scaling_ranges, y, std)
         
         # nan_weighting = np.ones_like(y)
         # nan_weighting[np.isnan(y)] = np.nan
@@ -186,20 +200,12 @@ class StructureFunction(ScalingFunction):
 
     def __post_init__(self, idx_reject, mrq):
 
-        self.gamint = mrq.gamint
-        self.n_sig = mrq.n_sig
-        self.formalism = mrq.get_formalism()
-        self.j = np.array(list(mrq.values))
+        super().__post_init__(idx_reject, mrq)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
         self._compute(mrq, idx_reject)
-
-        self.slope = np.zeros(
-            (len(self.q), len(self.scaling_ranges), mrq.n_rep))
-        self.intercept = np.zeros_like(self.slope)
-
         self._compute_fit()
 
     def _compute(self, mrq, idx_reject):
@@ -429,10 +435,7 @@ class Cumulants(ScalingFunction):
 
     def __post_init__(self, idx_reject, mrq, robust, robust_kwargs):
 
-        self.formalism = mrq.get_formalism()
-        self.n_sig = mrq.n_sig
-        self.gamint = mrq.gamint
-        self.j = np.array(list(mrq.values))
+        super().__post_init__(idx_reject, mrq)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.cumulants
@@ -622,10 +625,7 @@ class MFSpectrum(ScalingFunction):
 
     def __post_init__(self, idx_reject, mrq):
 
-        self.formalism = mrq.get_formalism()
-        self.gamint = mrq.gamint
-        self.n_sig = mrq.n_sig
-        self.j = np.array(list(mrq.values))
+        super().__post_init__(idx_reject, mrq)
 
         self.U = np.zeros(
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))

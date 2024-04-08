@@ -27,12 +27,6 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     #     """
     #     return list(self.nj.values())
 
-    # def get_nj_interv(self, j1, j2):
-    #     """
-    #     Returns nj as an array, for j in [j1,j2]
-    #     """
-    #     return np.array([self.nj[j] for j in range(j1, j2+1)])
-
     # def update_nj(self):
     #     self.nj = {
     #         scale: (~np.isnan(self.values[scale])).sum(axis=0)
@@ -166,6 +160,19 @@ class WaveletDec(MultiResolutionQuantityBase):
     values: dict = field(default_factory=dict)
     origin_mrq: MultiResolutionQuantityBase | None = None
     interval_size: int = field(init=False, default=1)
+
+    def get_nj_interv(self, j1=None, j2=None):
+        """
+        Returns nj as an array, for j in [j1,j2]
+        """
+
+        if j1 is None:
+            j1 = min(self.values)
+        if j2 is None:
+            j2 = max(self.values)
+
+        return np.array([(~np.isnan(self.values[j])).sum(axis=0)
+                         for j in range(j1, j2+1)])
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
 

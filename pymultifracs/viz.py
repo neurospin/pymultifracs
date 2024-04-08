@@ -111,7 +111,7 @@ def cp_string_format(cp, CI=False):
         return f"{cp:.3f}"
 
 
-def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
+def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
               fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
               C_fmt='--.', lw_C=None, offset=0, plot_CI=True, signal_idx1=0,
               signal_idx2=0, **C_kwargs):
@@ -125,14 +125,18 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
         raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
                          f"{cm.j.min()} instead")
 
-    m1 = cm.m[ind_m1]
-    m2 = cm.m[ind_m2]
-
+    # ind_m = cm.m.index((m1, m2))
     idx = np.s_[j_min:j_max]
 
     x = cm.j[idx]
-    y = getattr(cm, f'C{m1}{m2}')[
-        idx, scaling_range, signal_idx1, signal_idx2, 0]
+    y = getattr(cm, f'C{m1}{m2}')[idx, scaling_range, :, :, 0]
+
+    if m1 == 0:
+        y = y[:, signal_idx2, 0]
+    elif m2 == 0:
+        y = y[:, signal_idx1, 0]
+    else:
+        y = y[:, signal_idx1, signal_idx2]
 
     if cm.bootstrapped_obj is not None and plot_CI:
 
@@ -176,9 +180,12 @@ def plot_bicm(cm, ind_m1, ind_m2, j1, j2, scaling_range, ax, C_color='grey',
             scaling_range, signal_idx1, signal_idx2, 0]
         slope = slope_log2_e / np.log2(np.e)
         
-        intercept = cm.intercept[ind_m1, ind_m2, scaling_range].reshape(
-            *cm.values.shape[4:]
-        )[signal_idx1, signal_idx2, 0]
+        # match m1, m2:
+        #     case 0, m2:
+        #         intercept = cm.margin2_intercept[ind_m2, scaling_range].
+
+        intercept = cm.intercept[
+            m1, m2, scaling_range, signal_idx1, signal_idx2, 0]
 
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept

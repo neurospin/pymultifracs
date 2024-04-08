@@ -3,13 +3,13 @@ from math import floor
 import numpy as np
 
 
-def prepare_weights(mrq, weighted, n_ranges, j_min, j_max, scaling_ranges,
+def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
                     y, std=None):
 
     if weighted == 'Nj':
 
         w = np.tile(
-            mrq.get_nj_interv(floor(j_min), floor(j_max))[None, :, None, :],
+            sf_nj_fun(floor(j_min), floor(j_max))[None, :, None, :],
             (1, 1, n_ranges, 1))
 
     elif weighted == 'bootstrap':

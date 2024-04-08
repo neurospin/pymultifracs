@@ -4,6 +4,7 @@ import numpy as np
 from scipy.io import loadmat
 
 from pymultifracs.bivariate import bimfa
+from pymultifracs import wavelet_analysis
 
 
 @pytest.mark.bivariate
@@ -54,23 +55,27 @@ def test_bivariate():
         j2 = 9
         # j2 = param[key]['j2'].squeeze()
         p_exp = 2
-        gamint = 1
+        gamint = .75
 
         scaling_ranges = [(j1, j2)]
 
-        dwt, lwt = bimfa(
-            X[:, 0], X[:, 1], scaling_ranges, p_exp=p_exp, gamint=gamint,
-            weighted=None, n_cumul=2, q1=np.array([0, 1, 2]),
-            q2=np.array([0, 1, 2]), R=1)
+        WT = wavelet_analysis(X)
+        WTpL = WT.get_leaders(p_exp, gamint=gamint)
+
+        lwt = bimfa(
+            WTpL, WTpL, scaling_ranges, weighted=None, n_cumul=2,
+            q1=np.array([0, 1, 2]), q2=np.array([0, 1, 2]), R=1)
 
         p = param[key]
 
-        print(p['mft'][0, 0], lwt.cumulants.c20[0])
-        print(p['mft'][0, 1], lwt.cumulants.c02[0])
+        # print(p['mft'][0, 0], lwt.cumulants.c20[0])
+        # print(p['mft'][0, 1], lwt.cumulants.c02[0])
 
-        assert abs(p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20[0])) < 0.02
-        assert abs(p['mft'][0, 1] - np.sqrt(-lwt.cumulants.c02[0])) < 0.02
-        assert abs(p['mft'][0, 2] - lwt.cumulants.rho_mf[0]) < 0.11
+        assert abs(
+            p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20[0, 0, 1, 0])) < 0.02, key
+        assert abs(
+            p['mft'][0, 1] - np.sqrt(-lwt.cumulants.c02[0, 0, 1, 0])) < 0.02
+        assert abs(p['mft'][0, 2] - lwt.cumulants.rho_mf[0, 0, 1, 0]) < 0.11
 
     for key in data:
         test_key(key)
