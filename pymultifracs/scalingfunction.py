@@ -62,6 +62,13 @@ class AbstractScalingFunction(AbstractDataclass):
 
     def get_nj_interv(self, j_min, j_max):
         return self.nj[j_min-min(self.j):j_max-min(self.j)+1]
+    
+    def _get_j_min_max(self):
+
+        j_min = min([sr[0] for sr in self.scaling_ranges])
+        j_max = max([sr[1] for sr in self.scaling_ranges])
+
+        return j_min, j_max
 
     def __getattr__(self, name):
 

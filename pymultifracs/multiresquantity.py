@@ -12,7 +12,7 @@ import numpy as np
 import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
-    mask_reject, AbstractDataclass
+    mask_reject, AbstractDataclass, max_scale_bootstrap
 from . import viz, wavelet, estimation
 
 @dataclass(kw_only=True)
@@ -93,19 +93,15 @@ class MultiResolutionQuantityBase(AbstractDataclass):
 
     def j2_eff(self):
         return max(list(self.values))
-
-    def _get_j_min_max(self):
-
-        j_min = min([sr[0] for sr in self.scaling_ranges])
-        j_max = max([sr[1] for sr in self.scaling_ranges])
-
-        return j_min, j_max
     
     def scale2freq(self, scale, sfreq):
         return pywt.scale2frequency(self.wt_name, scale) * sfreq
         
     def freq2scale(self, freq, sfreq):
         return pywt.frequency2scale(self.wt_name, freq / sfreq)
+    
+    def max_scale_bootstrap(self, idx_reject=None):
+        return max_scale_bootstrap(self, idx_reject)
 
 
 @dataclass(kw_only=True)

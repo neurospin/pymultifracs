@@ -66,7 +66,7 @@ def find_max_lambda(L):
     return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
 
 
-def compute_R(moment, slope, intercept, j_min_max, j):
+def compute_R(moment, slope, intercept, weights, j_min_max, j):
 
     x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
 
@@ -75,7 +75,7 @@ def compute_R(moment, slope, intercept, j_min_max, j):
     slope = slope[:, None, :]
     intercept = intercept[:, None, :]
 
-    return ((moment - x * slope - intercept) ** 2).sum(axis=1)
+    return ((1/weights ** 2) * (moment - x * slope - intercept) ** 2).sum(axis=1)
 
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):

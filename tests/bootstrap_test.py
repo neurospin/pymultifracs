@@ -3,22 +3,7 @@ import json
 
 import numpy as np
 
-from pymultifracs.wavelet import decomposition_level_bootstrap
 from pymultifracs import mfa, wavelet_analysis
-
-
-# @pytest.mark.bootstrap
-# def test_wavelet_bootstrap(mrw_file):
-
-#     for fname in mrw_file:
-
-#         with open(fname, 'rb') as f:
-#             X = np.load(f)
-
-#         j2 = 8
-
-#         WT = wavelet_analysis(X, j2=j2).get_leaders(p_exp=np.inf)
-#         WT.bootstrap(5)
 
 
 @pytest.mark.bootstrap
@@ -32,19 +17,18 @@ def test_confidence_interval(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        j2 = decomposition_level_bootstrap(X, 'db3')
-        scaling_ranges = [(2, j2)]
-
-        WT = wavelet_analysis(X, j2=j2)
-        WTpL = WT.get_leaders(p_exp=2)
+        WT = wavelet_analysis(X)
+        WTpL = WT.get_leaders(2)
+        
+        j2 = WTpL.max_scale_bootstrap()
+        scaling_ranges=[(2, j2), (3, j2)]
 
         dwt, lwt = mfa(
             [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
             R=5, estimates='sc')
 
-        print(
-            dwt.structure.S_q(2).shape,
-            dwt.structure.bootstrapped_obj.S_q(2).shape)
+        lwt.cumulants.compute_Lambda()
+        dwt.structure.compute_Lambda()
 
         dwt.structure.CIE_S_q(2)
         dwt.structure.CI_S_q(2)
@@ -61,23 +45,26 @@ def test_confidence_interval(mrw_file):
                    + (config_list[i]['lam'] ** 2)) < 0.025
 
 
-@pytest.mark.bootstrap
-def test_autorange(mrw_file):
+# @pytest.mark.bootstrap
+# def test_autorange(mrw_file):
 
-    for i, fname in enumerate(mrw_file):
+#     for i, fname in enumerate(mrw_file):
 
-        with open(fname, 'rb') as f:
-            X = np.load(f)
+#         with open(fname, 'rb') as f:
+#             X = np.load(f)
 
-        j2 = decomposition_level_bootstrap(X, 'db3')
-        scaling_ranges = [(2, j2), (3, j2)]
+#         WT = wavelet_analysis(X)
+#         WTpL = WT.get_leaders(2)
 
-        WT = wavelet_analysis(X, j2=j2)
-        WTpL = WT.get_leaders(p_exp=2)
+#         j2 = WTpL.max_scale_bootstrap()
+#         scaling_ranges = [(2, j2), (3, j2)]
 
-        dwt, lwt = mfa(
-            [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
-            R=5, estimates='sc')
+#         WT = wavelet_analysis(X)
+#         WTpL = WT.get_leaders(p_exp=2)
 
-        lwt.cumulants.compute_Lambda()
-        dwt.structure.compute_Lambda()
+#         dwt, lwt = mfa(
+#             [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+#             R=5, estimates='sc')
+
+#         lwt.cumulants.compute_Lambda()
+#         dwt.structure.compute_Lambda()
