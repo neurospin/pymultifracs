@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from .regression import linear_regression, prepare_regression, prepare_weights
 from . import scalingfunction
+from . import utils
 
 
 def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
@@ -61,9 +62,18 @@ def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
     Estimate the value of eta_p
     """
 
+    bootstrapped_obj = None
+
+    if weighted == 'bootstrap':
+        ws_boot = scalingfunction.StructureFunction(
+            mrq=wt_coefs.bootstrapped_obj, q=np.array([p_exp]),
+            scaling_ranges=scaling_ranges, weighted=None)
+        bootstrapped_obj = utils.MFractalVar(ws_boot, None, None)
+
     wavelet_structure = scalingfunction.StructureFunction(
         mrq=wt_coefs, q=np.array([p_exp]), scaling_ranges=scaling_ranges,
-    weighted=weighted, idx_reject=idx_reject)
+        weighted=weighted, idx_reject=idx_reject,
+        bootstrapped_obj=bootstrapped_obj)
 
     # shape N_ranges, N_signals
     return wavelet_structure.zeta[0]

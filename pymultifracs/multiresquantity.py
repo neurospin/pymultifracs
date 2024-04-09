@@ -208,13 +208,13 @@ class WaveletDec(MultiResolutionQuantityBase):
             max_scale_bootstrap(mrq) for mrq in mrq_list
         ])
 
-        j2_eff = np.array([mrq.j2_eff() for mrq in mrq_list])
-        wrong_idx = max_scale < j2_eff
+        # j2_eff = np.array([mrq.j2_eff() for mrq in mrq_list])
+        # wrong_idx = max_scale < j2_eff
 
-        if wrong_idx.any():
-            raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
-                             f'inferior to the j2 chosen when computing '
-                             f'wavelet leaders for indices {wrong_idx}.')
+        # if wrong_idx.any():
+        #     raise ValueError(f'Maximum bootstrapping scale {max_scale} is '
+        #                      f'inferior to the j2 chosen when computing '
+        #                      f'wavelet leaders for indices {wrong_idx}.')
 
         return circular_leader_bootstrap(mrq_list, min_scale, max_scale,
                                          block_length, R)
@@ -328,6 +328,35 @@ class WaveletLeader(WaveletDec):
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, repr=False)
     ZPJCorr: np.ndarray = field(init=False, default=None)
+
+    def bootstrap(self, R, min_scale=1, idx_reject=None):
+
+        self.bootstrapped_obj, self.origin_mrq.bootstrapped_obj = \
+            self.__class__.bootstrap_multiple(
+                R, min_scale, [self, self.origin_mrq])
+
+        return self.bootstrapped_obj
+
+        # self.origin_mrq.bootstrap
+
+        # from .bootstrap import circular_leader_bootstrap
+
+        # block_length = get_filter_length(self.wt_name)
+        # max_scale = max_scale_bootstrap(self, idx_reject)
+
+        # self.bootstrapped_obj = circular_leader_bootstrap(
+        #     self, min_scale, max_scale, block_length, R)
+
+        # # j = np.array([*self.values])
+        # #
+        # # if min_scale > j.min():
+        # #     self.values = {scale: value
+        # #                    for scale, value in self.values.items()
+        # #                    if scale >= min_scale}
+        # #     self.nj = {scale: nj for scale, nj in self.nj.items()
+        # #                if scale >= min_scale}
+
+        # return self.bootstrapped_obj
 
     def get_formalism(self):
         if self.p_exp == np.inf:
