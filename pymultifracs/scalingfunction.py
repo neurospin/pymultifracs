@@ -25,9 +25,9 @@ class AbstractScalingFunction(AbstractDataclass):
     j: np.ndarray = field(init=False)
     formalism: str = field(init=False)
     nj: dict[int, np.ndarray] = field(init=False, repr=False)
-    values: np.array = field(init=False, repr=False)
-    slope: np.array = field(init=False, repr=False)
-    intercept: np.array = field(init=False, repr=False)
+    values: np.ndarray = field(init=False, repr=False)
+    slope: np.ndarray = field(init=False, repr=False)
+    intercept: np.ndarray = field(init=False, repr=False)
     weights: np.ndarray = field(init=False)
 
     @classmethod
@@ -101,7 +101,7 @@ class ScalingFunction(AbstractScalingFunction):
     def compute_R(self):
 
         values = self.values.reshape(
-            *self.values.shape[:2], self.n_sig, -1)
+            *self.values.shape[:3], self.n_sig, -1)
         slope = self.slope.reshape(*self.slope.shape[:2], self.n_sig, -1)
         intercept = self.intercept.reshape(
             *self.intercept.shape[:2], self.n_sig, -1)
@@ -202,8 +202,8 @@ class ScalingFunction(AbstractScalingFunction):
 
 @dataclass(kw_only=True)
 class StructureFunction(ScalingFunction):
-    q: np.array
-    H: np.array = field(init=False)
+    q: np.ndarray
+    H: np.ndarray = field(init=False)
 
     def __post_init__(self, idx_reject, mrq):
 

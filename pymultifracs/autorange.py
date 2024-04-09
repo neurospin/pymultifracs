@@ -70,12 +70,15 @@ def compute_R(moment, slope, intercept, weights, j_min_max, j):
 
     x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
 
-    # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, B)
-    moment = moment[:, j_min_idx:j_max_idx, None, :]
-    slope = slope[:, None, :]
-    intercept = intercept[:, None, :]
+    # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, R)
+    moment = moment[:, j_min_idx:j_max_idx]
+    slope = slope[:, None]
+    intercept = intercept[:, None]
+    weights = weights[..., None]
+    x = x[..., None]
 
-    return ((1/weights ** 2) * (moment - x * slope - intercept) ** 2).sum(axis=1)
+    return np.nansum(
+        weights ** 2 * (moment - x * slope - intercept) ** 2, axis=1)
 
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):

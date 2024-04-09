@@ -112,16 +112,19 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             scaling_ranges, weighted if weighted != 'bootstrap' else None,
             idx_reject)
         mrq.bootstrap(R, j1)
-
-    if check_regularity:
-        mrq._check_regularity(scaling_ranges, weighted, idx_reject)
+    else:
+        if check_regularity:
+            mrq._check_regularity(scaling_ranges, None, idx_reject)
+    
+    if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
+        raise ValueError(
+            'weighted="bootstrap" requires R>1 or prior bootstrap')
 
     if R > 1 or mrq.bootstrapped_obj is not None:
         mfa_boot = mfa(
-            mrq.bootstrapped_obj, scaling_ranges, weighted,
-            n_cumul, q, bootstrap_weighted, 1, estimates, robust,
-            robust_kwargs, idx_reject, check_regularity=False
-        )
+            mrq.bootstrapped_obj, scaling_ranges, bootstrap_weighted,
+            n_cumul, q, None, 1, estimates, robust,
+            robust_kwargs, idx_reject, check_regularity=False)
     else:
         mfa_boot = None
 

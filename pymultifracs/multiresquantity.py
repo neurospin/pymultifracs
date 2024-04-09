@@ -299,6 +299,8 @@ class WaveletDec(MultiResolutionQuantityBase):
                 f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
                 "cannot be applied. A larger value of gamint) should be "
                 "selected.")
+            
+        return hmin
 
     def __getattribute__(self, name: str) -> Any:
 

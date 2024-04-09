@@ -116,11 +116,13 @@ def get_std(mrq, name):
 
     attribute = getattr(mrq, name)
 
+
     if callable(attribute):
 
         def wrapper(*args, **kwargs):
 
             var = attribute(*args, **kwargs)
+            var = var.reshape(*var.shape[:-1], mrq.n_sig, -1)
             unreliable = (~np.isnan(var)).sum(axis=-1) < 3
             std = np.nanstd(var, ddof=1, axis=-1)
             std[unreliable] = np.nan
@@ -129,7 +131,11 @@ def get_std(mrq, name):
 
         return wrapper
 
-    # attribute: shape (n_ranges, n_rep)
+    n_rep = attribute.shape[-1]
+
+    # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
+    attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
+
     unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
     std = np.nanstd(attribute, axis=-1, ddof=1)
     std[unreliable] = np.nan

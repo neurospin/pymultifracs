@@ -29,7 +29,8 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
 
         std = np.std(
             mrq.bootstrapped_obj.sup_coeffs(
-                n_ranges, j_max, j_min, scaling_ranges, idx_reject),
+                n_ranges, j_max, j_min, scaling_ranges, idx_reject
+                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_sig, -1),
             axis=-1)[None, :]
 
     else:

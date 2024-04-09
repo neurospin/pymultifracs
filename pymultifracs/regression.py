@@ -19,26 +19,26 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
         # except ValueError:
             # import ipdb; ipdb.set_trace()
 
-        # std shape (n_moments, n_scales) ->
+        # std shape (n_moments, n_scales, n_scaling_ranges, n_sig) ->
         # (n_moments, n_scales, n_scaling_ranges, n_rep)
         if len(std.shape) == 2:
-            w = np.tile(1 / std[:, :, None, None], (1, 1, n_ranges, 1))
-        # std shape (n_moments, n_scales, n_scaling_ranges)
-        # -> (n_moments, n_scales, n_scaling_ranges, n_rep)
+            # TODO check this
+            w = np.tile(std[:, :, None, None], (1, 1, n_ranges, 1)) ** 2
+        # std shape (n_moments, n_scales, n_scaling_ranges, n_sig)
         else:
-            w = std[:, :, :, None]
+            w = std ** 2
 
     else:  # weighted is None
         w = np.ones((1, int(j_max - j_min + 1), n_ranges, 1))
 
     for i, (j1, j2) in enumerate(scaling_ranges):
 
-        w[:, int(j2-j_min+1):, i, :] = 0
-        w[:, :int(j1-j_min), i, :] = 0
+        w[:, int(j2-j_min+1):, i, :] = np.nan
+        w[:, :int(j1-j_min), i, :] = np.nan
 
     if np.isnan(y).any():
         mask = np.ones_like(y)
-        mask[np.isnan(y)] = 0
+        mask[np.isnan(y)] = np.nan
         w = mask * w
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)

@@ -17,7 +17,7 @@ def test_confidence_interval(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        WT = wavelet_analysis(X)
+        WT = wavelet_analysis(X[:, :20])
         WTpL = WT.get_leaders(2)
         
         j2 = WTpL.max_scale_bootstrap()
@@ -40,31 +40,6 @@ def test_confidence_interval(mrw_file):
         lwt.cumulants.CI_C2
         lwt.cumulants.CIE_C2
 
-        assert abs(dwt.structure.H.mean() - config_list[i]['H'] < 0.1)
-        assert abs(lwt.cumulants.log_cumulants[1, :].mean()
+        assert abs(dwt.structure.H[0].mean() - config_list[i]['H'] < 0.1)
+        assert abs(lwt.cumulants.c2[0].mean()
                    + (config_list[i]['lam'] ** 2)) < 0.025
-
-
-# @pytest.mark.bootstrap
-# def test_autorange(mrw_file):
-
-#     for i, fname in enumerate(mrw_file):
-
-#         with open(fname, 'rb') as f:
-#             X = np.load(f)
-
-#         WT = wavelet_analysis(X)
-#         WTpL = WT.get_leaders(2)
-
-#         j2 = WTpL.max_scale_bootstrap()
-#         scaling_ranges = [(2, j2), (3, j2)]
-
-#         WT = wavelet_analysis(X)
-#         WTpL = WT.get_leaders(p_exp=2)
-
-#         dwt, lwt = mfa(
-#             [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
-#             R=5, estimates='sc')
-
-#         lwt.cumulants.compute_Lambda()
-#         dwt.structure.compute_Lambda()
