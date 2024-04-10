@@ -12,6 +12,63 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
           q2=None, mode='all2all',
           bootstrap_weighted=None, R=1, estimates='auto', robust=False,
           robust_kwargs=None, idx_reject=None, check_regularity=True):
+    """
+    Bivariate multifractal analysis.
+
+    Parameters
+    ----------
+    mrq1 : WaveletDec
+        Left-hand multi-resolution quantity to analyze.
+    mrq2 : WaveletDec
+        Right-hand multi-resolution quantity to analyze.
+    scaling_ranges : list[tuple[int, int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis.
+    weighted : str | None
+        Weighting mode for the linear regressions. Defaults to None, which is
+        no weighting. Possible values are 'Nj' which weighs by number of
+        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        estimates of variance.
+    n_cumul : int
+        Number of cumulants computed.
+    q1 : ndarray, shape (n_exponents,)
+        List of q values used in the multifractal analysis of the ``mrq1``.
+    q2 : ndarray, shape (n_exponents,)
+        List of q values used in the multifractal analysis of the ``mrq2``.
+    mode : str, optional
+        Mode of bivariate analysis. Either: 
+            - 'all2all': each possible pair of signals between ``mrq1`` and
+                ``mrq2`` is analyzed, generating ``mrq1.n_sig x mrq2.n_sig``
+                pairs
+            - 'pairwise': the signals in ``mrq1`` and ``mrq2`` are paired
+                together based on their order of apparition, ``mrq1`` and
+                ``mrq2`` need to have the same number of signals.
+    bootstrap_weighted : str | None
+        Whether the boostrapped mrqs will have weighted regressions.
+    R : int
+        Number of bootstrapped repetitions, R > 1 not currently tested!
+    estimates : str
+        Quantities to estimate: string containing a character for each of:
+            - "s": structure function
+            - "c": cumulants
+
+        Defaults to "auto" which computes both.
+    robust : bool
+        Use robust estimates of cumulants.
+    robust_kwargs : Dict | None
+        Arguments passed for robust estimation. Used for cumulant estimates
+        of order >= 3.
+    idx_reject : Dict[int, ndarray]
+        Dictionary associating each scale to a boolean array indicating whether
+        certain coefficients should be removed.
+    check_regularity: bool
+        Whether to check the minimum regularity requirements are met by the
+        MRQs.
+
+    Returns
+    -------
+    MFractalBiVar
+        The output of the bivariate multifractal analysis.
+    """
 
     # if isinstance(mrq1, Iterable):
 
@@ -74,8 +131,8 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
                          f"Effective max scale is {j2_eff}")
 
     if check_regularity:
-        mrq1._check_regularity(scaling_ranges, weighted, idx_reject)
-        mrq2._check_regularity(scaling_ranges, weighted, idx_reject)
+        mrq1.check_regularity(scaling_ranges, weighted, idx_reject)
+        mrq2.check_regularity(scaling_ranges, weighted, idx_reject)
 
     if mrq1.bootstrapped_obj is not None:
 
@@ -102,9 +159,9 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     flag_q = q1 is not None or q2 is not None
 
     if 's' in estimates or (estimates == 'auto' and flag_q):
-        bistruct = BiStructureFunction.from_dict(parameters)
+        bistruct = BiStructureFunction._from_dict(parameters)
     if 'c' in estimates or estimates == 'auto':
-        bicumul = BiCumulants.from_dict(parameters)
+        bicumul = BiCumulants._from_dict(parameters)
 
     return MFractalBiVar(bistruct, bicumul)
 

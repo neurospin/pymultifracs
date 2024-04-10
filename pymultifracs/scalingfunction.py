@@ -31,7 +31,7 @@ class AbstractScalingFunction(AbstractDataclass):
     weights: np.ndarray = field(init=False)
 
     @classmethod
-    def from_dict(cls, d):
+    def _from_dict(cls, d):
         r"""Method to instanciate a dataclass by passing a dictionary with
         extra keywords
 
@@ -202,6 +202,48 @@ class ScalingFunction(AbstractScalingFunction):
 
 @dataclass(kw_only=True)
 class StructureFunction(ScalingFunction):
+    """
+    Contains the structre functions and their linear fit.
+
+    Attributes
+    ----------
+    j : ndarray, shape(n_j,)
+        Values of j covered by the analysis.
+    nj : dict[int, ndarray]
+        Dictionnary giving the number of non-NaN values at every scale. Array
+        are of shape (n_rep,)
+    gamint : float
+        Value of gamint used in the computation of the underlying MRQ.
+    formalism : str
+        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
+        or 'wavelet p-leaders'.
+    n_sig : int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
+    q : ndarray, shape (n_moments,)
+        :math:`q` values for which the structure functions are computed.
+    values : ndarray, shape (n_moments, n_j, n_scaling_ranges, n_rep,)
+        :math:`S_q(j, k)`.
+    scaling_ranges : list[tuple[int, int]]
+        List of pairs of (j1, j2) ranges of scales for the regression.
+    slope : ndarray, shape(n_moments, n_scaling_ranges, n_rep)
+        :math:`s_q`.
+    H : ndarray
+        :math:`H = s_2 / 2`.
+    intercept : ndarray, shape(n_moments, n_scaling_ranges, n_rep,)
+        Intercept of the linear regression.
+    weighted : str | None
+        Weighting mode for the linear regressions. Defaults to None, which is
+        no weighting. Possible values are 'Nj' which weighs by number of
+        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        estimates of variance.
+    weights : ndarray
+        Weights of the linear regression.
+    bootstrapped_obj : StructureFunction | None
+        Storing the bootstrapped version of the structure function if
+        bootstraping has been used.
+    """
     q: np.ndarray
     H: np.ndarray = field(init=False)
 
@@ -396,37 +438,45 @@ class Cumulants(ScalingFunction):
 
     Attributes
     ----------
+    j : ndarray, shape (n_j,)
+        List of the j values (scales), in order presented in the value arrays.
+    nj : dict(ndarray)
+        Dictionnary giving the number of non-NaN values at every scale. Arrays
+        are of the shape (n_rep,).
+    gamint : float
+        Value of gamint used in the computation of the underlying MRQ.
+    formalism : str
+        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
+        or 'wavelet p-leaders'.
+    n_sig : int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
     n_cumul : int
         Number of computed cumulants.
+    m : ndarray, shape (n_cumul,)
+        List of the m values (cumulants), in order presented in the value
+        arrays.
+    values : ndarray, shape (n_cumulants, n_scales, n_rep)
+        :math:`C_m(j)`.
     scaling_ranges : List[Tuple[int]]
         List of pairs of scales delimiting the temporal scale support over
         which the estimates are regressed.
-    weighted : str | None
-        Whether weighted regression was performed.
-    robust_kwargs : Dict[str, object]:
-        Arguments used in robust estimation.
-    m : ndarray, shape (n_cumulants,)
-        List of the m values (cumulants), in order presented in the value
-        arrays.
-    j : ndarray, shape (n_scales,)
-        List of the j values (scales), in order presented in the value arrays.
-    values : ndarray, shape (n_cumulants, n_scales, n_rep)
-        :math:`C_m(j)`.
     log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
     var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
         Estimates of the variance of log-cumulants.
         .. warning:: var_log_cumulants was not debugged
-    formalism : str
-        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
-        or 'wavelet p-leaders'.
-    gamint : float
-        Value of gamint used in the computation of the underlying MRQ.
-    wt_name : str
-        Name of the wavelet used in the underlying MRQ.
-    nj : dict(ndarray)
-        Number of coefficients at scale j
-        Arrays are of the shape (n_rep,).
+    weighted : str | None
+        Weighting mode for the linear regressions. Defaults to None, which is
+        no weighting. Possible values are 'Nj' which weighs by number of
+        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        estimates of variance.
+    weights : ndarray
+        Weights of the linear regression.
+    bootstrapped_obj : Cumulants | None
+        Storing the bootstrapped version of the structure function if
+        bootstraping has been used.
 
     See Also
     --------
@@ -580,19 +630,6 @@ class MFSpectrum(ScalingFunction):
 
     Based on equations 2.74 - 2.78 of Herwig Wendt's thesis [1]_
 
-    Parameters
-    ----------
-    mrq : MultiResolutionQuantity
-        Multi resolution quantity to analyze.
-    scaling_ranges: List[Tuple[int]]
-        List of pairs of (j1, j2) ranges of scales for the analysis
-    q : ndarray, shape (n_exponents,)
-        Exponents used construct the multifractal spectrum
-    boostrapped_mfa: MFractalVar | None
-        Output of the MFA of bootstrapped MRQs.
-    weighted : str | None
-        Whether to used weighted linear regressions.
-
     Attributes
     ----------
     formalism : str
@@ -600,20 +637,40 @@ class MFSpectrum(ScalingFunction):
         or 'wavelet p-leaders'.
     j : ndarray, shape (n_scales,)
         List of the j values (scales), in order presented in the value arrays.
-    scaling_ranges: List[Tuple[int]]
-        List of pairs of (j1, j2) ranges of scales for the analysis
-    weighted : str | None
-        If not None, indicates the weighting approach used for regression
+    nj : dict[int, ndarray]
+        Dictionnary giving the number of non-NaN values at every scale. Array
+        are of shape (n_rep,)
+    gamint : float
+        Value of gamint used in the computation of the underlying MRQ.
+    formalism : str
+        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
+        or 'wavelet p-leaders'.
+    n_sig : int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
     q : ndarray, shape(n_exponents,)
         Exponents used construct the multifractal spectrum
-    Dq : ndarray, shape (n_exponents, n_rep)
-        Fractal dimensions : :math:`D(q)`, y-axis of the multifractal spectrum
-    hq : ndarray, shape (n_exponents, n_rep)
-        Hölder exponents : :math:`h(q)`, x-axis of the multifractal spectrum
     U : ndarray, shape (n_scales, n_exponents, n_rep)
         :math:`U(j, q)`
     V : ndarray, shape (n_scales, n_exponents, n_rep)
         :math:`V(j, q)`
+    scaling_ranges: List[Tuple[int]]
+        List of pairs of (j1, j2) ranges of scales for the analysis
+    Dq : ndarray, shape (n_exponents, n_rep)
+        Fractal dimensions : :math:`D(q)`, y-axis of the multifractal spectrum
+    hq : ndarray, shape (n_exponents, n_rep)
+        Hölder exponents : :math:`h(q)`, x-axis of the multifractal spectrum
+    weighted : str | None
+        Weighting mode for the linear regressions. Defaults to None, which is
+        no weighting. Possible values are 'Nj' which weighs by number of
+        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        estimates of variance.
+    weights : ndarray
+        Weights of the linear regression.
+    bootstrapped_obj : MFSpectrum | None
+        Storing the bootstrapped version of the structure function if
+        bootstraping has been used.
 
     References
     ----------
@@ -709,16 +766,13 @@ class MFSpectrum(ScalingFunction):
             #     :
             # ]
 
-    def plot(self, figlabel='Multifractal Spectrum', filename=None, ax=None,
-             fmt='ko-', scaling_range=0, signal_idx=0, shift_gamint=False,
-             **plot_kwargs):
+    def plot(self, filename=None, ax=None, fmt='ko-', scaling_range=0,
+             signal_idx=0, shift_gamint=False, **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
         Parameters
         ----------
-        figlabel : str
-            Figure title
         filename : str | None
             If not None, path used to save the figure
         """

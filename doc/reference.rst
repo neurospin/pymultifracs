@@ -5,14 +5,15 @@ API Reference
 Multifractal Analysis
 ---------------------
 
-.. currentmodule:: pymultifracs.mfa
+.. currentmodule:: pymultifracs
 
-:py:mod:`pymultifracs.mfa`:
+:py:mod:`pymultifracs`:
 
 .. autosummary::
     :toctree: _autosummary
 
-    mf_analysis
+    wavelet_analysis
+    mfa
 
 Dataclasses
 ```````````
@@ -24,30 +25,35 @@ Used to compute and store intermediary results
 .. autosummary::
     :toctree: _autosummary
 
-    multiresquantity.MultiResolutionQuantity
-    cumulants.Cumulants
-    structurefunction.StructureFunction
-    mfspectrum.MultifractalSpectrum
+    multiresquantity.WaveletDec
+    multiresquantity.WaveletLeader
+    multiresquantity.Wtwse
+    scalingfunction.StructureFunction
+    scalingfunction.Cumulants
+    scalingfunction.MFSpectrum
 
 Storing the multifractal analysis output
 
 .. autosummary::
     :toctree: _autosummary
+    :template: namedtuple.rst
 
     utils.MFractalVar
+    utils.MFractalBiVar
 
-Wavelet Analysis
-----------------
+Bivariate Analysis
+------------------
 
-.. currentmodule:: pymultifracs.wavelet
+.. currentmodule:: pymultifracs.bivariate
 
-:py:mod:`pymultifracs.wavelet`:
+:py:mod:`pymultifracs.bivariate`:
 
 .. autosummary::
     :toctree: _autosummary
 
-    decomposition_level
-    wavelet_analysis
+    bimfa
+    BiStructureFunction
+    BiCumulants
 
 Simulation
 ----------
@@ -73,5 +79,4 @@ Utility functions
 .. autosummary::
     :toctree: _autosummary
 
-    scale2freq
-    freq2scale
+    build_q_log

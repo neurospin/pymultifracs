@@ -33,8 +33,9 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     #         for scale in self.values
     #     }
 
-    def from_dict(self, d):
-        r"""Method to instanciate a dataclass by passing a dictionary with
+    def _from_dict(self, d):
+        r"""
+        Method to instanciate a dataclass by passing a dictionary with
         extra keywords
 
         Parameters
@@ -93,61 +94,36 @@ class MultiResolutionQuantityBase(AbstractDataclass):
 
     def j2_eff(self):
         return max(list(self.values))
-    
-    def scale2freq(self, scale, sfreq):
-        return pywt.scale2frequency(self.wt_name, scale) * sfreq
-        
-    def freq2scale(self, freq, sfreq):
-        return pywt.frequency2scale(self.wt_name, freq / sfreq)
-    
-    def max_scale_bootstrap(self, idx_reject=None):
-        return max_scale_bootstrap(self, idx_reject)
 
 
 @dataclass(kw_only=True)
 class WaveletDec(MultiResolutionQuantityBase):
     r"""
-    Handles multi-resolution quantities in multifractal analysis.
+    Wavelet Coefficient Decomposition.
 
-    It can be used to represent wavelet coefficients :math:`d_X(j, k)`
-    and wavelet (p-)leaders :math:`L_X(j, k)`.
+    It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
 
-    Parameters
-    ----------
-    formalism : str
-        Indicates the formalism used to obtain the multi resolution quantity.
-        Can be any of 'wavelet coef', 'wavelet leader',
-        or 'wavelet p-leaders'.
+    Should not be called directly but instead creating using the analysis
+    functions
 
     Attributes
     ----------
-    formalism : str
-        Formalism used. Can be any of 'wavelet coef', 'wavelet leader',
-        or 'wavelet p-leaders'.
+    values : dict[int, ndarray]
+        ``values[j]`` contains the coefficients at the scale j.
+        Arrays are of the shape (nj, n_rep)
+    n_sig : int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
     gamint : float
         Fractional integration used in the computation of the MRQ.
     wt_name : str
-        Name of the wavelet used for the MRQ.
-    p_exp : float | None
-        Optional, for wavelet p-leaders indicates the p-exponent, takes value
-        np.inf for wavelet leaders.
+        Name of the wavelet used for the decomposition.
     interval_size : int
         Width of the coef interval over which the MRQ was computed.
-    values : dict(ndarray)
-        `values[j]` contains the coefficients at the scale j.
-        Arrays are of the shape (nj, n_rep)
-    nj : dict(ndarray)
-        Contains the number of coefficients at the scale j.
-        Arrays are of the shape (n_rep,).
-    origin_mrq : MultiResolutionQuantity | None
+    origin_mrq : WaveletDec | None
         If MRQ is derived from another mrq, refers to the original MRQ.
-    eta_p : float | None
-        Only for p-leaders, wavelet scaling function :math:`\eta(p)`.
-        By default only computed during mf_analysis.
-    ZPJCorr : ndarray | None
-        Only for p-leaders, correction factor for the finite size effects,
-        dependent on `eta_p`.
-    bootstrapped_obj : :class:`.MultiResolutionQuantity` | None
+    bootstrapped_obj : WaveletDec | None
         Storing the bootstrapped version of the MRQ if bootstraping has been
         used.
     """
@@ -171,6 +147,26 @@ class WaveletDec(MultiResolutionQuantityBase):
                          for j in range(j1, j2+1)])
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
+        r"""
+        Bootstrap the multi-resolution quantity by repeating.
+
+        Parameters
+        ----------
+        R : int
+            Number of repetitions of the bootstrap.
+        min_scale : int
+            Minimum scale that will be kept in the bootstrapped MRQ, used to
+            save memory space when analyzing the coarse scales of long time
+            series.
+        idx_reject : dict[str, np.ndarray] | None
+            Dictionary of rejected values, by default None which means no
+            rejected values.
+
+        Returns
+        -------
+        WaveletDec
+            MRQ containing the bootstrapped values.
+        """
 
         from .bootstrap import circular_leader_bootstrap
 
@@ -190,6 +186,58 @@ class WaveletDec(MultiResolutionQuantityBase):
         #                if scale >= min_scale}
 
         return self.bootstrapped_obj
+    
+    def scale2freq(self, scale, sfreq):
+        """
+        Get the frequencies associated to scales.
+
+        Parameters
+        ----------
+        scale : int | float | ndarray
+            Scales to convert to frequency.
+        sfreq : float
+            Sampling frequency of the signal.
+
+        Returns
+        -------
+        freq : float | ndarray
+            Frequencies associated to `scales`.
+        """
+        return pywt.scale2frequency(self.wt_name, scale) * sfreq
+        
+    def freq2scale(self, freq, sfreq):
+        """
+        Get the scales associated to frequencies.
+
+        Parameters
+        ----------
+        freq : float | ndarray
+            Frequencies to convert to scales.
+        sfreq : float
+            Sampling frequency of the signal.
+
+        Returns
+        -------
+        scales : float | ndarray
+            Scales associated to `freq`.
+        """
+        return pywt.frequency2scale(self.wt_name, freq / sfreq)
+    
+    def max_scale_bootstrap(self, idx_reject=None):
+        """
+        Maximum scale at which bootstrapping can be done
+
+        Parameters
+        ----------
+        idx_reject : dict[str, np.ndarray] | None
+            Dictionary of rejected values, by default None which means no
+            rejected values.
+
+        Returns
+        -------
+        Scale : int
+        """
+        return max_scale_bootstrap(self, idx_reject)
 
     @classmethod
     def bootstrap_multiple(cls, R, min_scale, mrq_list):
@@ -232,16 +280,94 @@ class WaveletDec(MultiResolutionQuantityBase):
         return mask_reject(
             out, idx_reject, j, self.interval_size)
 
-    def plot(self, j1, j2, **kwargs):
-        viz.plot_coef(self, j1, j2, **kwargs)
+    def plot(self, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
+             figsize=(2.5, 1), gamma=.3, nan_idx=None, signal_idx=0,
+             cbar_kw=None, cmap='magma'):
+        """
+        Plot the multi-resolution quantity.
+
+        Parameters
+        ----------
+        j1 : int
+            Initial scale from which to display the values.
+        j2 : int
+            Maximal scale from which to display the values.
+        ax : matplotlib.pyplot.axes | None
+            pyplot axes, defaults to None which creates a new figure.
+        vmin : float | None
+            Minimal value of the colorbar, by default None which uses the
+            minimal value in the data.
+        vmax : float | None
+            Maximal value of the colorbar, by default None which uses the
+            maximal value in the data.
+        cbar : bool
+            Whether to display a colorbar.
+        figsize : tuple, optional
+            Size of the figure, used if ax is None.
+        gamma : float, optional
+            Exponent of the power-law color normalization, set to 1 for no
+            normalization.
+        nan_idx : dict[str, ndarray] | None
+            Index of values to highlight.
+        signal_idx : int, optional
+            Index of the signal to plot, defaults to the first signal.
+        cbar_kw : dict | None
+            Arguments to pass to the colorbar function call
+        cmap : str
+            Colormap for the plot.
+        """
+        viz.plot_coef(
+            self, j1, j2, ax=ax, vmin=vmin, vmax=vmax, cbar=cbar,
+            figsize=figsize, gamma=gamma, nan_idx=nan_idx,
+            signal_idx=signal_idx, cbar_kw=cbar_kw, cmap=cmap)
 
     def get_formalism(self):
+        """
+        Obtains the fomalism of the multi-resolution quantity
+
+        Returns
+        -------
+        formalism : str
+        """
+
         return 'wavelet coef'
     
     def integrate(self, gamint):
+        """
+        Fractionally integrate the wavelet coefficients.
+
+        Parameters
+        ----------
+        gamint : float
+            Fractional integration coefficient
+
+        Returns
+        -------
+        integrated : WaveletDec
+        """
         return wavelet.integrate_wavelet(self, gamint)
     
     def get_leaders(self, p_exp, interval_size=3, gamint=0):
+        """
+        Compute (p-)leaders from the wavelet coefficients
+
+        Parameters
+        ----------
+        p_exp : float | np.inf
+            np.inf means wavelet leaders will also be computed, and a float
+            sets the value of the p exponent implying a wavelet p-leader
+            formalism.
+        interval_size : int
+            Width of the time shift interval over which the leaders are
+            computed, by default the usual value of 3.
+        gamint : int, optional
+            _description_, by default 0
+
+        Returns
+        -------
+        WaveletLeader
+            Wavelet (p-)leader derived from the coefficients.
+        """
 
         if self.origin_mrq is not None:
             return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
@@ -256,6 +382,22 @@ class WaveletDec(MultiResolutionQuantityBase):
             self, p_exp, interval_size)
     
     def get_wse(self, theta=.5, gamint=0):
+        """
+        Compute weak scaling exponents from the wavelet coefficients
+
+        Parameters
+        ----------
+        theta : float, optional
+            Parameter controlling the angle of the cone over which the weak 
+            scaling exponents are computed
+        gamint : float, optional
+            Fractional integration coefficient, defaults to 0 (no integration).
+
+        Returns
+        -------
+        Wtwse
+            Weak scaling exponent derived from the coefficients.
+        """
 
         if self.origin_mrq is not None:
             return self.origin_mrq.get_wse(theta, gamint)
@@ -282,8 +424,28 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         return self
 
-    def _check_regularity(self, scaling_ranges, weighted=None,
-                          idx_reject=None):
+    def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None):
+        r"""
+        Verify that the MRQ has enough regularity for analysis.
+
+        Parameters
+        ----------
+        scaling_ranges : list[tuple[int, int]]
+            List of pairs of (j1, j2) ranges of scales for the analysis.
+        weighted : str | None
+            Weighting mode for the linear regressions. Defaults to None, which
+            is no weighting. Possible values are 'Nj' which weighs by number of
+            coefficients, and 'bootstrap' which weights by bootstrap-derived
+            estimates of variance.
+        idx_reject : Dict[int, ndarray]
+            Dictionary associating each scale to a boolean array indicating
+            whether certain coefficients should be removed.
+
+        Returns
+        -------
+        ndarray
+            Estimate of the minimal Hölder exponent in the MRQ.
+        """
         
         hmin, _ = estimation.estimate_hmin(
             self, scaling_ranges, weighted, idx_reject)
@@ -322,6 +484,45 @@ class WaveletDec(MultiResolutionQuantityBase):
 
 @dataclass(kw_only=True)
 class WaveletLeader(WaveletDec):
+    """
+    Wavelet Leader Representation.
+
+    It contains the wavelet (p-)leader representation of a signal
+    :math:`L_X(j, k)`.
+    
+    Should not be called directly but instead creating using the analysis
+    functions
+
+    Attributes
+    ----------
+    values : dict[int, ndarray]
+        ``values[j]`` contains the coefficients at the scale j.
+        Arrays are of the shape (nj, n_rep)
+    n_sig: int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
+    gamint : float
+        Fractional integration used in the computation of the MRQ.
+    wt_name : str
+        Name of the wavelet used for the decomposition.
+    interval_size : int
+        Width of the coef interval over which the MRQ was computed.
+    origin_mrq : WaveletDec | None
+        If MRQ is derived from another mrq, refers to the original MRQ.
+    bootstrapped_obj : :class:`.MultiResolutionQuantity` | None
+        Storing the bootstrapped version of the MRQ if bootstraping has been
+        used.
+    p_exp: float | np.inf
+        P exponent used to compute the MRQ. np.inf indicates wavelet leaders,
+        float indicates p-leaders.
+    eta_p : float | None
+        Only for p-leaders, wavelet scaling function :math:`\eta(p)`.
+        By default only computed during mf_analysis.
+    ZPJCorr : ndarray | None
+        Only for p-leaders, correction factor for the finite size effects,
+        dependent on `eta_p`.
+    """
     p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, repr=False)
@@ -357,11 +558,32 @@ class WaveletLeader(WaveletDec):
         # return self.bootstrapped_obj
 
     def get_formalism(self):
+        """
+        Obtains the fomalism of the multi-resolution quantity
+
+        Returns
+        -------
+        tr
+        """
+
         if self.p_exp == np.inf:
             return 'wavelet leader'
         return 'wavelet p-leader'
     
     def integrate(self, gamint):
+        """
+        Re-compute the (p-)leaders on the fractionally integrated wavelet
+        coefficients.
+
+        Parameters
+        ----------
+        gamint : float
+            Fractional integration coefficient
+
+        Returns
+        -------
+        WaveletLeader
+        """
         return self.get_leaders(self.p_exp, self.interval_size, gamint)
 
     def get_values(self, j, idx_reject=None, reshape=False):
@@ -426,11 +648,27 @@ class WaveletLeader(WaveletDec):
         
         return self
 
-    def _check_regularity(self, scaling_ranges, weighted=None,
+    def check_regularity(self, scaling_ranges, weighted=None,
                           idx_reject=None):
+        """
+        Verify that the MRQ has enough regularity for analysis.
+
+        Parameters
+        ----------
+        scaling_ranges : list[tuple[int, int]]
+            List of pairs of (j1, j2) ranges of scales for the analysis.
+        weighted : str | None
+            Weighting mode for the linear regressions. Defaults to None, which
+            is no weighting. Possible values are 'Nj' which weighs by number of
+            coefficients, and 'bootstrap' which weights by bootstrap-derived
+            estimates of variance.
+        idx_reject : Dict[int, ndarray]
+            Dictionary associating each scale to a boolean array indicating
+            whether certain coefficients should be removed.
+        """
 
         if self.p_exp == np.inf:
-            return super()._check_regularity(
+            return super().check_regularity(
                 scaling_ranges, weighted, idx_reject)
 
         eta_p = estimation._estimate_eta_p(
@@ -454,10 +692,63 @@ class WaveletLeader(WaveletDec):
 
 @dataclass(kw_only=True)
 class Wtwse(WaveletDec):
+    r"""
+    Wavelet Coefficient Decomposition.
+
+    It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
+
+    Should not be called directly but instead creating using the analysis
+    functions
+
+    Attributes
+    ----------
+    values : dict[int, ndarray]
+        ``values[j]`` contains the coefficients at the scale j.
+        Arrays are of the shape (nj, n_rep)
+    n_sig: int
+        Number of underlying signals in the wavelet decomposition. May not
+        match the dimensionality of the values arrays in case there are
+        multiple repetitions associated to a single signal.
+    gamint : float
+        Fractional integration used in the computation of the MRQ.
+    wt_name : str
+        Name of the wavelet used for the decomposition.
+    interval_size : int
+        Width of the coef interval over which the MRQ was computed.
+    origin_mrq : WaveletDec | None
+        If MRQ is derived from another mrq, refers to the original MRQ.
+    bootstrapped_obj : :class:`.MultiResolutionQuantity` | None
+        Storing the bootstrapped version of the MRQ if bootstraping has been
+        used.
+    theta: float
+        Cone spread parameter in computing the WSE.
+    """
     theta: float
 
     def get_formalism(self):
         return 'weak scaling exponent'
 
-    def _check_regularity(self, *args):
+    def check_regularity(self, *args):
+        """
+        Check that the MRQ has enough regularity for analysis
+
+        Returns
+        -------
+        None
+        """
         return None
+
+    def integrate(self, gamint):
+        """
+        Re-compute the WSE on the fractionally integrated wavelet coefficients.
+
+        Parameters
+        ----------
+        gamint : float
+            Fractional integration coefficient
+
+        Returns
+        -------
+        integrated : Wtwse
+        """
+        return self.origin_mrq.get_wse(self.theta, gamint)

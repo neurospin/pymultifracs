@@ -22,7 +22,8 @@ from .utils import MFractalVar
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         bootstrap_weighted=None, R=1, estimates="auto", robust=False,
         robust_kwargs=None, idx_reject=None, check_regularity=True):
-    """Perform multifractal analysis, given wavelet coefficients.
+    """
+    Perform multifractal analysis, given wavelet coefficients.
 
     Parameters
     ----------
@@ -30,15 +31,13 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         Multi-resolution quantity to analyze, or list of MRQs. If it is a list,
         will return a list of the output of the function applied to each MRQ
         individually.
-    scaling_ranges : List[Tuple[int]]
+    scaling_ranges : list[tuple[int, int]]
         List of pairs of (j1, j2) ranges of scales for the analysis.
-    p_exp : float | np.inf | None
-        p-exponent for performing (p)-leader based analysis.
-    gamint : float | str
-        Fractional integration factor. If 'auto' will attempt to identify the
-        minimal usable value of gamint.
     weighted : str | None
-        Whether the linear regressions will be weighted.
+        Weighting mode for the linear regressions. Defaults to None, which is
+        no weighting. Possible values are 'Nj' which weighs by number of
+        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        estimates of variance.
     n_cumul : int
         Number of cumulants computed.
     q : ndarray, shape (n_exponents,)
@@ -63,14 +62,12 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     idx_reject : Dict[int, ndarray]
         Dictionary associating each scale to a boolean array indicating whether
         certain coefficients should be removed.
-    return_mrq : bool
-        If True, will return the MRQ along with the results. Otherwise only the
-        results will be returned.
+    check_regularity: bool
+        Whether to check the minimum regularity requirements are met by the
+        MRQs.
 
     Returns
     -------
-    MultiResolutionQuantity: 
-        Optional return, if `return_mrq=True`.
     :class:`~pymultifracs.mf_analysis.MFractalData`
         The output of the multifractal analysis, is a list if `mrq` was passed
         as an Iterable.
@@ -108,13 +105,13 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             mrq.bootstrapped_obj is None
             or mrq.bootstrapped_obj.n_rep // mrq.bootstrapped_obj.n_sig != R)):
         j1 = min([sr[0] for sr in scaling_ranges])
-        mrq._check_regularity(
+        mrq.check_regularity(
             scaling_ranges, weighted if weighted != 'bootstrap' else None,
             idx_reject)
         mrq.bootstrap(R, j1)
     else:
         if check_regularity:
-            mrq._check_regularity(scaling_ranges, None, idx_reject)
+            mrq.check_regularity(scaling_ranges, None, idx_reject)
     
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
         raise ValueError(
@@ -147,11 +144,11 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     flag_q = q is not None
 
     if 's' in estimates or (estimates == 'auto' and flag_q):
-        struct = StructureFunction.from_dict(parameters)
+        struct = StructureFunction._from_dict(parameters)
     if 'c' in estimates or estimates == 'auto':
-        cumul = Cumulants.from_dict(parameters)
+        cumul = Cumulants._from_dict(parameters)
     if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
-        spec = MFSpectrum.from_dict(parameters)
+        spec = MFSpectrum._from_dict(parameters)
 
     return MFractalVar(struct, cumul, spec)
 

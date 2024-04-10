@@ -49,7 +49,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ['_templates', '_templates/namedtuple.rst']
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -57,8 +57,13 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 autosummary_generate = True
-autodoc_default_options = {'members': True, 'exclude-members': '__init__',
-                           'inherited-members': True}
+autodoc_default_options = {
+    'members': True,
+    'exclude-members': '__init__',
+    'inherited-members': True,
+}
+
+autodoc_typehints = 'none'
 
 # -- Options for HTML output -------------------------------------------------
 

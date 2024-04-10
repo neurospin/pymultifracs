@@ -275,7 +275,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         if scale <= max_scale and scale >= min_scale
     }
 
-    new_mrq = mrq.from_dict({
+    new_mrq = mrq._from_dict({
         'formalism': mrq.formalism,
         'gamint': mrq.gamint,
         'nj': nj,
@@ -438,7 +438,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
-    new_mrq = mrq.from_dict({
+    new_mrq = mrq._from_dict({
         'values': values,
     })
 
@@ -447,7 +447,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
     if double:
 
         double_mrq = {
-            rep: mrq.from_dict({
+            rep: mrq._from_dict({
                 'values': values_double[rep]
             })
             for rep in values_double}

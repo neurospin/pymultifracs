@@ -135,7 +135,7 @@ def filtering(approx, high_filter, low_filter):
     return detail, approx
 
 
-def filtering2(approx, wt, standard='matlab'):
+def filtering2(approx, wt):
     """
     """
 
@@ -151,9 +151,7 @@ def filtering2(approx, wt, standard='matlab'):
     fp = ceil((wt.dec_len - 1) / 2)
     # index of last good value
     
-    if standard == 'matlab':
-        fp -= 1
-
+    fp -= 1
     lp = -fp
 
     # replace border with nan
@@ -162,15 +160,7 @@ def filtering2(approx, wt, standard='matlab'):
     low[:fp] = np.nan
     low[lp:] = np.nan
 
-    if standard == 'matlab':
-        return -high[:], low[fp:-1]
-
-    # if fp > 1:
-    #     return -high[(fp-1):(lp+1)], low[1:-1]
-    # else:
-
-    return -high[:], low[fp-1:-1]
-
+    return -high[:], low[fp:-1]
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
@@ -471,8 +461,7 @@ def integrate_wavelet(wt_coefs, gamint):
     return wt_int
 
 
-def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
-                     dectype='matlab', ftype=None):
+def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
     """
     Compute wavelet coefficient and wavelet leaders.
 
@@ -480,12 +469,6 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
     ----------
     signal : ndarray, shape (n_samples,) | (n_samples, n_realisations)
         Time series to analyze.
-
-    p_exp : float | np.inf | None
-        Determines the formalism to be used: None means only wavelet coefs
-        will be computed, np.inf means wavelet leaders will also be computed,
-        and an int sets the value of the p exponent implying a wavelet p-leader
-        formalism.
 
     wt_name : str
         Name of the wavelet function to use, as defined in the pywavelet
@@ -502,16 +485,16 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
 
     Returns
     -------
-    MultiResolutionQuantitiy
-        Wavelet coefficient representation of the signal
+    WaveletDec
+        Wavelet coefficient representation of the signal.
 
     Notes
     -----
     When computing the wavelet coefficients, the values corrupted
-    by border effects are set to infinity (np.inf).
+    by border effects are set to NaN (np.nan).
 
     This makes it easier to compute the wavelet leaders, since
-    corrupted values will also be infinite and can be removed.
+    corrupted values will also be nan and can be easily discarded.
 
     .. note:: Wavelet coefficients are usually L^1 normalized [2]_, which is
               achieved by setting ``normalization=1``.
@@ -548,13 +531,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
 
         # detail shape (N_coef_at_scale, n_realisations)
 
-        if ftype is not None:
-            detail, approx = filtering(approx, high_filter, low_filter)
-            detail = detail[:-1]
-            # approx = approx
-
-        else:
-            detail, approx = filtering2(approx, wavelet, standard=dectype)
+        detail, approx = filtering2(approx, wavelet)
         
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))
@@ -579,9 +556,6 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1,
 
 
 def compute_wse(wt_coefs, theta=0.5, gamint=0):
-    """
-    Computes weak scaling exponent from wavelet coefs
-    """
 
     wse_coef = multiresquantity.Wtwse(
         n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,

@@ -22,9 +22,9 @@ from .regression import prepare_regression
 #         **parameters
 #     }
 
-#     dwt_struct = StructureFunction.from_dict(param_dwt)
-#     dwt_cumul = Cumulants.from_dict(param_dwt)
-#     dwt_spec = None  # MultifractalSpectrum.from_dict(param_dwt)
+#     dwt_struct = StructureFunction._from_dict(param_dwt)
+#     dwt_cumul = Cumulants._from_dict(param_dwt)
+#     dwt_spec = None  # MultifractalSpectrum._from_dict(param_dwt)
 
 #     # pylint: disable=unbalanced-tuple-unpacking
 #     # dwt_hmin, _ = estimate_hmin(wt_coefs, j1, j2, weighted)
@@ -39,9 +39,9 @@ from .regression import prepare_regression
 #             **parameters
 #         }
 
-#         lwt_struct = StructureFunction.from_dict(param_lwt)
-#         lwt_cumul = Cumulants.from_dict(param_lwt)
-#         lwt_spec = None  # MultifractalSpectrum.from_dict(param_lwt)
+#         lwt_struct = StructureFunction._from_dict(param_lwt)
+#         lwt_cumul = Cumulants._from_dict(param_lwt)
+#         lwt_spec = None  # MultifractalSpectrum._from_dict(param_lwt)
 
 #         # pylint: disable=unbalanced-tuple-unpacking
 #         # lwt_hmin, _ = estimate_hmin(wt_leaders, j1, j2, weighted)

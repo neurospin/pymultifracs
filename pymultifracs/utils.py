@@ -13,19 +13,7 @@ import numpy as np
 import pywt
 
 
-MFractalData = namedtuple('MFractalData', 'dwt lwt')
-"""Aggregates wavelet coef-based and wavelet-leader based outputs of mfa
-
-Attributes
-----------
-dwt : MFractalVar
-    Wavelet coef-based estimates
-lwt : MFractalVar
-    Wavelet leader-based estimates, if applicable (p_exp was not None)
-"""
-
-MFractalVar = namedtuple('MFractalVar',
-                         'structure cumulants spectrum')
+MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum')
 """Aggregates the output of multifractal analysis
 
 Attributes
@@ -33,11 +21,16 @@ Attributes
 strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
 cumulants : :class:`~pymultifracs.cumulants.Cumulants`
 spectrum : :class:`~pymultifracs.mfspectrum.MultifractalSpectrum`
-hmin : float
-    Estimated minimum value of h
 """
 
 MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
+"""Aggregates the output of bivariate multifractal analysis
+
+Attributes
+----------
+strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
+cumulants : :class:`~pymultifracs.cumulants.Cumulants`
+"""
 
 
 @dataclass
