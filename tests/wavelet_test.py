@@ -11,13 +11,8 @@ def test_wavelet_fbm(fbm_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        j2 = 7
-        wt_coefs, _, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, [(2, wt_coefs.j2_eff())], weighted=None)[0]
-        hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else 1
-        wavelet_analysis(X, p_exp=np.inf, j2=j2)
-        wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)
+        WT = wavelet_analysis(X)
+        WTL = WT.get_leaders(np.inf).auto_integrate([(2, WT.j2_eff())])
 
 
 def test_wavelet_mrw(mrw_file):
@@ -27,10 +22,5 @@ def test_wavelet_mrw(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        j2 = 8
-        wt_coefs, _, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, [(2, wt_coefs.j2_eff())], weighted=None)[0]
-        hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else 1
-        wavelet_analysis(X, p_exp=np.inf, j2=j2)
-        wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)
+        WT = wavelet_analysis(X)
+        WTpL = WT.get_leaders(2).auto_integrate([(2, WT.j2_eff())])
