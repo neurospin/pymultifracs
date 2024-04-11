@@ -5,8 +5,7 @@ from joblib import Parallel, delayed
 
 from .fbm import fbm
 from .mrw import mrw
-from ..mfa import mf_analysis
-from ..wavelet import wavelet_analysis
+from .. import mfa, wavelet_analysis
 
 
 def create_mask_markov(length, lambd=1e3, p_to_active=.011, p_to_inactive=.1):
@@ -177,11 +176,11 @@ def estimate(gen_func, **gen_func_kwargs):
 
     noisy_X = gen_func(**gen_func_kwargs)
 
-    WT = wavelet_analysis(noisy_X.reshape(noisy_X.shape[0], -1), p_exp=2, gamint=1)
+    WT = wavelet_analysis(
+        noisy_X.reshape(noisy_X.shape[0], -1)).integrate(gamint=1)
+    WTpL = WT.get_leaders(p_exp=2)
 
-    dwt, lwt = mf_analysis([WT.wt_coefs, WT.wt_leaders],
-                           scaling_ranges=[(8, WT.wt_leaders.j2_eff()-2)],
-                           n_cumul=4)
+    lwt = mfa(WTpL, scaling_ranges=[(8, WTpL.j2_eff()-2)], n_cumul=4)
 
     return lwt.cumulants
 

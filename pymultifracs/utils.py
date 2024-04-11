@@ -329,12 +329,11 @@ def mask_reject(values, idx_reject, j, interval_size):
         return values
 
     mask = np.ones_like(idx_reject[j], dtype=float)
-
     mask[idx_reject[j]] = np.nan
 
-    delta = (interval_size - 1) // 2
+    # delta = (interval_size - 1) // 2
 
-    if delta > 0:
-        return values * mask[delta:-delta]
+    # if delta > 0:
+    #     return values * mask[delta:-delta]
     
     return values * mask

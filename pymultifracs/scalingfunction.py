@@ -542,7 +542,7 @@ class Cumulants(ScalingFunction):
             log_T_X_j = mask_reject(
                 log_T_X_j, idx_reject, j, mrq.interval_size)
 
-            values = robust.compute_robust_cumulants(
+            values = robust.robust.compute_robust_cumulants(
                 log_T_X_j, self.m, **self.robust_kwargs)
 
             self.values[:, ind_j] = values
@@ -560,9 +560,9 @@ class Cumulants(ScalingFunction):
             mask_nan = np.isnan(T_X_j)
             mask_nan |= np.isinf(T_X_j)
             
-            if idx_reject is not None:
-                delta = (mrq.interval_size - 1) // 2
-                mask_nan |= idx_reject[j][delta:-delta]
+            if idx_reject is not None and j in idx_reject:
+                # delta = (mrq.interval_size - 1) // 2
+                mask_nan |= idx_reject[j]
 
             T_X_j[mask_nan] = 0
 

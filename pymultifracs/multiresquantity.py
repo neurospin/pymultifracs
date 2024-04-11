@@ -347,7 +347,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         """
         return wavelet.integrate_wavelet(self, gamint)
     
-    def get_leaders(self, p_exp, interval_size=3, gamint=0):
+    def get_leaders(self, p_exp, interval_size=3, gamint=None):
         """
         Compute (p-)leaders from the wavelet coefficients
 
@@ -360,8 +360,9 @@ class WaveletDec(MultiResolutionQuantityBase):
         interval_size : int
             Width of the time shift interval over which the leaders are
             computed, by default the usual value of 3.
-        gamint : int, optional
-            _description_, by default 0
+        gamint : int | None
+            Fractional integration coefficient, by default None which means
+            that current integration will be conserved.
 
         Returns
         -------
@@ -369,19 +370,22 @@ class WaveletDec(MultiResolutionQuantityBase):
             Wavelet (p-)leader derived from the coefficients.
         """
 
+        if type(self) != WaveletDec:
+            return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
+        
+        if gamint is None:
+            gamint = self.gamint
+
+        if self.gamint == gamint:
+            return wavelet.compute_leaders(self, p_exp,  interval_size)
+
         if self.origin_mrq is not None:
             return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
         
-        if gamint != 0 and gamint != self.gamint:
-            
-            int = self.integrate(gamint)
+        integ = self.integrate(gamint - self.gamint)
+        return integ.get_leaders(p_exp, interval_size)
 
-            return wavelet.compute_leaders(int, p_exp, interval_size)
-        
-        return wavelet.compute_leaders(
-            self, p_exp, interval_size)
-    
-    def get_wse(self, theta=.5, gamint=0):
+    def get_wse(self, theta=.5, gamint=None):
         """
         Compute weak scaling exponents from the wavelet coefficients
 
@@ -399,11 +403,21 @@ class WaveletDec(MultiResolutionQuantityBase):
             Weak scaling exponent derived from the coefficients.
         """
 
-        if self.origin_mrq is not None:
+        if type(self) != WaveletDec:
             return self.origin_mrq.get_wse(theta, gamint)
+
+        if gamint is None:
+            gamint = self.gamint
+
+        if gamint == self.gamint:
+            return wavelet.compute_wse(self, theta, gamint)
+
+        if self.origin_mrq is not None:
+            return self.origin_mrq.compute_wse(theta, gamint)
         
-        return wavelet.compute_wse(self, theta, gamint)
-    
+        integ = self.integrate(gamint - self.gamint)
+        return integ.get_wse(theta, gamint)
+
     def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
 
         hmin, _ = estimation.estimate_hmin(
@@ -601,15 +615,15 @@ class WaveletLeader(WaveletDec):
 
         return ZPJCorr * super().get_values(j, idx_reject, reshape)
 
-    def get_leaders(self, p_exp, interval_size=3, gamint=0):
+    def get_leaders(self, p_exp, interval_size=3, gamint=None):
 
         if (p_exp == self.p_exp
-            and interval_size == self.interval_size
-            and gamint == self.gamint):
+                and interval_size == self.interval_size
+                and (gamint == self.gamint or gamint is None)):
 
             return self
 
-        return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
+        return super().get_leaders(p_exp, interval_size, gamint)
 
     def correct_pleaders(self):
 
@@ -727,6 +741,14 @@ class Wtwse(WaveletDec):
 
     def get_formalism(self):
         return 'weak scaling exponent'
+    
+    def get_wse(self, theta=0.5, gamint=None):
+
+        if (theta == self.theta
+                and (gamint is None or gamint == self.gamint)):
+            return self
+
+        return super().get_wse(theta, gamint)
 
     def check_regularity(self, *args):
         """

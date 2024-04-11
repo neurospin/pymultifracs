@@ -160,7 +160,10 @@ def filtering2(approx, wt):
     low[:fp] = np.nan
     low[lp:] = np.nan
 
-    return -high[:], low[fp:-1]
+    if approx.shape[0] % 2 == 1:
+        return -high[:-1], low[fp:lp]
+
+    return -high[:], low[fp:lp]
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
@@ -264,6 +267,10 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     Computes the wavelet (p)-leaders from the wavelet coefficients
     """
 
+    if size % 2 == 0:
+        raise ValueError(
+            f'Interval size needs to be an odd integer, currently is {size}')
+
     if p_exp is None:
         return wt_coefs
 
@@ -278,7 +285,7 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     if leader_flag:
         p_exp = 1
 
-    pleader_p = {}
+    pleader_p = {j: np.zeros_like(wt_coefs.values[j]) for j in wt_coefs.values}
 
     for scale in range(1, max_level + 1):
 
@@ -298,7 +305,12 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 
         scale_contribution = np.zeros((size, *coefs.shape)) + np.nan
 
-        scale_contribution[:, 1:-1] = np.stack([
+        if size > 1:
+            idx_size = np.s_[(size-1)//2:-((size-1)//2)]
+        else:
+            idx_size = np.s_[:]
+
+        scale_contribution[:, idx_size] = np.stack([
             coefs[size-i:-(i-1) or None] for i in range(1, size+1)
         ], axis=0)
 
@@ -325,10 +337,10 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
         # print(pleader_p[scale-1][:-3:2].shape,
         #       pleader_p[scale-1][3::2].shape)
 
-        lower_contribution = np.zeros((2, max_index, coefs.shape[1])) + np.nan
+        lower_contribution = np.zeros((2, *coefs.shape)) + np.nan
 
-        lower_contribution[0] = pleader_p[scale-1][::2][:max_index]
-        lower_contribution[1] = pleader_p[scale-1][1::2][:max_index]
+        lower_contribution[0][:max_index] = pleader_p[scale-1][::2][:max_index]
+        lower_contribution[1][:max_index] = pleader_p[scale-1][1::2][:max_index]
 
         # lower_contribution = np.stack([
         #     pleader_p[scale-1][:-size:2],
@@ -342,21 +354,21 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
         # print(max_index, coefs.shape[0], pleader_p[scale-1].shape[0],
         #       scale_contribution[:, :max_index // 2].shape)
 
-        max_index = lower_contribution.shape[1]
+        # max_index = lower_contribution.shape[1]
 
         # print(scale_contribution.shape, lower_contribution.shape)
 
         if leader_flag:
 
             pleader_p[scale] = np.max(np.r_[
-                scale_contribution[:, :max_index],
+                scale_contribution,
                 .5 * lower_contribution
             ], axis=0)
 
         else:
 
             leaders = np.sum(np.r_[
-                scale_contribution[:, :max_index],
+                scale_contribution,
                 .5 * lower_contribution
             ], axis=0)
             pleader_p[scale] = leaders
@@ -451,7 +463,8 @@ def integrate_wavelet(wt_coefs, gamint):
             'Input multi-resolution quantity should be wavelet coef')
 
     wt_int = multiresquantity.WaveletDec(
-        gamint=gamint, wt_name=wt_coefs.wt_name, n_sig=wt_coefs.n_sig)
+        gamint=wt_coefs.gamint + gamint, wt_name=wt_coefs.wt_name,
+        n_sig=wt_coefs.n_sig)
 
     for scale in wt_coefs.values:
 
@@ -555,15 +568,15 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
     return wt_coefs
 
 
-def compute_wse(wt_coefs, theta=0.5, gamint=0):
+def compute_wse(wt_coefs, theta=0.5):
 
     wse_coef = multiresquantity.Wtwse(
         n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
-        gamint=gamint, theta=theta)
+        gamint=wt_coefs.gamint, theta=theta)
 
-    gamint_coefs = {
-        j : 2 ** (gamint * j) for j in wt_coefs.values
-    }
+    # gamint_coefs = {
+    #     j : 2 ** (gamint * j) for j in wt_coefs.values
+    # }
 
     for scale, dwt in wt_coefs.values.items():
 
@@ -586,7 +599,7 @@ def compute_wse(wt_coefs, theta=0.5, gamint=0):
                 # packet_size = 1  # Pour calculer les leaders
 
                 # On stock tous les coefs en ondelettes
-                cwav = wt_coefs.values[j] * gamint_coefs[j]
+                cwav = wt_coefs.values[j] #  * gamint_coefs[j]
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
                 # On calcule la borne de gauche
