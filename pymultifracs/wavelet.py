@@ -148,10 +148,8 @@ def filtering2(approx, wt):
     #     fp = ceil(wt.dec_len / 2) - 1
     #     lp = - fp
     # if mode == 'zero':
-    fp = ceil((wt.dec_len - 1) / 2)
+    fp = ceil((wt.dec_len - 1) / 2) - 1
     # index of last good value
-    
-    fp -= 1
     lp = -fp
 
     # replace border with nan
@@ -163,7 +161,12 @@ def filtering2(approx, wt):
     if approx.shape[0] % 2 == 1:
         return -high[:-1], low[fp:lp]
 
-    return -high[:], low[fp:lp]
+    if lp == -1:
+        low_slice = np.s_[fp:]
+    else:
+        low_slice = np.s_[fp:lp+1]
+
+    return -high[:], low[low_slice]
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
@@ -458,7 +461,8 @@ def integrate_wavelet(wt_coefs, gamint):
     Fractionally integrates the wavelet coef decomposition of a signal
     """
 
-    if isinstance(wt_coefs, multiresquantity.Wtwse) or isinstance(wt_coefs, multiresquantity.WaveletLeader):
+    if (isinstance(wt_coefs, multiresquantity.Wtwse)
+            or isinstance(wt_coefs, multiresquantity.WaveletLeader)):
         raise ValueError(
             'Input multi-resolution quantity should be wavelet coef')
 

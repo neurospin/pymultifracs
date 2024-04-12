@@ -203,7 +203,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         freq : float | ndarray
             Frequencies associated to `scales`.
         """
-        return pywt.scale2frequency(self.wt_name, scale) * sfreq
+        return pywt.scale2frequency(self.wt_name, 2 ** scale) * sfreq
         
     def freq2scale(self, freq, sfreq):
         """
@@ -221,7 +221,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         scales : float | ndarray
             Scales associated to `freq`.
         """
-        return pywt.frequency2scale(self.wt_name, freq / sfreq)
+        return np.log2(pywt.frequency2scale(self.wt_name, freq / sfreq))
     
     def max_scale_bootstrap(self, idx_reject=None):
         """
@@ -281,7 +281,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             out, idx_reject, j, self.interval_size)
 
     def plot(self, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
-             figsize=(2.5, 1), gamma=.3, nan_idx=None, signal_idx=0,
+             figsize=(4.5, 1.5), gamma=.3, nan_idx=None, signal_idx=0,
              cbar_kw=None, cmap='magma'):
         """
         Plot the multi-resolution quantity.
@@ -410,7 +410,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             gamint = self.gamint
 
         if gamint == self.gamint:
-            return wavelet.compute_wse(self, theta, gamint)
+            return wavelet.compute_wse(self, theta)
 
         if self.origin_mrq is not None:
             return self.origin_mrq.compute_wse(theta, gamint)

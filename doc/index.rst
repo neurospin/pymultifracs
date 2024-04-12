@@ -8,4 +8,5 @@ Contents
    :caption: Overview:
 
    reference
+   examples
    theory

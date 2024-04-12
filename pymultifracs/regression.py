@@ -9,7 +9,8 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
     if weighted == 'Nj':
 
         w = np.tile(
-            sf_nj_fun(floor(j_min), floor(j_max))[None, :, None, :],
+            sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[
+                None, :, None, :],
             (1, 1, n_ranges, 1))
 
     elif weighted == 'bootstrap':

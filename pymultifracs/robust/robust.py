@@ -18,7 +18,6 @@ from scipy.optimize import bisect
 # import hdbscan
 # import umap
 
-from .. import mfa
 from ..utils import fast_power
 
 
@@ -1074,15 +1073,53 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
     return idx_reject
 
 
-def get_outliers(wt_coefs, scaling_ranges, robust_cm=False, verbose=False,
-                 generalized=False, **reject_kw):
+def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
+                 robust_cm=False, verbose=False, generalized=False):
+    """Detect outliers in a signal.
+
+    Parameters
+    ----------
+    wt_coefs : WaveletDec
+        Input coefficients of the signal with outliers.
+    scaling_ranges : list[tuple[int, int]]
+        List of pairs of (j1, j2) ranges of scales for the linear regressions.
+    pelt_beta : float
+        Regularization parameter for the PELT segmentation.
+    threshold : float
+        Wasserstein distance threshold to indentify a segment as outlier.
+    pelt_jump : int
+        Optional, PELT algorithm checks segmentations every `pelt_jump` point.
+    robust_cm : bool
+        Whether to use robust cumulants in the detection.
+    generalized : bool
+        Whether to use the exponential power distribution model instead of
+        the normal distribution for the log 1-leaders in the detection.
+    verbose : bool, optional
+        Display figures outlining the detection process. If multiple signals
+        are being processed, will only show figures for the first signal.
+
+    Returns
+    -------
+    leaders : WaveletLeader
+        Wavelet 1-leaders used in the analysis.
+    idx_reject : dict[int, ndarray]
+        Dictionary associating to each scale the boolean mask of indices to
+        reject.
+
+    See Also
+    --------
+    mfa : Can be fed the output ``idx_reject``.
+    """
+
+    from .. import mfa
     
     p_exp = 1
     n_cumul = 4 if generalized else 2
 
     leaders = wt_coefs.get_leaders(p_exp, 1)
 
-    lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul)
+    lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul,
+              robust=robust_cm)
     
     j2 = max(sr[1] for sr in scaling_ranges)
     min_scale = min(sr[0] for sr in scaling_ranges)
@@ -1093,7 +1130,8 @@ def get_outliers(wt_coefs, scaling_ranges, robust_cm=False, verbose=False,
 
     idx_reject = cluster_reject_leaders(
         min_scale, j2, lwt.cumulants, leaders, verbose=verbose,
-        generalized=generalized, **reject_kw)
+        generalized=generalized, pelt_beta=pelt_beta, pelt_jump=pelt_jump,
+        threshold=threshold)
 
     for j in range(min(idx_reject), max(idx_reject)):
 

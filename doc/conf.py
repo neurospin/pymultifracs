@@ -19,6 +19,8 @@ import pymultifracs
 import sphinx
 import numpydoc
 
+from sphinx.ext.autosummary.generate import AutosummaryRenderer
+
 
 # -- Project information -----------------------------------------------------
 
@@ -45,7 +47,7 @@ extensions = ['sphinx.ext.autodoc',
             #   'sphinx_autodoc_typehints',
               # 'sphinx_gallery.notebook',
             #   'sphinx_bootstrap_theme',
-            #   'nbsphinx',
+              'nbsphinx',
               'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -272,3 +274,21 @@ nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
     "--InlineBackend.rc={'figure.dpi': 96}",
 ]
+
+#%% Adjusting the displayed name of functions
+# https://stackoverflow.com/a/72658470
+
+# def smart_fullname(fullname):
+#     parts = fullname.split(".")
+#     return ".".join(parts[1:])
+
+
+# def fixed_init(self, app, template_dir=None):
+#     AutosummaryRenderer.__old_init__(self, app, template_dir)
+#     self.env.filters["smart_fullname"] = smart_fullname
+
+
+# AutosummaryRenderer.__old_init__ = AutosummaryRenderer.__init__
+# AutosummaryRenderer.__init__ = fixed_init
+
+#%% 

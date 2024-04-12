@@ -532,7 +532,7 @@ psd : ndarray
 """
 
 
-def plot_psd(signal, fs, n_fft=4096, seg_size=None, n_moments=2,
+def plot_psd(signal, fs, n_fft=512, seg_size=None, n_moments=2,
              log='log2', ax=None, wt='db'):
     """
     Plot the superposition of Fourier-based Welch estimation and Wavelet-based
@@ -683,7 +683,7 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
         plt.show()
 
 
-def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
+def welch_estimation(signal, fs, n_fft=512, seg_size=None):
     """
     Wrapper for :obj:`scipy.signal.welch`
 
@@ -717,10 +717,10 @@ def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
         n_fft = seg_size
 
     # Frequency
-    freq = fs * np.linspace(0, 0.5, n_fft // 2 + 1)
+    # freq = fs * np.linspace(0, 0.5, n_fft // 2 + 1)
 
     # PSD
-    _, psd = welch(signal,
+    freq, psd = welch(signal,
                    window='hamming',
                    nperseg=seg_size,
                    noverlap=seg_size / 2,
@@ -729,9 +729,9 @@ def welch_estimation(signal, fs, n_fft=4096, seg_size=None):
                    return_onesided=True,
                    scaling='density',
                    average='mean',
-                   fs=2 * np.pi)
+                   fs=fs)
 
-    psd *= 4        # compensating for negative frequencies
+    # psd *= 4        # compensating for negative frequencies
     psd = np.array(psd)
 
     return PSD(freq=freq, psd=psd)
@@ -759,20 +759,19 @@ def wavelet_estimation(signal, fs, n_moments, j2=None, wt='db'):
     """
 
     # PSD
-    transform = wavelet.wavelet_analysis(signal, j2=j2,
-                                         normalization=1,
-                                         wt_name=f'{wt}{n_moments}',
-                                         gamint=0.5,
-                                         p_exp=None)
-
+    WT = wavelet.wavelet_analysis(
+        signal, j2=j2, normalization=1, wt_name=f'{wt}{n_moments}')
+    WT = WT.integrate(0.5)
+    
     # for arr in transform.wt_coefs.values.values():
 
-    psd = [np.nanmean(np.square(arr), axis=0)
-           for arr in transform.wt_coefs.values.values()]
+    psd = [np.nanmean(np.square(arr), axis=0) for arr in WT.values.values()]
     psd = np.array(psd)
 
     # Frequency
-    scale = np.arange(len(psd)) + 1
-    freq = (3/4 * fs) / (np.power(2, scale))
+    # scale = np.arange(len(psd)) + 1
+    # freq = (3/4 * fs) / (np.power(2, scale))
+    # freq = 
+    freq = WT.scale2freq(np.array([*WT.values]), fs)
 
     return PSD(freq=freq, psd=psd)

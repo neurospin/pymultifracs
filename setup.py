@@ -16,11 +16,11 @@ if version is None:
 
 extras = {
     'bootstrap': 'recombinator',
-    'robust': 'statsmodels',
+    'robust': ['statsmodels', 'ruptures', 'numba'],
     'test': [
         'pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator',
         'tqdm', 'joblib'],
-    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme'],
+    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme', 'nbsphinx'],
 }
 
 setup(name='pymultifracs',

@@ -23,6 +23,8 @@ def test_confidence_interval(mrw_file):
         j2 = WTpL.max_scale_bootstrap()
         scaling_ranges=[(2, j2), (3, j2)]
 
+        WT = WT.auto_integrate(scaling_ranges)
+
         dwt, lwt = mfa(
             [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
             R=5, estimates='sc')
@@ -40,6 +42,7 @@ def test_confidence_interval(mrw_file):
         lwt.cumulants.CI_C2
         lwt.cumulants.CIE_C2
 
-        assert abs(dwt.structure.H[0].mean() - config_list[i]['H'] < 0.1)
+        assert abs(
+            dwt.structure.H[0].mean() - WT.gamint - config_list[i]['H'] < 0.1)
         assert abs(lwt.cumulants.c2[0].mean()
                    + (config_list[i]['lam'] ** 2)) < 0.025
