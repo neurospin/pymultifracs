@@ -39,7 +39,7 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.11"]
     steps:
       - uses: actions/checkout@v3
       - name: Get Date
@@ -64,8 +64,7 @@ jobs:
           use-only-tar-bz2: true
       - name: Testing
         run: |
-          conda install -c conda-forge pytest pytest-xdist pytest-cov
-          pip install -e .
+          pip install -e .[test, robust, bootstrap]
           pytest -n auto -x --cov=./ --cov-report=xml
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.11' }} 
