@@ -1023,20 +1023,23 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
                 samp = samples[i]
 
-                # other_samples = np.r_[*samples]
-                other_samples = np.r_[*samples[:i], *samples[i+1:]]
+                # python >= 3.11 
+                # other_samples = np.r_[*samples[:i], *samples[i+1:]]
+                other_samples = np.concatenate((*samples[:i], *samples[i+1:]))
                 
                 # bins = np.linspace(0, 1, N_bins)
-                samp_hist, _ = np.histogram(samp, bins=bins)
-                other_hist, _ = np.histogram(other_samples, bins=bins)
+                # samp_hist, _ = np.histogram(samp, bins=bins)
+                # other_hist, _ = np.histogram(other_samples, bins=bins)
 
-                samp_hist = samp_hist / samp_hist.sum()
-                other_hist = other_hist / other_hist.sum()
+                # samp_hist = samp_hist / samp_hist.sum()
+                # other_hist = other_hist / other_hist.sum()
 
                 # stat.append(special.kl_div(samp_hist, other_hist).sum())
                 stat.append(stats.wasserstein_distance(
                     -np.log(1 - samp),
-                    -np.log(1 - np.r_[*samples[:i], *samples[i+1:]])))
+                    # python >= 3.11
+                    # -np.log(1 - np.r_[*samples[:i], *samples[i+1:]])))
+                    -np.log(1 - other_samples)))
                 # stat.append(spatial.distance.jensenshannon(samp_hist, other_hist))
                 median.append(np.median(samp))
 

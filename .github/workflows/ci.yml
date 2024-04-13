@@ -64,7 +64,8 @@ jobs:
           use-only-tar-bz2: true
       - name: Testing
         run: |
-          pip install -e .[test, robust, bootstrap]
+          conda install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
+          pip install -e .[bootstrap,robust]
           pytest -n auto -x --cov=./ --cov-report=xml
       - name: Upload coverage
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.11' }} 
