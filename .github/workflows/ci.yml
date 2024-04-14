@@ -39,7 +39,7 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11"]
+        python-version: ["3.10", "3.11"]
     steps:
       - uses: actions/checkout@v3
       - name: Get Date
@@ -55,16 +55,15 @@ jobs:
           key:
             ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
             hashFiles('env.yml') }}
-      - name: Setup python ${{ matrix.python-version }} with conda
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Setup python ${{ matrix.python-version }} with mamba
+        uses: mamba-org/setup-micromamba@v1
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: meta.yml
-          use-only-tar-bz2: true
       - name: Testing
         run: |
-          conda install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
+          mamba install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
           pip install -e .[bootstrap,robust]
           pytest -n auto -x --cov=./ --cov-report=xml
       - name: Upload coverage
@@ -73,5 +72,5 @@ jobs:
         with:
           files: ./coverage.xml # optional
           name: codecov-umbrella # optional
-          fail_ci_if_error: true # optional (default = false)
+          fail_ci_if_error: false # optional (default = false)
           verbose: true # optional (default = false)
