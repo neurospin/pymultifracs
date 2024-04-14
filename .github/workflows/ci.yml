@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Full git history is needed to get a proper
           # list of changed files within `super-linter`
@@ -41,7 +41,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.11"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Get Date
         id: get-date
         run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
@@ -56,14 +56,12 @@ jobs:
       #       ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
       #       hashFiles('env.yml') }}
       - name: Setup python ${{ matrix.python-version }} with mamba
-        uses: mamba-org/setup-micromamba@v1
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          # python-version: ${{ matrix.python-version }}
-          create-args: python=${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
           environment-file: meta.yml
-          init-shell: bash
-          cache-environment: true
-          cache-downloads: false
+          activate-environment: pymultifracs
+          mamba-version: "*"
       - name: Testing
         run: |
           mamba install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
