@@ -46,21 +46,24 @@ jobs:
         id: get-date
         run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Cache conda
-        uses: actions/cache@v2
-        env:
-          CACHE_NUMBER: 0
-        with:
-          path: ~/conda_pkgs_dir
-          key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('env.yml') }}
+      # - name: Cache conda
+      #   uses: actions/cache@v2
+      #   env:
+      #     CACHE_NUMBER: 0
+      #   with:
+      #     path: ~/conda_pkgs_dir
+      #     key:
+      #       ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+      #       hashFiles('env.yml') }}
       - name: Setup python ${{ matrix.python-version }} with mamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          # python-version: ${{ matrix.python-version }}
+          create-args: python=${{ matrix.python-version }}
           environment-file: meta.yml
+          init-shell: bash
+          cache-environment: true
+          cache-downloads: false
       - name: Testing
         run: |
           mamba install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
