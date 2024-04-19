@@ -268,7 +268,11 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     def get_values(self, j, idx_reject=None, reshape=False):
 
-        out = self.values[j][:, None, :]
+        # Case where bootstrapping was done
+        if self.values[j].ndim == 3:
+            out = self.values[j]
+        else:
+            out = self.values[j][:, None, :]
         
         # Bootstrapped mrq needs to realign into signal and repetitions
         if reshape: # and self.n_rep != self.n_sig
@@ -485,7 +489,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         if name == 'n_rep':
             if len(self.values) > 0:
-                return self.values[[*self.values][0]].shape[1]
+                return self.values[[*self.values][0]].shape[-1]
 
         # if name == 'n_sig' and super().__getattribute__('n_sig') is None:
         #     return 1
@@ -601,6 +605,10 @@ class WaveletLeader(WaveletDec):
         return self.get_leaders(self.p_exp, self.interval_size, gamint)
 
     def get_values(self, j, idx_reject=None, reshape=False):
+        
+        # Case where bootstrapping was done
+        if self.values[j].ndim == 3:
+            return super().get_values(j, idx_reject, reshape)
 
         if self.p_exp == np.inf or self.eta_p is None:
             return super().get_values(j, idx_reject, reshape)

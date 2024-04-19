@@ -149,7 +149,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         cumul = Cumulants._from_dict(parameters)
     if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
         spec = MFSpectrum._from_dict(parameters)
-
+        
     return MFractalVar(struct, cumul, spec)
 
 

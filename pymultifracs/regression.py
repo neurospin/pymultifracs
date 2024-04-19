@@ -17,6 +17,7 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
 
         # try:
         std[std == 0] = std[std != 0].min()
+        std = 1/std
         # except ValueError:
             # import ipdb; ipdb.set_trace()
 

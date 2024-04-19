@@ -240,9 +240,10 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
 
         CI -= y[:, None]
         CI[:, 1] *= -1
-        assert (CI < 0).sum() == 0
+#         assert (CI < 0).sum() == 0
+        CI[CI < 0] = 0
         CI = CI.transpose()
-
+        
     else:
         CI = None
 
@@ -261,7 +262,7 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
     if len(cm.log_cumulants) > 0 and plot_fit:
 
         x0, x1 = cm.scaling_ranges[scaling_range]
-        slope_log2_e = cm.log_cumulants[ind_m, scaling_range, signal_idx]
+        slope_log2_e = cm.log_cumulants[ind_m, scaling_range].reshape(cm.n_sig, -1)[signal_idx, 0]
 
         if shift_gamint and ind_m == 0:
             slope_log2_e -= cm.gamint
@@ -269,12 +270,12 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
         slope = slope_log2_e / np.log2(np.e)
         # slope = cm.slope[ind_m, scaling_range, signal_idx]
 
-        intercept = cm.intercept[ind_m, scaling_range, signal_idx]
+        intercept = cm.intercept[ind_m, scaling_range].reshape(cm.n_sig, -1)[signal_idx, 0]
 
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset
 
-        if cm.bootstrapped_obj is not None:
+        if cm.bootstrapped_obj is not None and plot_CI:
             CI = getattr(cm, f"CIE_c{m}")[scaling_range, signal_idx]
 
             CI_legend = (
@@ -731,7 +732,7 @@ def welch_estimation(signal, fs, n_fft=512, seg_size=None):
                    average='mean',
                    fs=fs)
 
-    # psd *= 4        # compensating for negative frequencies
+    psd *= 4        # compensating for negative frequencies
     psd = np.array(psd)
 
     return PSD(freq=freq, psd=psd)

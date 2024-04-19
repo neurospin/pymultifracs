@@ -501,7 +501,7 @@ class Cumulants(ScalingFunction):
         
         self.values = np.zeros(
             (len(self.m), len(self.j), len(self.scaling_ranges), mrq.n_rep))
-
+        
         if robust:
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
         else:
@@ -550,7 +550,7 @@ class Cumulants(ScalingFunction):
     def _compute(self, mrq, idx_reject):
 
         moments = np.zeros_like(self.values)
-
+        
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.get_values(j, None))

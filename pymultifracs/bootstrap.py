@@ -246,7 +246,7 @@ def get_empirical_CI(mrq, ref_mrq, name):
             return CI
 
         return wrapper
-
+    
     mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
 
     CI = estimate_empirical_bootstrap(attribute[mrq_slice],
@@ -287,20 +287,20 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
     return new_mrq
 
 
-def _general_leader_bootstrap_loop(indices, block_length, max_scale):
+def _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale):
 
     if block_length / (2 ** max_scale - 1) > 1:
         raise ValueError('block length is too large w/ regards to max scale')
 
     indices_out = {}
 
-    indices_out[1] = indices
+    indices_out[min_scale] = indices
 
-    for scale in range(2, max_scale + 1):
+    for scale in range(min_scale+1, max_scale + 1):
+        
+        index = indices / (2 ** (scale - min_scale - 1))
 
-        index = indices / (2 ** (scale - 2))
-
-        idx_int = (indices % (2 ** (scale - 2))) == 0
+        idx_int = (indices % (2 ** (scale - min_scale - 1))) == 0
 
         idx_int[idx_int] &= (index[idx_int].astype(int) % 2).astype(bool)
 
@@ -312,7 +312,7 @@ def _general_leader_bootstrap_loop(indices, block_length, max_scale):
     return indices_out
 
 
-def _general_leader_bootstrap(x, max_scale, block_length, replications,
+def _general_leader_bootstrap(x, min_scale, max_scale, block_length, replications,
                               sub_sample_length=None, link_rngs=True):
 
     circular = True
@@ -358,10 +358,10 @@ def _general_leader_bootstrap(x, max_scale, block_length, replications,
             successive_indices=successive_indices,
             sub_sample_length=sub_sample_length,
             replace=replace, link_rngs=link_rngs)
-
+    
     # Casts the lower-scale indices to higher scales => returns dict
-    indices = _general_leader_bootstrap_loop(indices, block_length, max_scale)
-
+    indices = _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale)
+    
     return indices
 
 
@@ -425,7 +425,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                      for rep2 in range(replications)])
 
         out = np.zeros(
-            (replications, *mrq.get_values(1).shape),
+            (replications, *mrq.get_values(min_scale).shape),
             dtype=float) + np.nan
 
         out[indices_scale >= 0] = data[idx]
@@ -434,8 +434,9 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
             np.isnan(out), axis=tuple(k for k in range(out.ndim) if k != 1))
         # print(compact_idx.shape, out.shape)
         values[scale] = out[:, ~compact_idx].transpose(*[*range(out.ndim)[1:], 0])
-        values[scale] = values[scale].reshape(values[scale].shape[0], -1)
-
+        
+        values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
+        
         nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq._from_dict({
@@ -511,7 +512,7 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
 
     max_scale = min(max_scale_bootstrap(reference_mrq), max_scale)
 
-    indices = _general_leader_bootstrap(reference_mrq.values[1], max_scale,
+    indices = _general_leader_bootstrap(reference_mrq.values[min_scale], min_scale, max_scale,
                                         block_length, replications,
                                         sub_sample_length, link_rngs)
 
