@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 
 from .. import wavelet_analysis, mfa
@@ -69,7 +68,7 @@ def gen_estimate(N, gen_func, SNRgrid, covgrid, align_scale, n_jobs=10,
     
     df_list = []
 
-    for rep in tqdm(range(n_rep)):
+    for rep in range(n_rep):
 
         signal, noise = gen_func(N=N, lambd=lambd)
 

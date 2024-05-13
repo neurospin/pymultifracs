@@ -21,79 +21,79 @@ from scipy.optimize import bisect
 from ..utils import fast_power
 
 
-def _qn(a, c):
-    """
-    Computes the Qn robust estimator of scale, a more efficient alternative
-    to the MAD. The implementation follows the algorithm described in Croux
-    and Rousseeuw (1992).
-    Parameters
-    ----------
-    a : array_like
-        Input array.
-    c : float, optional
-        The normalization constant, used to get consistent estimates of the
-        standard deviation at the normal distribution.  Defined as
-        1/(np.sqrt(2) * scipy.stats.norm.ppf(5/8)), which is 2.219144.
-    Returns
-    -------
-    The Qn robust estimator of scale
-    """
+# def _qn(a, c):
+#     """
+#     Computes the Qn robust estimator of scale, a more efficient alternative
+#     to the MAD. The implementation follows the algorithm described in Croux
+#     and Rousseeuw (1992).
+#     Parameters
+#     ----------
+#     a : array_like
+#         Input array.
+#     c : float, optional
+#         The normalization constant, used to get consistent estimates of the
+#         standard deviation at the normal distribution.  Defined as
+#         1/(np.sqrt(2) * scipy.stats.norm.ppf(5/8)), which is 2.219144.
+#     Returns
+#     -------
+#     The Qn robust estimator of scale
+#     """
 
-    n = a.shape[0]
-    h = n/2 + 1
-    k = int(h * (h - 1) / 2)
-    n_left = int(n * (n + 1) / 2)
-    n_right = n * n
-    k_new = k + n_left
-    i, j, jh, l = [0] * 4
-    sump, sumq = 0, 0
-    trial, output = 0, 0
-    a_sorted = np.sort(a)
-    left = np.array([n - i + 1 for i in range(0, n)], dtype=np.intc)
-    right = np.array([n if i <= h else n - (i - h) for i in range(0, n)], dtype=np.intc)
-    weights = np.zeros((n,), dtype=np.intc)
-    work = np.zeros((n,), dtype=np.double)
-    p = np.zeros((n,), dtype=np.intc)
-    q = np.zeros((n,), dtype=np.intc)
+#     n = a.shape[0]
+#     h = n/2 + 1
+#     k = int(h * (h - 1) / 2)
+#     n_left = int(n * (n + 1) / 2)
+#     n_right = n * n
+#     k_new = k + n_left
+#     i, j, jh, l = [0] * 4
+#     sump, sumq = 0, 0
+#     trial, output = 0, 0
+#     a_sorted = np.sort(a)
+#     left = np.array([n - i + 1 for i in range(0, n)], dtype=np.intc)
+#     right = np.array([n if i <= h else n - (i - h) for i in range(0, n)], dtype=np.intc)
+#     weights = np.zeros((n,), dtype=np.intc)
+#     work = np.zeros((n,), dtype=np.double)
+#     p = np.zeros((n,), dtype=np.intc)
+#     q = np.zeros((n,), dtype=np.intc)
 
-    while n_right - n_left > n:
-        j = 0
-        for i in range(1, n):
-            if left[i] <= right[i]:
-                weights[j] = right[i] - left[i] + 1
-                jh = left[i] + weights[j] // 2
-                work[j] = a_sorted[i] - a_sorted[n - jh]
-                j = j + 1
-        trial = _high_weighted_median(work[:j], weights[:j])
-        j = 0
-        for i in range(n - 1, -1, -1):
-            while j < n and (a_sorted[i] - a_sorted[n - j - 1]) < trial:
-                j = j + 1
-            p[i] = j
-        j = n + 1
-        for i in range(n):
-            while (a_sorted[i] - a_sorted[n - j + 1]) > trial:
-                j = j - 1
-            q[i] = j
-        sump = np.sum(p)
-        sumq = np.sum(q) - n
-        if k_new <= sump:
-            right = np.copy(p)
-            n_right = sump
-        elif k_new > sumq:
-            left = np.copy(q)
-            n_left = sumq
-        else:
-            output = c * trial
-            return output
-    j = 0
-    for i in range(1, n):
-        for l in range(left[i], right[i] + 1):
-            work[j] = a_sorted[i] - a_sorted[n - l]
-            j = j + 1
-    k_new = k_new - (n_left + 1)
-    output = c * np.sort(work[:j])[k_new]
-    return output
+#     while n_right - n_left > n:
+#         j = 0
+#         for i in range(1, n):
+#             if left[i] <= right[i]:
+#                 weights[j] = right[i] - left[i] + 1
+#                 jh = left[i] + weights[j] // 2
+#                 work[j] = a_sorted[i] - a_sorted[n - jh]
+#                 j = j + 1
+#         trial = _high_weighted_median(work[:j], weights[:j])
+#         j = 0
+#         for i in range(n - 1, -1, -1):
+#             while j < n and (a_sorted[i] - a_sorted[n - j - 1]) < trial:
+#                 j = j + 1
+#             p[i] = j
+#         j = n + 1
+#         for i in range(n):
+#             while (a_sorted[i] - a_sorted[n - j + 1]) > trial:
+#                 j = j - 1
+#             q[i] = j
+#         sump = np.sum(p)
+#         sumq = np.sum(q) - n
+#         if k_new <= sump:
+#             right = np.copy(p)
+#             n_right = sump
+#         elif k_new > sumq:
+#             left = np.copy(q)
+#             n_left = sumq
+#         else:
+#             output = c * trial
+#             return output
+#     j = 0
+#     for i in range(1, n):
+#         for l in range(left[i], right[i] + 1):
+#             work[j] = a_sorted[i] - a_sorted[n - l]
+#             j = j + 1
+#     k_new = k_new - (n_left + 1)
+#     output = c * np.sort(work[:j])[k_new]
+#     return output
 
 
 def compute_robust_cumulants(X, m_array, alpha=1):

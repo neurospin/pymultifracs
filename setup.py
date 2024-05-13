@@ -19,7 +19,7 @@ extras = {
     'robust': ['statsmodels', 'ruptures', 'numba'],
     'test': [
         'pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator',
-        'tqdm', 'joblib'],
+        'joblib'],
     'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme', 'nbsphinx'],
 }
 

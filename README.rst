@@ -23,9 +23,12 @@ Implemented features:
 * Computation of (1D) multiresolution quantities: wavelet coefficients, wavelet-leaders and p-leaders
 * Computation of structure functions, cumulants and log-cumulants.
 * Estimation of the multifractal spectrum.
+* Bivariate multifractal analysis.
+* Bootstrap-derived confidence intervals and automated scaling range selection.
+* Outlier detection.
 
 
-The code in this package is based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) `Matlab toolbox <http://www.ens-lyon.fr/PHYSIQUE/Equipe3/MultiFracs/software.html>`_ written by Patrice Abry, Herwig Wendt and colleagues. For a thorough introduction to multifractal analysis, you may access H. Wendt's PhD thesis available in `his webiste <https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf)>`_.
+The initial implementation of the code in this package was based on the Wavelet p-Leader and Bootstrap based MultiFractal analysis (PLBMF) `Matlab toolbox <http://www.ens-lyon.fr/PHYSIQUE/Equipe3/MultiFracs/software.html>`_ written by Patrice Abry, Herwig Wendt and colleagues. For a thorough introduction to multifractal analysis, you may access H. Wendt's PhD thesis available in `his webiste <https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf)>`_.
 
 
 For a brief introduction to multifractal analysis, see the file THEORY.ipynb
