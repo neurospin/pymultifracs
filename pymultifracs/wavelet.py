@@ -160,6 +160,9 @@ def filtering2(approx, wt):
 
     if approx.shape[0] % 2 == 1:
         return -high[:-1], low[fp:lp]
+    
+    # if approx.shape[0] % 2 == 1:
+    return -high[:-1], low[fp:lp]
 
     if lp == -1:
         low_slice = np.s_[fp:]

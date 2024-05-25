@@ -11,7 +11,7 @@ from numpy.fft import fft, ifft
 # import matplotlib.pyplot as plt
 
 
-def mrw(shape, H, lam, L, sigma=1, method='cme', z0=(None, None)):
+def mrw(shape, H, lam, L=None, sigma=1, method='cme', z0=(None, None)):
     '''
     Create a realization of fractional Brownian motion using circulant
     matrix embedding.
@@ -52,6 +52,9 @@ def mrw(shape, H, lam, L, sigma=1, method='cme', z0=(None, None)):
     # Is 0.5 or 0 the lower bound ? Search biblio
     if not 0 <= H <= 1:
         raise ValueError('H must satisfy 0 <= H <= 1')
+
+    if L is None:
+        L = N
 
     if L > N:
         raise ValueError('Integral scale L is larger than data length N')

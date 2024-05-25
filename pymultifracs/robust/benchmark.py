@@ -1,11 +1,89 @@
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
 import numpy as np
 import pandas as pd
 
+from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 
 from .. import wavelet_analysis, mfa
 from .robust import get_outliers
 from ..simul.noisy import gen_noisy
+
+
+def get_grid(param_grid):
+
+    series = [
+        pd.DataFrame({name: signal_param})
+        for name, signal_param in param_grid.items()]
+    
+    out = series[0]
+
+    for s in series[1:]:
+        out = out.merge(s, how='cross')
+
+    return out
+
+
+@dataclass
+class Benchmark:
+    signal_param_grid: dict[str, np.ndarray]
+    noise_param_grid: dict[str, np.ndarray]
+    signal_gen_func: Callable
+    noise_gen_func: Callable
+    estimation_grid: dict[str, Callable]
+    WT_params: dict[str, Any]
+    results: pd.DataFrame = field(init=False, repr=False)
+    
+    def run(self, n_rep):
+
+        results = {}
+
+        signal_grid = get_grid(self.signal_param_grid)
+        noise_grid = get_grid(self.noise_param_grid)
+
+        for signal_params in signal_grid.itertuples(index=False):
+            
+            signal_names = [*signal_params._fields]
+            signal_params = signal_params._asdict()
+
+            # X = self.signal_gen_func(**signal_params)
+            # print(X.shape)
+
+            X = np.c_[
+                *[self.signal_gen_func(**signal_params)
+                for i in range(n_rep)]]
+            
+            # for repetition in range(n_rep):
+
+            for noise_params in noise_grid.itertuples(index=False):
+
+                noise_names = [*noise_params._fields]
+                noise_params = noise_params._asdict()
+
+                X_noisy = self.noise_gen_func(X, **noise_params)
+
+                for method, est_fun in tqdm(self.estimation_grid.items()):
+
+                    WT = wavelet_analysis(X_noisy, **self.WT_params)
+
+                    results[(method, *signal_params.values(), *noise_params.values())] = [est_fun(WT)]
+
+        self.results = pd.DataFrame.from_dict(results).transpose()
+
+        for i, name in enumerate(signal_names):
+            if name in noise_names:
+
+                signal_names[i] = name + '_signal'
+                noise_names[noise_names.index(name)] = name + '_noise'
+
+        self.results.index.names = [
+            'method', *signal_names, *noise_names]
+        self.results.columns.names = ['cumulants']
+
+    def plot(self):
+        pass
 
 
 def estimate(gen_func, robust_cm=False, bootstrap_weight=False,

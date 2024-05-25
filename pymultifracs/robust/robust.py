@@ -1016,8 +1016,8 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                 continue
 
             right_edge = np.nanmax(agg[:, j, idx_range, idx_signal])
-            bins = np.sort(
-                np.r_[1, 1-np.geomspace(1 - right_edge, 1, N_bins-1)])
+            # bins = np.sort(
+            #     np.r_[1, 1-np.geomspace(1 - right_edge, 1, N_bins-1)])
 
             for i in range(len(samples)):
 
