@@ -1119,7 +1119,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
     p_exp = 1
     n_cumul = 4 if generalized else 2
 
-    leaders = wt_coefs.get_leaders(p_exp, 1)
+    leaders = wt_coefs.get_leaders(p_exp, 1, 1)
 
     lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul,
               robust=robust_cm)

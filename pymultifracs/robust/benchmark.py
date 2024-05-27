@@ -48,25 +48,21 @@ class Benchmark:
             signal_names = [*signal_params._fields]
             signal_params = signal_params._asdict()
 
-            # X = self.signal_gen_func(**signal_params)
-            # print(X.shape)
-
             X = np.c_[
                 *[self.signal_gen_func(**signal_params)
                 for i in range(n_rep)]]
             
             # for repetition in range(n_rep):
 
-            for noise_params in noise_grid.itertuples(index=False):
+            for noise_params in tqdm(noise_grid.itertuples(index=False)):
 
                 noise_names = [*noise_params._fields]
                 noise_params = noise_params._asdict()
 
                 X_noisy = self.noise_gen_func(X, **noise_params)
+                WT = wavelet_analysis(X_noisy, **self.WT_params)
 
-                for method, est_fun in tqdm(self.estimation_grid.items()):
-
-                    WT = wavelet_analysis(X_noisy, **self.WT_params)
+                for method, est_fun in self.estimation_grid.items():
 
                     results[(method, *signal_params.values(), *noise_params.values())] = [est_fun(WT)]
 
@@ -80,7 +76,7 @@ class Benchmark:
 
         self.results.index.names = [
             'method', *signal_names, *noise_names]
-        self.results.columns.names = ['cumulants']
+        self.results.columns = ['cumulants']
 
     def plot(self):
         pass
