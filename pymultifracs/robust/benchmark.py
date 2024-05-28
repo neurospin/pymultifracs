@@ -1,3 +1,4 @@
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -26,57 +27,99 @@ def get_grid(param_grid):
     return out
 
 
+def get_fname(param):
+
+    fname = Path('.')
+
+    for param in param.values():
+
+        if isinstance(param, float):
+            fname /= f'{param:.2f}'
+        else:
+            fname /= str(param)
+
+    fname /= 'signal'
+
+    return fname.with_suffix('.npy')
+
+
 @dataclass
 class Benchmark:
     signal_param_grid: dict[str, np.ndarray]
-    noise_param_grid: dict[str, np.ndarray]
-    signal_gen_func: Callable
-    noise_gen_func: Callable
+    # noise_param_grid: dict[str, np.ndarray]
+    signal_func: Callable
+    # noise_gen_func: Callable
     estimation_grid: dict[str, Callable]
     WT_params: dict[str, Any]
+    # parameters_df: pd.DataFrame = field(init=False, default=None, repr=False)
     results: pd.DataFrame = field(init=False, repr=False)
-    
-    def run(self, n_rep):
+
+    def get_df_fnames(self):
+
+        return Path('results.pkl')
+
+    def generate_grids(self):
+
+        signal_grid = get_grid(self.signal_param_grid)
+        # noise_grid = get_grid(self.noise_param_grid)
+
+        return signal_grid#, noise_grid
+
+    def load_df(self):
+
+        results_fname = self.get_df_fnames()
+        # self.parameters_df = self.generate_grids()
+
+        if results_fname.exists():
+            self.results = pd.read_pickle(results_fname)
+        
+    def compute_benchmark(self, n_jobs=1, save=False):
 
         results = {}
 
         signal_grid = get_grid(self.signal_param_grid)
-        noise_grid = get_grid(self.noise_param_grid)
+        signal_names = signal_grid.columns
+        print(signal_names)
+        # signals, signal_names = self.load_generate_signals()
 
-        for signal_params in signal_grid.itertuples(index=False):
-            
-            signal_names = [*signal_params._fields]
-            signal_params = signal_params._asdict()
-
-            X = np.c_[
-                *[self.signal_gen_func(**signal_params)
-                for i in range(n_rep)]]
-            
-            # for repetition in range(n_rep):
-
-            for noise_params in tqdm(noise_grid.itertuples(index=False)):
-
-                noise_names = [*noise_params._fields]
-                noise_params = noise_params._asdict()
-
-                X_noisy = self.noise_gen_func(X, **noise_params)
-                WT = wavelet_analysis(X_noisy, **self.WT_params)
-
+        def estimate_mf(signal, signal_params):
+                res = []
+                WT = wavelet_analysis(signal, **self.WT_params)
                 for method, est_fun in self.estimation_grid.items():
+                    res.append((method, est_fun(WT)))
+                
+                return res, signal_params
 
-                    results[(method, *signal_params.values(), *noise_params.values())] = [est_fun(WT)]
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(estimate_mf)(*s)
+            for s in tqdm(self.signal_func(signal_grid), total=signal_grid.shape[0]))
+
+        results = {
+            (method, *signal_params.values()): [estimate]
+            for res_list, signal_params in results
+            for method, estimate in res_list
+        }
 
         self.results = pd.DataFrame.from_dict(results).transpose()
 
-        for i, name in enumerate(signal_names):
-            if name in noise_names:
-
-                signal_names[i] = name + '_signal'
-                noise_names[noise_names.index(name)] = name + '_noise'
-
-        self.results.index.names = [
-            'method', *signal_names, *noise_names]
+        self.results.index.names = ['method', *signal_names]
         self.results.columns = ['cumulants']
+
+        results_fname = self.get_df_fnames()
+        results_fname.parent.mkdir(parents=True, exist_ok=True)
+
+        # df_c2 = self.results.cumulants.apply(lambda x: x.c2[0, :, 0]).explode()
+        # df_c1 = self.results.cumulants.apply(lambda x: x.c1[0, :, 0]).explode()
+
+        # df_c2.name = 'c2'
+        # df_c1.name = 'c1'
+
+        # self.results = pd.concat([df_c1, df_c2], axis=1)
+        # self.results.loc[:, 'repetition'] = self.results.groupby(
+        #     self.results.index.names).transform('cumcount')
+        # self.results.set_index('repetition', append=True, inplace=True)
+
+        self.results.to_pickle(results_fname)
 
     def plot(self):
         pass

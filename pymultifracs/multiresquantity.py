@@ -543,7 +543,7 @@ class WaveletLeader(WaveletDec):
     """
     p_exp: float
     interval_size: int = 1
-    eta_p: np.ndarray = field(init=False, repr=False)
+    eta_p: np.ndarray = field(init=False, repr=False, default=None)
     ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
@@ -711,6 +711,17 @@ class WaveletLeader(WaveletDec):
         self.eta_p = eta_p
 
         self.correct_pleaders()
+
+    def plot(self, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
+             figsize=(4.5, 1.5), gamma=.3, nan_idx=None, signal_idx=0,
+             cbar_kw=None, cmap='magma'):
+        
+        if self.eta_p is None and not np.isinf(self.p_exp):
+            self.check_regularity([(j1, j2)], None, None)
+
+        super().plot(j1, j2, ax, vmin, vmax, cbar, figsize, gamma,
+                     nan_idx, signal_idx, cbar_kw, cmap)
+        
 
 @dataclass(kw_only=True)
 class Wtwse(WaveletDec):
