@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: linter-check
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.11"]
@@ -60,6 +60,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           environment-file: meta.yml
+          channels: conda-forge
+          channel-priority: strict
+          use-only-conda-forge: true
           activate-environment: pymultifracs
           mamba-version: "*"
       - name: Testing
