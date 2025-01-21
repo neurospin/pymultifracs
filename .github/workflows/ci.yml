@@ -62,13 +62,12 @@ jobs:
           environment-file: meta.yml
           channels: conda-forge
           channel-priority: strict
-          use-only-conda-forge: true
           activate-environment: pymultifracs
           mamba-version: "*"
       - name: Testing
         run: |
-          mamba install numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
-          pip install -e .[bootstrap,robust]
+          mamba install -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
+          pip install -e .[bootstrap,robust,test]
           mamba list
           pytest -n auto -x --cov=./ --cov-report=xml
       - name: Upload coverage
