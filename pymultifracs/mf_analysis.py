@@ -62,7 +62,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     idx_reject : Dict[int, ndarray]
         Dictionary associating each scale to a boolean array indicating whether
         certain coefficients should be removed.
-    check_regularity: bool
+    check_regularity : bool
         Whether to check the minimum regularity requirements are met by the
         MRQs.
 

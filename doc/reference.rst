@@ -23,11 +23,12 @@ Used to compute and store intermediary results. Not meant to be created outside 
 
 .. autosummary::
     :toctree: _autosummary
+    :template: not_instantiated.rst
     :caption: Multi Resolution Quantities
 
     multiresquantity.WaveletDec
     multiresquantity.WaveletLeader
-    multiresquantity.Wtwse
+    multiresquantity.WaveletWSE
     
 .. autosummary::
     :toctree: _autosummary

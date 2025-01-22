@@ -103,8 +103,8 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
 
-    Should not be called directly but instead creating using the analysis
-    functions
+    .. note:: Should not be called directly but instead creating using the `wavelet_analysis` 
+        function.
 
     Attributes
     ----------
@@ -403,7 +403,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         Returns
         -------
-        Wtwse
+        WaveletWSE
             Weak scaling exponent derived from the coefficients.
         """
 
@@ -724,7 +724,7 @@ class WaveletLeader(WaveletDec):
         
 
 @dataclass(kw_only=True)
-class Wtwse(WaveletDec):
+class WaveletWSE(WaveletDec):
     r"""
     Wavelet Coefficient Decomposition.
 
@@ -790,6 +790,6 @@ class Wtwse(WaveletDec):
 
         Returns
         -------
-        integrated : Wtwse
+        integrated : WaveletWSE
         """
         return self.origin_mrq.get_wse(self.theta, gamint)

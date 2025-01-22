@@ -13,7 +13,7 @@ import numpy as np
 from scipy import signal
 
 from . import multiresquantity
-# from .multiresquantity import WaveletDec, Wtwse, WaveletLeader
+# from .multiresquantity import WaveletDec, WaveletWSE, WaveletLeader
 from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
@@ -461,7 +461,7 @@ def integrate_wavelet(wt_coefs, gamint):
     Fractionally integrates the wavelet coef decomposition of a signal
     """
 
-    if (isinstance(wt_coefs, multiresquantity.Wtwse)
+    if (isinstance(wt_coefs, multiresquantity.WaveletWSE)
             or isinstance(wt_coefs, multiresquantity.WaveletLeader)):
         raise ValueError(
             'Input multi-resolution quantity should be wavelet coef')
@@ -574,7 +574,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
 
 def compute_wse(wt_coefs, theta=0.5):
 
-    wse_coef = multiresquantity.Wtwse(
+    wse_coef = multiresquantity.WaveletWSE(
         n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
         gamint=wt_coefs.gamint, theta=theta)
 
