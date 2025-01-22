@@ -1,9 +1,10 @@
 name: pymultifracs
 channels:
+  - numba
   - conda-forge
 dependencies:
   - python>=3.10
-  - numpy
+  - numpy>=1.24,<2.2
   - scipy
   - pywavelets
   - seaborn
