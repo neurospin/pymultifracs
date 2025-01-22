@@ -66,7 +66,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           # installer-url: https://github.com/conda-forge/miniforge/releases/download/24.11.3-0/Miniforge3-24.11.3-0-Linux-x86_64.sh
-          miniforge-version: latest
+          miniforge-variant: Miniforge3
           environment-file: meta.yml
           channels: conda-forge,numba
           channel-priority: flexible
