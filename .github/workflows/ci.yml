@@ -69,7 +69,7 @@ jobs:
           miniforge-version: latest
           environment-file: meta.yml
           channels: conda-forge,numba
-          channel-priority: strict
+          channel-priority: flexible
           activate-environment: pymultifracs
           # mamba-version: "*"
           use-only-tar-bz2: true
