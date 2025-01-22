@@ -19,13 +19,14 @@ jobs:
           # list of changed files within `super-linter`
           fetch-depth: 0
       - name: Lint code
-        uses: github/super-linter/slim@v4
+        uses: super-linter/super-linter/slim@v7.2.1
         env:
           LINTER_RULES_PATH: .
           DEFAULT_BRANCH: master
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FILTER_REGEX_INCLUDE: ./pymultifracs/*.py
+          FILTER_REGEX_INCLUDE: ^(pymultifracs|tests)/.*\.py$
+          PYTHON_PYLINT_CONFIG_FILE: .pylintrc
           VALIDATE_PYTHON_FLAKE8: true
           VALIDATE_PYTHON_PYLINT: true
 
@@ -81,6 +82,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.13' }}
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: false # optional (default = false)
