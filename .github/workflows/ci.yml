@@ -68,7 +68,7 @@ jobs:
           # installer-url: https://github.com/conda-forge/miniforge/releases/download/24.11.3-0/Miniforge3-24.11.3-0-Linux-x86_64.sh
           miniforge-version: latest
           environment-file: meta.yml
-          channels: conda-forge
+          channels: conda-forge,numba
           channel-priority: strict
           activate-environment: pymultifracs
           # mamba-version: "*"
