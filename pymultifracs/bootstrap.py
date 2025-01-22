@@ -133,8 +133,9 @@ def get_std(mrq, name):
 
     n_rep = attribute.shape[-1]
 
-    # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
-    attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
+    # # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
+    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
+    attribute = reshape(attribute, mrq.n_sig)
 
     unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
     std = np.nanstd(attribute, axis=-1, ddof=1)

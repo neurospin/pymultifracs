@@ -12,6 +12,7 @@ def test_wavelet_fbm(fbm_file):
             X = np.load(f)
 
         WT = wavelet_analysis(X)
+        WT.get_wse()
         WTL = WT.get_leaders(np.inf).auto_integrate([(2, WT.j2_eff())])
 
 

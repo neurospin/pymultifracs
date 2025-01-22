@@ -30,6 +30,8 @@ def test_confidence_interval(mrw_file):
             R=5, estimates='sc')
 
         lwt.cumulants.compute_Lambda()
+        lwt.cumulants.get_jrange(1, 2, True)
+
         dwt.structure.compute_Lambda()
 
         dwt.structure.CIE_S_q(2)
@@ -41,6 +43,11 @@ def test_confidence_interval(mrw_file):
         lwt.cumulants.CIE_c2
         lwt.cumulants.CI_C2
         lwt.cumulants.CIE_C2
+
+        lwt.cumulants.VE_c2
+        lwt.cumulants.SE_c2
+        lwt.cumulants.V_c2
+        lwt.cumulants.STD_c2
 
         assert abs(
             dwt.structure.H[0].mean() - WT.gamint - config_list[i]['H'] < 0.1)

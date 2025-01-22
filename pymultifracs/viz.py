@@ -14,86 +14,86 @@ from scipy.signal import welch
 from . import wavelet, multiresquantity
 
 
-def plot_multiscale(results, seg2color, ax=None):
+# def plot_multiscale(results, seg2color, ax=None):
 
-    ax = plt.gca() if ax is None else ax
+#     ax = plt.gca() if ax is None else ax
 
-    segs = {*results.index.get_level_values(1).unique()}
-    subjects = results.index.get_level_values(0).unique()
-    n = len(subjects)
+#     segs = {*results.index.get_level_values(1).unique()}
+#     subjects = results.index.get_level_values(0).unique()
+#     n = len(subjects)
 
-    maxf = {
-        seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(max).min()
-        for seg in segs
-    }
+#     maxf = {
+#         seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(max).min()
+#         for seg in segs
+#     }
 
-    minf = {
-        seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(min).max()
-        for seg in segs
-    }
+#     minf = {
+#         seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(min).max()
+#         for seg in segs
+#     }
 
-    trimmed = {
-        seg: pd.Series([row[1].mscale[(row[1].freq <= maxf[seg])
-                                      & (row[1].freq >= minf[seg])]
-                        for row in results.loc[pd.IndexSlice[:, seg],
-                                               ['freq', 'mscale']].iterrows()],
-                       index=subjects)
-        for seg in segs
-    }
+#     trimmed = {
+#         seg: pd.Series([row[1].mscale[(row[1].freq <= maxf[seg])
+#                                       & (row[1].freq >= minf[seg])]
+#                         for row in results.loc[pd.IndexSlice[:, seg],
+#                                                ['freq', 'mscale']].iterrows()],
+#                        index=subjects)
+#         for seg in segs
+#     }
 
-    stacks = {
-        seg: np.vstack(trimmed[seg])
-        for seg in segs
-    }
+#     stacks = {
+#         seg: np.vstack(trimmed[seg])
+#         for seg in segs
+#     }
 
-    averages = {
-        seg: stacks[seg].mean(axis=0)
-        for seg in segs
-    }
+#     averages = {
+#         seg: stacks[seg].mean(axis=0)
+#         for seg in segs
+#     }
 
-    freqs_avg = {
-        seg: (freq := results.loc[subjects[0], seg].freq)[
-            (freq <= maxf[seg]) & (freq >= minf[seg])]
-        for seg in segs
-    }
+#     freqs_avg = {
+#         seg: (freq := results.loc[subjects[0], seg].freq)[
+#             (freq <= maxf[seg]) & (freq >= minf[seg])]
+#         for seg in segs
+#     }
 
-    freqs = {
-        seg: results.loc[pd.IndexSlice[:, seg], 'freq']
-        for seg in segs
-    }
+#     freqs = {
+#         seg: results.loc[pd.IndexSlice[:, seg], 'freq']
+#         for seg in segs
+#     }
 
-    mscales = {
-        seg: results.loc[pd.IndexSlice[:, seg], 'mscale']
-        for seg in segs
-    }
+#     mscales = {
+#         seg: results.loc[pd.IndexSlice[:, seg], 'mscale']
+#         for seg in segs
+#     }
 
-    mscales = ([mscale for seg in segs
-                for mscale in results.loc[pd.IndexSlice[:, seg], 'mscale']]
-               + [*averages.values()])
-    freqs = ([freq for seg in segs
-              for freq in results.loc[pd.IndexSlice[:, seg], 'freq']]
-             + [*freqs_avg.values()])
+#     mscales = ([mscale for seg in segs
+#                 for mscale in results.loc[pd.IndexSlice[:, seg], 'mscale']]
+#                + [*averages.values()])
+#     freqs = ([freq for seg in segs
+#               for freq in results.loc[pd.IndexSlice[:, seg], 'freq']]
+#              + [*freqs_avg.values()])
 
-    color = ([seg2color[seg] for seg in segs for i in range(n)]
-             + [seg2color[seg + '_avg'] for seg in segs])
-    lw = ([1] * (len(segs) * n)) + ([2] * len(segs))
+#     color = ([seg2color[seg] for seg in segs for i in range(n)]
+#              + [seg2color[seg + '_avg'] for seg in segs])
+#     lw = ([1] * (len(segs) * n)) + ([2] * len(segs))
 
-    log_plot(freqs, mscales, lowpass_freq=50, color=color, linewidth=lw, ax=ax)
+#     log_plot(freqs, mscales, lowpass_freq=50, color=color, linewidth=lw, ax=ax)
 
-    ticks = ax.get_xticks()
-    labels = [f'{t:g}\n{2 ** t:.2g}' for t in ticks]
+#     ticks = ax.get_xticks()
+#     labels = [f'{t:g}\n{2 ** t:.2g}' for t in ticks]
 
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(labels)
+#     ax.set_xticks(ticks)
+#     ax.set_xticklabels(labels)
 
-    sns.despine()
+#     sns.despine()
 
-    ax.set_xlabel('log2 f', fontsize=18, c='black')
-    ylim = ax.get_ylim()
-    ax.vlines(x=[results.iloc[0].slope[0][0], results.iloc[0].slope[0][-1]],
-              ymin=ylim[0], ymax=ylim[1], linestyles='dashed',
-              colors='#0000003f')
-    ax.set_ylim(ylim)
+#     ax.set_xlabel('log2 f', fontsize=18, c='black')
+#     ylim = ax.get_ylim()
+#     ax.vlines(x=[results.iloc[0].slope[0][0], results.iloc[0].slope[0][-1]],
+#               ymin=ylim[0], ymax=ylim[1], linestyles='dashed',
+#               colors='#0000003f')
+#     ax.set_ylim(ylim)
 
 
 def cp_string_format(cp, CI=False):
@@ -298,12 +298,10 @@ def plot_cm(cm, ind_m, j1, j2, scaling_range, ax, C_color='grey',
 
 
 def plot_cumulants(cm, figsize, nrow=2, j1=None, filename=None,
-                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0,
-                   fignum=1, **kw):
+                   scaling_range=0, legend=True, n_cumul=None, signal_idx=0, **kw):
     """
     Plots the cumulants.
     Args:
-    fignum(int):  figure number
     plt        :  pointer to matplotlib.pyplot
     """
 
@@ -324,7 +322,6 @@ def plot_cumulants(cm, figsize, nrow=2, j1=None, filename=None,
 
     fig, axes = plt.subplots(plot_dim_1,
                              plot_dim_2,
-                             num=fignum,
                              squeeze=False,
                              figsize=figsize,
                              sharex=True)

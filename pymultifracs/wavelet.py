@@ -17,16 +17,16 @@ from . import multiresquantity
 from .utils import fast_power, get_filter_length, max_scale_bootstrap
 
 
-def _check_formalism(p_exp):
-    """
-    Check formalism according to the value of p_exp
-    """
-    if p_exp is None:
-        return 'wavelet coef'
-    if np.isinf(p_exp):
-        return 'wavelet leader'
-    else:
-        return 'wavelet p-leader'
+# def _check_formalism(p_exp):
+#     """
+#     Check formalism according to the value of p_exp
+#     """
+#     if p_exp is None:
+#         return 'wavelet coef'
+#     if np.isinf(p_exp):
+#         return 'wavelet leader'
+#     else:
+#         return 'wavelet p-leader'
 
 def decomposition_level_bootstrap(X, wt_name):
     """
@@ -42,30 +42,30 @@ def decomposition_level_bootstrap(X, wt_name):
         wavelet_analysis(X, wt_name=wt_name, p_exp=None)[0])
 
 
-def decomposition_level(length, wt_name):
-    """
-    Checks the maximum scale which can be used to decompose a signal
-    of given length
+# def decomposition_level(length, wt_name):
+#     """
+#     Checks the maximum scale which can be used to decompose a signal
+#     of given length
 
-    Parameters
-    ----------
-    length: int
-        Length of the signal considered
-    wt_name: str
-        Name of the wavelet function to use, following the pywavelet convention
+#     Parameters
+#     ----------
+#     length: int
+#         Length of the signal considered
+#     wt_name: str
+#         Name of the wavelet function to use, following the pywavelet convention
 
-    Returns
-    -------
-    max_level : int
-        The maximum scale
-    """
+#     Returns
+#     -------
+#     max_level : int
+#         The maximum scale
+#     """
 
-    filter_len = get_filter_length(wt_name)
+#     filter_len = get_filter_length(wt_name)
 
-    max_level = int(np.floor(np.log2(length / (filter_len + 1))))
-    max_level = min(int(np.floor(np.log2(length))), max_level)
+#     max_level = int(np.floor(np.log2(length / (filter_len + 1))))
+#     max_level = min(int(np.floor(np.log2(length))), max_level)
 
-    return max_level
+#     return max_level
 
 
 def _decomposition_level(signal, filter_len, j2, warn=True):
@@ -88,51 +88,51 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
     return max_level
 
 
-def filtering(approx, high_filter, low_filter):
-    """
-    """
+# def filtering(approx, high_filter, low_filter):
+#     """
+#     """
 
-    nj_temp = len(approx)
+#     nj_temp = len(approx)
 
-    # apply filters
-    # note: 'direct' method MUST be used, since there are elements
-    # that are np.inf inside `approx`
-    high = signal.convolve(approx, high_filter, mode='full', method='direct')
-    low = signal.convolve(approx, low_filter, mode='full', method='direct')
+#     # apply filters
+#     # note: 'direct' method MUST be used, since there are elements
+#     # that are np.inf inside `approx`
+#     high = signal.convolve(approx, high_filter, mode='full', method='direct')
+#     low = signal.convolve(approx, low_filter, mode='full', method='direct')
 
-    # high[np.isnan(high)] = np.inf
-    # low[np.isnan(low)] = np.inf
+#     # high[np.isnan(high)] = np.inf
+#     # low[np.isnan(low)] = np.inf
 
-    # index of first good value
-    fp = len(high_filter) - 1
-    # index of last good value
-    lp = nj_temp  # len(high_filter)
+#     # index of first good value
+#     fp = len(high_filter) - 1
+#     # index of last good value
+#     lp = nj_temp  # len(high_filter)
 
-    # replace border with nan
-    high[0:fp] = np.nan
-    high[lp:] = np.nan
-    low[0:fp] = np.nan
-    low[lp:] = np.nan
+#     # replace border with nan
+#     high[0:fp] = np.nan
+#     high[lp:] = np.nan
+#     low[0:fp] = np.nan
+#     low[lp:] = np.nan
 
-    # centering and subsampling
-    # nwt = len(high_filter) // 2
-    # nl = len(high_filter)
-    # detail_idx = np.arange(1, nj_temp + 1, 2)
-    # approx_idx = np.arange(1, nj_temp, 2) + 1
+#     # centering and subsampling
+#     # nwt = len(high_filter) // 2
+#     # nl = len(high_filter)
+#     # detail_idx = np.arange(1, nj_temp + 1, 2)
+#     # approx_idx = np.arange(1, nj_temp, 2) + 1
 
-    # x0 = 2
-    x0Appro = len(high_filter)  # 2*self.nb_vanishing_moments
+#     # x0 = 2
+#     x0Appro = len(high_filter)  # 2*self.nb_vanishing_moments
 
-    # centering and subsampling
-    detail_idx = np.arange(0, nj_temp, 2) + 1
-    approx_idx = np.arange(0, nj_temp, 2) + x0Appro - 1
+#     # centering and subsampling
+#     detail_idx = np.arange(0, nj_temp, 2) + 1
+#     approx_idx = np.arange(0, nj_temp, 2) + x0Appro - 1
 
-    detail = high[detail_idx]
-    approx = low[approx_idx]
+#     detail = high[detail_idx]
+#     approx = low[approx_idx]
 
-    # detail = detail[fp:-fp]
+#     # detail = detail[fp:-fp]
 
-    return detail, approx
+#     return detail, approx
 
 
 def filtering2(approx, wt):
@@ -195,74 +195,74 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
     return sans_voisin
 
 
-def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp,
-                     eta_p_srange=None, eta_p_weighted=None, size=3):
-    """
-    Compute wavelet leaders
-    """
+# def _compute_leaders(detail, sans_voisin, scale, formalism, p_exp,
+#                      eta_p_srange=None, eta_p_weighted=None, size=3):
+#     """
+#     Compute wavelet leaders
+#     """
 
-    detail = np.abs(detail)
+#     detail = np.abs(detail)
 
-    if formalism == 'wavelet p-leader':
-        detail = np.power(2., scale)*fast_power(detail, p_exp)
+#     if formalism == 'wavelet p-leader':
+#         detail = np.power(2., scale)*fast_power(detail, p_exp)
 
-    sans_voisin = _find_sans_voisin(scale, detail, sans_voisin, formalism)
+#     sans_voisin = _find_sans_voisin(scale, detail, sans_voisin, formalism)
 
-    # print(sans_voisin[:2], detail[:2])
+#     # print(sans_voisin[:2], detail[:2])
 
-    len_sv = len(sans_voisin)
+#     len_sv = len(sans_voisin)
 
-    if size == 1:
-        leaders = sans_voisin[None, :]
+#     if size == 1:
+#         leaders = sans_voisin[None, :]
 
-    elif size == 3:
-        leaders = np.stack([sans_voisin[0:len_sv-2],
-                            sans_voisin[1:len_sv-1],
-                            sans_voisin[2:len_sv]],
-                           axis=0)
+#     elif size == 3:
+#         leaders = np.stack([sans_voisin[0:len_sv-2],
+#                             sans_voisin[1:len_sv-1],
+#                             sans_voisin[2:len_sv]],
+#                            axis=0)
 
-    if formalism == 'wavelet p-leader':
-        # import ipdb; ipdb.set_trace()
-        leaders = np.sum(leaders, axis=0)
-        leaders = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
-    else:
-        leaders = np.max(leaders, axis=0)
+#     if formalism == 'wavelet p-leader':
+#         # import ipdb; ipdb.set_trace()
+#         leaders = np.sum(leaders, axis=0)
+#         leaders = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
+#     else:
+#         leaders = np.max(leaders, axis=0)
 
-    return leaders, sans_voisin
+#     return leaders, sans_voisin
 
 
-def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
-    # TODO: call from wavelet_analysis
+# def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
+#     # TODO: call from wavelet_analysis
 
-    formalism = _check_formalism(p_exp)
+#     formalism = _check_formalism(p_exp)
 
-    sans_voisin = None
-    wt_leaders = multiresquantity.WaveletLeader(
-        gamint=gamint, p_exp=p_exp, origin_mrq=wt_coefs, interval_size=size,
-        wt_name=wt_coefs.wt_name)
+#     sans_voisin = None
+#     wt_leaders = multiresquantity.WaveletLeader(
+#         gamint=gamint, p_exp=p_exp, origin_mrq=wt_coefs, interval_size=size,
+#         wt_name=wt_coefs.wt_name)
 
-    max_level = wt_coefs.j2_eff()
+#     max_level = wt_coefs.j2_eff()
 
-    for scale in range(1, max_level + 1):
+#     for scale in range(1, max_level + 1):
 
-        detail = wt_coefs.values[scale]
+#         detail = wt_coefs.values[scale]
 
-        leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
-                                                scale, formalism, p_exp,
-                                                size=size)
+#         leaders, sans_voisin = _compute_leaders(detail, sans_voisin,
+#                                                 scale, formalism, p_exp,
+#                                                 size=size)
 
-        # remove infinite values and store wavelet leaders
-        # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
-        finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
-        # leaders[~finite_idx_wl] = np.nan
+#         # remove infinite values and store wavelet leaders
+#         # finite_idx_wl = np.logical_not(np.isinf(np.abs(leaders)))
+#         finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
+#         # leaders[~finite_idx_wl] = np.nan
 
-        if np.sum(finite_idx_wl, axis=0).min() < 3:
-            max_level = scale-1
-            break
+#         if np.sum(finite_idx_wl, axis=0).min() < 3:
+#             max_level = scale-1
+#             break
 
-        wt_leaders.add_values(leaders, scale)
+#         wt_leaders.add_values(leaders, scale)
 
-    return wt_leaders
+#     return wt_leaders
 
 
 def compute_leaders(wt_coefs, p_exp=np.inf, size=3):

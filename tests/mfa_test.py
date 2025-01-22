@@ -32,6 +32,8 @@ def test_mfa_fbm(fbm_file):
 
         dwt, lwt = mfa([WTL.origin_mrq, WTL], scaling_ranges, n_cumul=4, q=q)
 
+        lwt.structure.get_jrange(1, 2, False)
+
         if config_list[i]['H'] != 0.01:
             assert abs(dwt.structure.H.mean() - WTL.gamint - config_list[i]['H']) < 0.11
         assert abs(lwt.cumulants.log_cumulants[1, :].mean()) < 0.0105

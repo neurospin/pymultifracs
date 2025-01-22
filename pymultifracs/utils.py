@@ -105,7 +105,7 @@ class AbstractDataclass:
 
             return np.sqrt(
                 get_empirical_variance(self.bootstrapped_obj, self,
-                                       name[3:](self)))
+                                       name[3:]))
 
         elif name[:2] == 'V_':
 
