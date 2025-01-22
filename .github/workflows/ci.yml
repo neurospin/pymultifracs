@@ -66,17 +66,20 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           # installer-url: https://github.com/conda-forge/miniforge/releases/download/24.11.3-0/Miniforge3-24.11.3-0-Linux-x86_64.sh
-          miniforge-variant: Miniforge3
+          # miniforge-variant: Miniforge3
+          miniforge-version: latest
           environment-file: meta.yml
+          conda-remove-defaults: "true"
           channels: conda-forge,numba
-          channel-priority: flexible
+          channel-priority: strict
           activate-environment: pymultifracs
           # mamba-version: "*"
-          use-only-tar-bz2: true
+          # use-only-tar-bz2: true
       - name: Testing
         # mamba install -c numba -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
         run: |
           mamba list
+          mamba --version
           pip install -e .[bootstrap,robust,test]
           mamba list
           pytest -n auto -x --cov=./ --cov-report=xml
