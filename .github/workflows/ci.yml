@@ -74,9 +74,9 @@ jobs:
           # mamba-version: "*"
           use-only-tar-bz2: true
       - name: Testing
+        # mamba install -c numba -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
         run: |
           mamba list
-        #  mamba install -c numba -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
           pip install -e .[bootstrap,robust,test]
           mamba list
           pytest -n auto -x --cov=./ --cov-report=xml
