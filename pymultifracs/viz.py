@@ -541,7 +541,7 @@ def plot_psd(signal, fs, n_fft=512, seg_size=None, n_moments=2,
 
     Parameters
     ----------
-    signal : ndarray, shape (n_samples,)
+    signal : ndarray of float, shape (n_samples,)
         Time series of sampled values
 
     fs : float

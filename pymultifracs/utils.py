@@ -18,9 +18,9 @@ MFractalVar = namedtuple('MFractalVar', 'structure cumulants spectrum')
 
 Attributes
 ----------
-strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
-cumulants : :class:`~pymultifracs.cumulants.Cumulants`
-spectrum : :class:`~pymultifracs.mfspectrum.MultifractalSpectrum`
+strucuture : :class:`.StructureFunction`
+cumulants : :class:`.Cumulants`
+spectrum : :class:`.MFSpectrum`
 """
 
 MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
@@ -28,8 +28,8 @@ MFractalBiVar = namedtuple('MFractalBiVar', 'structure cumulants')
 
 Attributes
 ----------
-strucuture : :class:`~pymultifracs.structurefunction.StructureFunction`
-cumulants : :class:`~pymultifracs.cumulants.Cumulants`
+strucuture : :class:`.BiStructureFunction`
+cumulants : :class:`.BiCumulants`
 """
 
 
@@ -193,7 +193,7 @@ def build_q_log(q_min, q_max, n):
 
     Returns
     -------
-    q : ndarray
+    q : ndarray of float
         log-spaced values between `q_min` and `q_max`, along with their
         opposites, and accompanied by -2, -1, 0, 1, 2.
     """

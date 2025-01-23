@@ -27,12 +27,12 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     Parameters
     ----------
-    mrq : :class:`.MultiResolutionQuantity` | List[:class:`.MultiResolutionQuantity`]
+    mrq : :class:`.MultiResolutionQuantityBase` | List[:class:`.MultiResolutionQuantityBase`]
         Multi-resolution quantity to analyze, or list of MRQs. If it is a list,
         will return a list of the output of the function applied to each MRQ
         individually.
     scaling_ranges : list[tuple[int, int]]
-        List of pairs of (j1, j2) ranges of scales for the analysis.
+        List of pairs of :math:`(j_1, j_2)` ranges of scales for the analysis.
     weighted : str | None
         Weighting mode for the linear regressions. Defaults to None, which is
         no weighting. Possible values are 'Nj' which weighs by number of
@@ -40,26 +40,35 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         estimates of variance.
     n_cumul : int
         Number of cumulants computed.
-    q : ndarray, shape (n_exponents,)
-        List of q values used in the multifractal analysis.
+    q : ndarray of float, shape (n_exponents,) | None
+        List of :math:`q` values used in the multifractal analysis. Defaults to None
+        which sets ``q = [2]``.
     bootstrap_weighted : str | None
         Whether the boostrapped mrqs will have weighted regressions.
+        See the description of ``weighted``.
     R : int
         Number of bootstrapped repetitions.
     estimates : str
-        Quantities to estimate: string containing a character for each of:
-            - "m": multifractal spectrum
-            - "s": structure function
-            - "c": cumulants
+        String containing characters which dictate which quantities to estimate.
+        The following characters are available:
+            - ``'c'``: cumulants
+            - ``'m'``: multifractal spectrum
+            - ``'s'``: structure function
 
-        Defaults to "auto" which determines which quantities to estimate based
-        on the value of `q`.
+        For example, ``"cms"`` would indicate that all should be computed, whereas
+        ``"c"`` results in only the cumulants being computed.
+
+        Defaults to ``"auto"`` which determines which quantities to estimate based
+        on the ``q`` argument passed: If ``len(q) >= 2`` , then the spectrum is
+        estimated, otherwise only the cumulants and structure functions are
+        computed.
+
     robust : bool
         Use robust estimates of cumulants.
-    robust_kwargs : Dict | None
+    robust_kwargs : dict | None
         Arguments passed for robust estimation. Used for cumulant estimates
         of order >= 3.
-    idx_reject : Dict[int, ndarray]
+    idx_reject : dict[int, ndarray of bool]
         Dictionary associating each scale to a boolean array indicating whether
         certain coefficients should be removed.
     check_regularity : bool
@@ -68,7 +77,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     Returns
     -------
-    :class:`~pymultifracs.mf_analysis.MFractalData`
+    :class:`~pymultifracs.utils.MFractalVar`
         The output of the multifractal analysis, is a list if `mrq` was passed
         as an Iterable.
     """

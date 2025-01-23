@@ -506,7 +506,7 @@ class WaveletLeader(WaveletDec):
     Wavelet Leader Representation.
 
     It contains the wavelet (p-)leader representation of a signal
-    :math:`L_X(j, k)`.
+    :math:`\ell^{(p)}(j, k)`.
     
     .. note:: Should not be instantiated directly but instead created using the :func:`WaveletDec.get_leaders` method.
 

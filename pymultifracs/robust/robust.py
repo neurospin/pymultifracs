@@ -1082,7 +1082,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     Parameters
     ----------
-    wt_coefs : WaveletDec
+    wt_coefs : :class:`.WaveletDec`
         Input coefficients of the signal with outliers.
     scaling_ranges : list[tuple[int, int]]
         List of pairs of (j1, j2) ranges of scales for the linear regressions.
@@ -1103,7 +1103,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     Returns
     -------
-    leaders : WaveletLeader
+    leaders : :class:`.WaveletLeader`
         Wavelet 1-leaders used in the analysis.
     idx_reject : dict[int, ndarray]
         Dictionary associating to each scale the boolean mask of indices to
@@ -1111,7 +1111,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     See Also
     --------
-    mfa : Can be fed the output ``idx_reject``.
+    :func:`.mfa` : Can be fed the output dictionary: ``idx_reject``.
     """
 
     from .. import mfa

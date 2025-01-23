@@ -484,7 +484,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
 
     Parameters
     ----------
-    signal : ndarray, shape (n_samples,) | (n_samples, n_realisations)
+    signal : ndarray of float, shape (n_samples,) | (n_samples, n_realisations)
         Time series to analyze.
 
     wt_name : str
@@ -502,7 +502,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
 
     Returns
     -------
-    WaveletDec
+    :class:`.WaveletDec`
         Wavelet coefficient representation of the signal.
 
     Notes

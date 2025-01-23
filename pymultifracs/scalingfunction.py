@@ -364,7 +364,6 @@ class StructureFunction(ScalingFunction):
 
         fig, axes = plt.subplots(plot_dim_1,
                                  plot_dim_2,
-                                 num=figlabel,
                                  squeeze=False,
                                  figsize=figsize,
                                  sharex=True)

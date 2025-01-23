@@ -17,9 +17,9 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
 
     Parameters
     ----------
-    mrq1 : WaveletDec
+    mrq1 : :class:`.MultiResolutionQuantityBase`
         Left-hand multi-resolution quantity to analyze.
-    mrq2 : WaveletDec
+    mrq2 : :class:`.MultiResolutionQuantityBase`
         Right-hand multi-resolution quantity to analyze.
     scaling_ranges : list[tuple[int, int]]
         List of pairs of (j1, j2) ranges of scales for the analysis.
@@ -30,9 +30,9 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         estimates of variance.
     n_cumul : int
         Number of cumulants computed.
-    q1 : ndarray, shape (n_exponents,)
+    q1 : ndarray of float, shape (n_exponents,)
         List of q values used in the multifractal analysis of the ``mrq1``.
-    q2 : ndarray, shape (n_exponents,)
+    q2 : ndarray of float, shape (n_exponents,)
         List of q values used in the multifractal analysis of the ``mrq2``.
     mode : str, optional
         Mode of bivariate analysis. Either: 
@@ -54,10 +54,10 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         Defaults to "auto" which computes both.
     robust : bool
         Use robust estimates of cumulants.
-    robust_kwargs : Dict | None
+    robust_kwargs : dict | None
         Arguments passed for robust estimation. Used for cumulant estimates
         of order >= 3.
-    idx_reject : Dict[int, ndarray]
+    idx_reject : dict[int, ndarray of bool]
         Dictionary associating each scale to a boolean array indicating whether
         certain coefficients should be removed.
     check_regularity: bool
@@ -66,7 +66,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
 
     Returns
     -------
-    MFractalBiVar
+    :class:`.MFractalBiVar`
         The output of the bivariate multifractal analysis.
     """
 

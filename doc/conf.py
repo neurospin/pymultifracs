@@ -25,7 +25,7 @@ from sphinx.ext.autosummary.generate import AutosummaryRenderer
 # -- Project information -----------------------------------------------------
 
 project = 'PyMultiFracs'
-copyright = '2020-2024, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
+copyright = '2020-2025, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
 author = 'M. Dumeur, O. D. Domingues, P. Ciuciu, V. van Wassenhove, P. Abry'
 
 # The full version, including alpha/beta/rc tags
@@ -247,6 +247,10 @@ numpydoc_xref_ignore = {
     "n_moments",
     "n_patterns",
     "n_new_events",
+    "n_j",
+    "n_scaling_ranges",
+    "n_rep",
+    "n_realisations",
     # sklearn subclasses
     "mapping",
     "to",
@@ -268,11 +272,11 @@ numpydoc_validation_checks = {"all"}
 highlight_language = 'none'
 html_scaled_image_link = False
 html_sourcelink_suffix = ''
-nbsphinx_kernel_name = 'megfractal'
+nbsphinx_kernel_name = 'MFA'
 
 nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
-    "--InlineBackend.rc={'figure.dpi': 96}",
+    "--InlineBackend.rc={'figure.dpi': 300}",
 ]
 
 #%% Adjusting the displayed name of functions
