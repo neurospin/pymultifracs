@@ -16,7 +16,7 @@ if version is None:
 
 extras = {
     'bootstrap': 'recombinator',
-    'robust': ['statsmodels', 'ruptures', 'numba'],
+    'robust': ['statsmodels', 'ruptures', 'numba', 'tqdm'],
     'test': [
         'pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator',
         'joblib'],
