@@ -576,15 +576,13 @@ class BiCumulants(BiScalingFunction):
 
         return super().__getattribute__(name)
     
-    def plot(self, figsize=None, j1=None, scaling_range=0, filename=None,
-             signal_idx1=1, signal_idx2=0, **kwargs):
+    def plot(self, j1=None, j2=None, figsize=None, scaling_range=0, filename=None,
+             signal_idx1=1, signal_idx2=0, plot_CI=False,
+             **kwargs):
 
-        if j1 is None:
-            j1 = self.j.min()
-
-        if self.j.min() > j1:
-            raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
-                             f"{self.j.min()} instead")
+        # if self.j.min() > j1:
+        #     raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
+        #                      f"{self.j.min()} instead")
 
         ncol = self.n_cumul + 1
 
@@ -610,7 +608,7 @@ class BiCumulants(BiScalingFunction):
                     continue
 
                 plot_bicm(
-                    self, m1, m2, j1, scaling_range=scaling_range,
+                    self, m1, m2, j1, j2, scaling_range=scaling_range,
                     ax=axes[m1][m2], plot_legend=True,
                     signal_idx1=signal_idx1, signal_idx2=signal_idx2,
                     **kwargs)
@@ -621,7 +619,7 @@ class BiCumulants(BiScalingFunction):
         # for j in range(ind_m1 + 1, len(axes.flat)):
         #     fig.delaxes(axes[j % ncol][j // ncol])
 
-        plt.tight_layout()
+        # plt.tight_layout()
 
         if filename is not None:
             plt.savefig(filename)

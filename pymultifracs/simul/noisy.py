@@ -8,56 +8,56 @@ from .mrw import mrw
 from .. import mfa, wavelet_analysis
 
 
-def create_mask_markov(length, lambd=1e3, p_to_active=.011, p_to_inactive=.1):
+# def create_mask_markov(length, lambd=1e3, p_to_active=.011, p_to_inactive=.1):
 
-    rng = np.random.default_rng(seed=42)
+#     rng = np.random.default_rng(seed=42)
 
-    mark = 0
-    elements = []
-    # length = X_diff.shape[0]
-    while mark < length:
-        segment_length = rng.geometric(1 / lambd)
-        mark += segment_length
+#     mark = 0
+#     elements = []
+#     # length = X_diff.shape[0]
+#     while mark < length:
+#         segment_length = rng.geometric(1 / lambd)
+#         mark += segment_length
 
-        segment = np.ones(segment_length)
-        if mark > length:
-            segment = segment[:length - mark]
-        elements.append(segment)
+#         segment = np.ones(segment_length)
+#         if mark > length:
+#             segment = segment[:length - mark]
+#         elements.append(segment)
 
-    active = 0
+#     active = 0
 
-    for e in elements:
-        if active:
-            active *= rng.binomial(1, 1 - p_to_inactive)
-        else:
-            active += rng.binomial(1, p_to_active)
+#     for e in elements:
+#         if active:
+#             active *= rng.binomial(1, 1 - p_to_inactive)
+#         else:
+#             active += rng.binomial(1, p_to_active)
 
-        e *= active
+#         e *= active
 
-    return np.concatenate(elements)
+#     return np.concatenate(elements)
 
 
-def create_mask2(length, count, size):
+# def create_mask2(length, count, size):
 
-    size = int(size)
-    mask = np.zeros(length, dtype=bool)
+#     size = int(size)
+#     mask = np.zeros(length, dtype=bool)
 
-    # for i in range(count):
-    #     start = rng.integers(pad, length - size - pad)
-    #     mask[start:start+size] = 1
+#     # for i in range(count):
+#     #     start = rng.integers(pad, length - size - pad)
+#     #     mask[start:start+size] = 1
 
-    points = np.linspace(0, length, count+2, dtype=int)
+#     points = np.linspace(0, length, count+2, dtype=int)
 
-    # print(points, size)
+#     # print(points, size)
 
-    for midpoint in points[1:-1]:
-        # print(midpoint)
-        mask[midpoint - size // 2:midpoint + size // 2] = 1
+#     for midpoint in points[1:-1]:
+#         # print(midpoint)
+#         mask[midpoint - size // 2:midpoint + size // 2] = 1
 
-    # import matplotlib.pyplot as plt
-    # plt.plot(mask)
+#     # import matplotlib.pyplot as plt
+#     # plt.plot(mask)
 
-    return mask
+#     return mask
 
 
 def create_mask3(length, count, size, align_scale):
@@ -103,49 +103,49 @@ def create_mask3(length, count, size, align_scale):
     return mask
 
 
-def create_oscillation(length, freq, sampling_freq):
+# def create_oscillation(length, freq, sampling_freq):
 
-    t = np.linspace(0, length / sampling_freq, length)
-    return np.exp(((t * freq / 2 / np.pi) % (2 * np.pi)) * 1j)
-
-
-def get_mask_durations(mask):
-
-    idx_start = np.arange(mask.shape[0]-1)[np.diff(mask) == 1]
-    idx_end = np.arange(mask.shape[0]-1)[np.diff(mask) == -1]
-
-    if len(idx_end) == len(idx_start) - 1:
-        idx_end = np.r_[idx_end, mask.shape[0]]
-    print((idx_end > idx_start).all())
-
-    return idx_end - idx_start
+#     t = np.linspace(0, length / sampling_freq, length)
+#     return np.exp(((t * freq / 2 / np.pi) % (2 * np.pi)) * 1j)
 
 
-def generate_osc_freq(length, H=.45, spread=.005, mean=.49, fs=1):
+# def get_mask_durations(mask):
 
-    freq = fbm(shape=length, H=H)
+#     idx_start = np.arange(mask.shape[0]-1)[np.diff(mask) == 1]
+#     idx_end = np.arange(mask.shape[0]-1)[np.diff(mask) == -1]
 
-    freq -= freq.mean()
-    freq /= np.abs(freq.max())
-    freq *= spread
+#     if len(idx_end) == len(idx_start) - 1:
+#         idx_end = np.r_[idx_end, mask.shape[0]]
+#     print((idx_end > idx_start).all())
 
-    b, a = butter(4, .0001, fs=1, btype='low')
-    freq = lfilter(b, a, freq)
-    freq += mean
-
-    return freq
+#     return idx_end - idx_start
 
 
-def generate_simuls(N):
+# def generate_osc_freq(length, H=.45, spread=.005, mean=.49, fs=1):
 
-    X = fbm(shape=N, H=0.8)
-    X_diff = np.diff(X)
+#     freq = fbm(shape=length, H=H)
 
-    freq = generate_osc_freq(N -1 +10000, spread=.01, mean=.49)
-    osc = create_oscillation(N-1, freq[10000:], 1)
-    osc *= X_diff.std()
+#     freq -= freq.mean()
+#     freq /= np.abs(freq.max())
+#     freq *= spread
 
-    return X_diff
+#     b, a = butter(4, .0001, fs=1, btype='low')
+#     freq = lfilter(b, a, freq)
+#     freq += mean
+
+#     return freq
+
+
+# def generate_simuls(N):
+
+#     X = fbm(shape=N, H=0.8)
+#     X_diff = np.diff(X)
+
+#     freq = generate_osc_freq(N -1 +10000, spread=.01, mean=.49)
+#     osc = create_oscillation(N-1, freq[10000:], 1)
+#     osc *= X_diff.std()
+
+#     return X_diff
 
 
 def generate_simuls_bb(N, lambd=None):

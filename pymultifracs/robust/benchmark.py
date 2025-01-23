@@ -79,7 +79,7 @@ class Benchmark:
 
         signal_grid = get_grid(self.signal_param_grid)
         signal_names = signal_grid.columns
-        print(signal_names)
+        # print(signal_names)
         # signals, signal_names = self.load_generate_signals()
 
         def estimate_mf(signal, signal_params):
@@ -90,6 +90,7 @@ class Benchmark:
                 
                 return res, signal_params
 
+        print(signal_grid)
         results = Parallel(n_jobs=n_jobs)(
             delayed(estimate_mf)(*s)
             for s in tqdm(self.signal_func(signal_grid), total=signal_grid.shape[0]))

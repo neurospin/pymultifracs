@@ -48,6 +48,11 @@ def test_bivariate():
         lwt = bimfa(
             WTpL, WTpL, scaling_ranges, weighted=None, n_cumul=2,
             q1=np.array([0, 1, 2]), q2=np.array([0, 1, 2]), R=1)
+        
+        lwt.structure.get_jrange()
+        lwt.structure.plot()
+        lwt.cumulants.plot()
+        # lwt.cumulants.plot_legendre()
 
         p = param[key]
 
