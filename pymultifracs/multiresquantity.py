@@ -103,7 +103,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
 
-    .. note:: Should not be called directly but instead creating using the `wavelet_analysis` 
+    .. note:: Should not be instantiated directly but instead created using the `wavelet_analysis` 
         function.
 
     Attributes
@@ -508,8 +508,7 @@ class WaveletLeader(WaveletDec):
     It contains the wavelet (p-)leader representation of a signal
     :math:`L_X(j, k)`.
     
-    Should not be called directly but instead creating using the analysis
-    functions
+    .. note:: Should not be instantiated directly but instead created using the :func:`WaveletDec.get_leaders` method.
 
     Attributes
     ----------
@@ -726,12 +725,11 @@ class WaveletLeader(WaveletDec):
 @dataclass(kw_only=True)
 class WaveletWSE(WaveletDec):
     r"""
-    Wavelet Coefficient Decomposition.
+    Wavelet Weak Scaling Exponent.
 
-    It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
+    It represents the :math:`(\theta, \omega)`-leaders of a signal: :math:`\ell^{(\theta, \omega)}(j, k)`.
 
-    Should not be called directly but instead creating using the analysis
-    functions
+    .. note:: Should not be instantiated directly but instead created using the :func:`WaveletDec.get_wse` method.
 
     Attributes
     ----------

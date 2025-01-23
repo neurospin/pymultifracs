@@ -32,6 +32,7 @@ Used to compute and store intermediary results. Not meant to be created outside 
     
 .. autosummary::
     :toctree: _autosummary
+    :template: not_instantiated.rst
     :caption: Scaling Functions
 
     scalingfunction.StructureFunction
@@ -58,7 +59,7 @@ Visualization
     :caption: Visualization
 
     viz.plot_psd
-
+    viz.plot_cumulants
 
 Bivariate Analysis
 ==================

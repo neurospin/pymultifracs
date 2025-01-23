@@ -205,13 +205,15 @@ class StructureFunction(ScalingFunction):
     """
     Contains the structre functions and their linear fit.
 
+    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
+
     Attributes
     ----------
-    j : ndarray, shape(n_j,)
+    j : ndarray, shape (n_j)
         Values of j covered by the analysis.
     nj : dict[int, ndarray]
         Dictionnary giving the number of non-NaN values at every scale. Array
-        are of shape (n_rep,)
+        are of shape (n_rep)
     gamint : float
         Value of gamint used in the computation of the underlying MRQ.
     formalism : str
@@ -221,17 +223,18 @@ class StructureFunction(ScalingFunction):
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays in case there are
         multiple repetitions associated to a single signal.
-    q : ndarray, shape (n_moments,)
+    q : ndarray, shape (n_moments)
         :math:`q` values for which the structure functions are computed.
-    values : ndarray, shape (n_moments, n_j, n_scaling_ranges, n_rep,)
+    values : ndarray, shape (n_moments, n_j, n_scaling_ranges, n_rep)
         :math:`S_q(j, k)`.
     scaling_ranges : list[tuple[int, int]]
-        List of pairs of (j1, j2) ranges of scales for the regression.
-    slope : ndarray, shape(n_moments, n_scaling_ranges, n_rep)
+        List of pairs of scales :math:`(j_1, j_2)` delimiting the temporal scale support over
+        which the estimates are regressed.
+    slope : ndarray, shape (n_moments, n_scaling_ranges, n_rep)
         :math:`s_q`.
     H : ndarray
         :math:`H = s_2 / 2`.
-    intercept : ndarray, shape(n_moments, n_scaling_ranges, n_rep,)
+    intercept : ndarray, shape (n_moments, n_scaling_ranges, n_rep)
         Intercept of the linear regression.
     weighted : str | None
         Weighting mode for the linear regressions. Defaults to None, which is
@@ -306,11 +309,35 @@ class StructureFunction(ScalingFunction):
 
         return self.__getattribute__(name)
 
-    def plot(self, figlabel='Structure Functions', nrow=4, filename=None,
-             ignore_q0=True, figsize=None, scaling_range=0, plot_scales=None,
-             plot_CI=True, signal_idx=0):
+    def plot(self, nrow=4, filename=None, ignore_q0=True, figsize=None,
+             scaling_range=0, plot_scales=None, plot_CI=True, signal_idx=0):
         """
         Plots the structure functions.
+
+        Parameters
+        ----------
+
+        nrow : int
+            Number of rows in the plot.
+        filename : str | None
+            If not None, the file is saved to `filename`
+        ignore_q0 : bool
+            Whether to include the structure function for :math:`q=0`, which 
+            is always going to be a constant function valued 1. Defaults to 
+            True.
+        figsize : tuple[int, int] | None
+            Size of the figure, in inches.
+        scaling_range : int
+            If multiple scaling ranges were used in fitting, indicates the 
+            index to use.
+        plot_scales : tuple[int, int] | None
+            Takes a tuple of the form :math:`(j_1, j_2)`: Constrains the 
+            x-axis to the interval :math:`[j_1, j_2]`.
+        plot_CI : bool
+            If using bootstrap, plot bootstrap-derived confidence interval
+            on the structure function.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
         """
 
         if plot_scales is None:
@@ -409,8 +436,27 @@ class StructureFunction(ScalingFunction):
         if filename is not None:
             plt.savefig(filename)
 
-    def plot_scaling(self, figlabel='Scaling Function', filename=None,
-                    ax=None, signal_idx=0, range_idx=0, **plot_kw):
+    def plot_scaling(self, filename=None, ax=None, signal_idx=0, range_idx=0,
+                     **plot_kw):
+        """
+        Plots the scaling function :math:`\zeta(q)`.
+
+        Parameters
+        ----------
+
+        filename : str | None
+            If not None, saves the figure to `filename`.
+        ax : Axes | None
+            Provides the axes on which to draw the function. 
+            Defaults to None, which creates a new figure.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
+        range_idx : int
+            If multiple scaling ranges were used in fitting, indicates the 
+            index to use.
+        **plot_kw : dict
+            Extra arguments forwarded to the plot function call.
+        """
         
         assert len(self.q) > 1, ("This plot is only possible if more than 1 q",
                                  " value is used")
@@ -434,45 +480,44 @@ class Cumulants(ScalingFunction):
     r"""
     Computes and analyzes cumulant.
     
-    .. note:: Should not be initialized directly but instead computed from `mf_analysis`.
+    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
 
     Attributes
     ----------
-    j : ndarray, shape (n_j,)
+    j : ndarray of int, shape (n_j,)
         List of the j values (scales), in order presented in the value arrays.
-    nj : dict(ndarray)
+    nj : ndarray of int, shape (n_j,)
         Dictionnary giving the number of non-NaN values at every scale. Arrays
         are of the shape (n_rep,).
     gamint : float
         Value of gamint used in the computation of the underlying MRQ.
     formalism : str
-        Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
-        or 'wavelet p-leaders'.
+        Formalism used. Can be any of: 'wavelet coefs', 'wavelet leaders', 
+        'wavelet p-leaders', or 'weak scaling exponent'.
     n_sig : int
         Number of underlying signals in the wavelet decomposition. May not
-        match the dimensionality of the values arrays in case there are
-        multiple repetitions associated to a single signal.
+        match the dimensionality of the values arrays (n_rep) in case there are
+        multiple repetitions associated to a single signal, for instance in
+        bootstrapping.
     n_cumul : int
-        Number of computed cumulants.
-    m : ndarray, shape (n_cumul,)
-        List of the m values (cumulants), in order presented in the value
-        arrays.
-    values : ndarray, shape (n_cumulants, n_scales, n_rep)
+        Maximum order of the computed cumulants.
+    m : ndarray of int, shape (n_cumul,)
+        Cumulant order values :math:`m`, in the order used internally.
+    values : ndarray of float, shape (n_cumulants, n_scales, n_rep)
         :math:`C_m(j)`.
-    scaling_ranges : List[Tuple[int]]
+    scaling_ranges : List[(int, int)]
         List of pairs of scales delimiting the temporal scale support over
         which the estimates are regressed.
     log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
     var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
-        Estimates of the variance of log-cumulants.
-        .. warning:: var_log_cumulants was not debugged
+        Estimates of the variance of log-cumulants. 
     weighted : str | None
-        Weighting mode for the linear regressions. Defaults to None, which is
-        no weighting. Possible values are 'Nj' which weighs by number of
+        Weighting mode for the linear regressions. Defaults to None, which means
+        no weighting. Possible values are ``'Nj'`` which weighs by number of
         coefficients, and 'bootstrap' which weights by bootstrap-derived
         estimates of variance.
-    weights : ndarray
+    weights : ndarray of float, shape () #TODO: plot shape of weights here
         Weights of the linear regression.
     bootstrapped_obj : Cumulants | None
         Storing the bootstrapped version of the structure function if
@@ -616,10 +661,32 @@ class Cumulants(ScalingFunction):
         return self.__getattribute__(name)
 
     def plot(self, figsize=None, nrow=3, j1=None, filename=None,
-             scaling_range=0, n_cumul=None, signal_idx=0, **kwargs):
+             range_idx=0, n_cumul=None, signal_idx=0, **kwargs):
+        """
+        Plots the :math:`C_m(j)` and their associated :math:`c_m` fits.
+
+        Parameters
+        ----------
+
+        figsize: (int, int) | None
+            If not None, indicates the size of the figure.
+        nrow : int
+            Number of rows of the figure.
+        j1 : int
+            Constrains the plot to scales :math:`j \geq j_1`.
+        filename : str | None
+            If not None, saves the figure to ``filename``.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
+        range_idx : int
+            If multiple scaling ranges were used in fitting, indicates the 
+            index to use.
+        **kwargs : dict
+            Optional arguments sent to :func:`pymultifracs.viz.plot_cumulants`.
+        """
 
         return viz.plot_cumulants(
-            self, figsize, nrow, j1, filename, scaling_range,
+            self, figsize, nrow, j1, filename, range_idx,
             n_cumul=n_cumul, signal_idx=signal_idx, **kwargs)
 
 
@@ -629,6 +696,8 @@ class MFSpectrum(ScalingFunction):
     Estimates the Multifractal Spectrum
 
     Based on equations 2.74 - 2.78 of Herwig Wendt's thesis [1]_
+
+    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
 
     Attributes
     ----------
@@ -644,18 +713,24 @@ class MFSpectrum(ScalingFunction):
         Value of gamint used in the computation of the underlying MRQ.
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
-        or 'wavelet p-leaders'.
-    n_sig : int
-        Number of underlying signals in the wavelet decomposition. May not
-        match the dimensionality of the values arrays in case there are
-        multiple repetitions associated to a single signal.
-    q : ndarray, shape(n_exponents,)
-        Exponents used construct the multifractal spectrum
-    U : ndarray, shape (n_scales, n_exponents, n_rep)
-        :math:`U(j, q)`
-    V : ndarray, shape (n_scales, n_exponents, n_rep)
-        :math:`V(j, q)`
-    scaling_ranges: List[Tuple[int]]
+        or 'wavelet p-leadParameters
+        ----------
+
+        figsize: (int, int) | None
+            If not None, indicates the size of the figure.
+        nrow : int
+            Number of rows of the figure.
+        j1 : int
+            Constrains the plot to scales :math:`j \geq j_1`.
+        filename : str | None
+            If not None, saves the figure to ``filename``.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
+        range_idx : int
+            If multiple scaling ranges were used in fitting, indicates the 
+            index to use.
+        **kwargs : dict
+            Optional arguments sent to :func:`pymultifracs.viz.plot_cumulants`.[Tuple[int]]
         List of pairs of (j1, j2) ranges of scales for the analysis
     Dq : ndarray, shape (n_exponents, n_rep)
         Fractal dimensions : :math:`D(q)`, y-axis of the multifractal spectrum
@@ -680,6 +755,7 @@ class MFSpectrum(ScalingFunction):
         Tests. Ph.D thesis, Laboratoire de Physique, Ecole Normale Superieure
         de Lyon.
         https://www.irit.fr/~Herwig.Wendt/data/ThesisWendt.pdf
+
     """
     q: np.array
     Dq: np.array = field(init=False)
@@ -766,15 +842,32 @@ class MFSpectrum(ScalingFunction):
             #     :
             # ]
 
-    def plot(self, filename=None, ax=None, fmt='ko-', scaling_range=0,
+    def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
              signal_idx=0, shift_gamint=False, **plot_kwargs):
         """
         Plot the multifractal spectrum.
 
         Parameters
         ----------
+
         filename : str | None
-            If not None, path used to save the figure
+            If not None, saves the figure to ``filename``.
+        ax : Axes | None
+            Axes where to plot the spectrum. Defaults to None,
+            which creates a new figure.
+        fmt : str
+            Format string for the plot.
+        range_idx : int
+            If multiple scaling ranges were used in fitting, indicates the 
+            index to use.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
+        shift_gamint : bool
+            If fractional integration was used, shifts the spectrum on the x-axis
+            by :math:`-\gamma`.
+        **plot_kwargs : dict
+            Optional arguments sent to the plotting function :func:`plt.plot`.
+
         """
 
         ax = plt.gca() if ax is None else ax
@@ -787,8 +880,8 @@ class MFSpectrum(ScalingFunction):
             CI_Dq -= self.D_q()
             CI_hq -= self.h_q()
 
-            CI_Dq = CI_Dq[:, scaling_range, signal_idx]
-            CI_hq = CI_hq[:, scaling_range, signal_idx]
+            CI_Dq = CI_Dq[:, range_idx, signal_idx]
+            CI_hq = CI_hq[:, range_idx, signal_idx]
 
             CI_Dq[:, 1] *= -1
             CI_hq[:, 1] *= -1
@@ -807,8 +900,8 @@ class MFSpectrum(ScalingFunction):
 
         shift = 0 if not shift_gamint else self.gamint
 
-        ax.errorbar(self.hq[:, scaling_range, signal_idx] - shift,
-                    self.Dq[:, scaling_range, signal_idx],
+        ax.errorbar(self.hq[:, range_idx, signal_idx] - shift,
+                    self.Dq[:, range_idx, signal_idx],
                     CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
