@@ -285,7 +285,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             out, idx_reject, j, self.interval_size)
 
     def plot(self, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
-             figsize=(4.5, 1.5), gamma=.3, nan_idx=None, signal_idx=0,
+             figsize=(4.5, 1.5), gamma=1, nan_idx=None, signal_idx=0,
              cbar_kw=None, cmap='magma'):
         """
         Plot the multi-resolution quantity.

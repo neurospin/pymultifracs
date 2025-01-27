@@ -59,7 +59,7 @@ Visualization
     :caption: Visualization
 
     viz.plot_psd
-    viz.plot_cumulants
+    viz.plot_cm
 
 Bivariate Analysis
 ==================

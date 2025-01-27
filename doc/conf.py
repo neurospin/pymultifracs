@@ -29,7 +29,8 @@ copyright = '2020-2025, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
 author = 'M. Dumeur, O. D. Domingues, P. Ciuciu, V. van Wassenhove, P. Abry'
 
 # The full version, including alpha/beta/rc tags
-release = '0.3'
+from pymultifracs._version import __version__
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -43,11 +44,13 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.coverage',
               'sphinx.ext.intersphinx',
               # 'sphinx.ext.linkcode',
+              'sphinx_gallery.gen_gallery',
               'numpydoc',
             #   'sphinx_autodoc_typehints',
               # 'sphinx_gallery.notebook',
             #   'sphinx_bootstrap_theme',
-              'nbsphinx',
+            #   'nbsphinx',
+            #   'myst_nb',
               'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -140,6 +143,7 @@ intersphinx_mapping = {
     'joblib': ('https://joblib.readthedocs.io/en/latest', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
     'seaborn': ('https://seaborn.pydata.org/', None),
+    'pywavelets': ('https://pywavelets.readthedocs.io/en/latest/', None),
     # "numba": ("https://numba.readthedocs.io/en/latest", None),
     # "joblib": ("https://joblib.readthedocs.io/en/latest", None),
     # "statsmodels": ("https://www.statsmodels.org/dev", None),
@@ -222,9 +226,6 @@ numpydoc_xref_ignore = {
     "n_trials",
     "n_estimators",
     "n_tasks",
-    "nd_features",
-    "n_classes",
-    "n_targets",
     "n_slices",
     "n_hpi",
     "n_fids",
@@ -267,6 +268,107 @@ numpydoc_xref_ignore = {
 numpydoc_validate = True
 numpydoc_validation_checks = {"all"}
 
+examples_dirs = ["../tutorials", "../examples"]
+gallery_dirs = ["auto_tutorials", "auto_examples"]
+# os.environ["_MNE_BUILDING_DOC"] = "true"
+
+scrapers = (
+    "matplotlib",
+    # "pyvista", # check if pyvista installed
+)
+
+compress_images = ("images", "thumbnails")
+#let's make things easier on Windows users
+#(on Linux and macOS it's easy enough to require this)
+if sys.platform.startswith("win"):
+    try:
+        import subprocess
+        subprocess.check_call(["optipng", "--version"])
+    except Exception:
+        compress_images = ()
+
+# sphinx_gallery_parallel = int(os.getenv("MNE_DOC_BUILD_N_JOBS", "1"))
+
+sphinx_gallery_conf = {
+    "doc_module": ("pymultifracs",),
+    "reference_url": dict(pymultifracs=None),
+    "examples_dirs": examples_dirs,
+    # "subsection_order": ExplicitOrder(
+    #     [
+    #         "../examples/io/",
+    #         "../examples/simulation/",
+    #         "../tutorials/io/",
+    #         "../tutorials/misc/",
+    #     ]
+    # ),
+    "gallery_dirs": gallery_dirs,
+    # "default_thumb_file": os.path.join("_static", "mne_helmet.png"),
+    "backreferences_dir": "generated",
+    "plot_gallery": "True",  # Avoid annoying Unicode/bool default warning
+    # "thumbnail_size": (160, 112),
+    "remove_config_comments": True,
+    "min_reported_time": 1.0,
+    "abort_on_example_error": True,
+    "reset_modules": (
+        "matplotlib",
+        "seaborn",
+    ),  # called w/each script
+    "reset_modules_order": "both",
+    "image_scrapers": scrapers,
+    # "show_memory": sys.platform == "linux" and sphinx_gallery_parallel == 1,
+    "show_memory": False,
+    "line_numbers": False,  # messes with style
+    "within_subsection_order": "FileNameSortKey",
+    # "capture_repr": ("_repr_html_", "__str__"),
+    # "junit": os.path.join("..", "test-results", "sphinx-gallery", "junit.xml"),
+    # "matplotlib_animations": True,
+    "compress_images": compress_images,
+    "filename_pattern": "^((?!sgskip).)*$",
+    # "exclude_implicit_doc": {
+    #     r"mne\.io\.read_raw_fif",
+    #     r"mne\.io\.Raw",
+    #     r"mne\.Epochs",
+    #     r"mne.datasets.*",
+    # },
+    # "show_api_usage": "unused",
+    "api_usage_ignore": (
+        "("
+        ".*__.*__|"  # built-ins
+        # ".*Base.*|.*Array.*|mne.Vector.*|mne.Mixed.*|mne.Vol.*|"  # inherited
+        # "mne.coreg.Coregistration.*|"  # GUI
+        # common
+        ".*utils.*|.*verbose()|.*copy()|.*update()|.*save()|"
+        ".*get_data()|"
+        # mixins
+        # ".*add_channels()|.*add_reference_channels()|"
+        # ".*anonymize()|.*apply_baseline()|.*apply_function()|"
+        # ".*apply_hilbert()|.*as_type()|.*decimate()|"
+        # ".*drop()|.*drop_channels()|.*drop_log_stats()|"
+        # ".*export()|.*get_channel_types()|"
+        # ".*get_montage()|.*interpolate_bads()|.*next()|"
+        # ".*pick()|.*pick_channels()|.*pick_types()|"
+        # ".*plot_sensors()|.*rename_channels()|"
+        # ".*reorder_channels()|.*savgol_filter()|"
+        # ".*set_eeg_reference()|.*set_channel_types()|"
+        # ".*set_meas_date()|.*set_montage()|.*shift_time()|"
+        # ".*time_as_index()|.*to_data_frame()|"
+        # dictionary inherited
+        # ".*clear()|.*fromkeys()|.*get()|.*items()|"
+        # ".*keys()|.*pop()|.*popitem()|.*setdefault()|"
+        # ".*values()|"
+        # sklearn inherited
+        # ".*apply()|.*decision_function()|.*fit()|"
+        # ".*fit_transform()|.*get_params()|.*predict()|"
+        # ".*predict_proba()|.*set_params()|.*transform()|"
+        # I/O, also related to mixins
+        # ".*.remove.*|.*.write.*)"
+    ),
+    "copyfile_regex": r".*index\.rst",  # allow custom index.rst files
+    "parallel": -2,
+}
+# assert is_serializable(sphinx_gallery_conf)
+
+
 # nbsphinx
 
 highlight_language = 'none'
@@ -278,6 +380,10 @@ nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
     "--InlineBackend.rc={'figure.dpi': 300}",
 ]
+
+# myst-nb
+
+nb_execution_mode = "off"
 
 #%% Adjusting the displayed name of functions
 # https://stackoverflow.com/a/72658470
@@ -295,4 +401,3 @@ nbsphinx_execute_arguments = [
 # AutosummaryRenderer.__old_init__ = AutosummaryRenderer.__init__
 # AutosummaryRenderer.__init__ = fixed_init
 
-#%% 

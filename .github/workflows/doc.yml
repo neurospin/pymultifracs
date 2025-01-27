@@ -26,17 +26,18 @@ jobs:
       - name: Setup python with mamba
         uses: conda-incubator/setup-miniconda@v3
         with:
-          mamba-version: "*"
+          # mamba-version: "*"
+          miniforge-version: latest
           activate-environment: pymultifracs
           python-version: 3.13
           environment-file: meta.yml
-          use-only-tar-bz2: true
           channel-priority: strict
+          channels: conda-forge,numba
       - name: Build doc
         shell: bash -el {0}
+        # mamba install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme nbsphinx
         run: |
-          mamba install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme nbsphinx
-          pip install .[doc]
+          pip install .[bootstrap,robust,doc]
           cd doc
           make html
           touch _build/html/.nojekyll

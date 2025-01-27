@@ -4,17 +4,17 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 import warnings
-from collections import namedtuple
-from copy import deepcopy
-from math import ceil, floor
+# from collections import namedtuple
+# from copy import deepcopy
+from math import ceil#, floor
 
 import pywt
 import numpy as np
-from scipy import signal
+# from scipy import signal
 
 from . import multiresquantity
 # from .multiresquantity import WaveletDec, WaveletWSE, WaveletLeader
-from .utils import fast_power, get_filter_length, max_scale_bootstrap
+from .utils import fast_power, max_scale_bootstrap #,get_filter_length
 
 
 # def _check_formalism(p_exp):

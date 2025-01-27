@@ -13,7 +13,7 @@ from .regression import prepare_weights, prepare_regression, \
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
     AbstractDataclass
-from . import multiresquantity, viz, robust
+from . import multiresquantity, viz
 
 
 @dataclass(kw_only=True)
@@ -118,7 +118,7 @@ class ScalingFunction(AbstractScalingFunction):
 
     def find_best_range(self):
         return find_max_lambda(self.compute_Lambda())
-
+    
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
 
         if self.bootstrapped_obj is not None and bootstrap:
@@ -265,14 +265,25 @@ class StructureFunction(ScalingFunction):
         self.values = np.zeros(
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
 
+
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.get_values(j, idx_reject)
+            
 
             for ind_q, q in enumerate(self.q):
-                self.values[ind_q, ind_j, :] = np.log2(
-                    np.nanmean(fast_power(np.abs(c_j), q), axis=0))
 
+                self.values[ind_q, ind_j] = np.log2(
+                    np.nanmean(fast_power(np.abs(c_j), q), axis=0))
+            
+            mask_nan = np.isnan(c_j) | np.isinf(c_j)
+            N_useful = (~mask_nan).sum(axis=0)
+            idx_unreliable = N_useful < 3
+
+            if idx_unreliable.any():
+                for i in range(idx_unreliable.shape[0]):
+                    self.values[ind_q, ind_j, :, idx_unreliable[i]]
+            
         self.values[np.isinf(self.values)] = np.nan
 
     def _get_H(self):
@@ -366,7 +377,8 @@ class StructureFunction(ScalingFunction):
                                  plot_dim_2,
                                  squeeze=False,
                                  figsize=figsize,
-                                 sharex=True)
+                                 sharex=True,
+                                 layout='tight')
 
         # fig.suptitle(self.formalism +
         #              r' - structure functions $\log_2(S(j,q))$')
@@ -399,8 +411,8 @@ class StructureFunction(ScalingFunction):
 
             ax = axes[counter % nrow][counter // nrow]
             ax.errorbar(x, y, CI, fmt='r--.', zorder=4)
-            ax.set_xlabel('j')
-            ax.set_ylabel(f'q = {q:.3f}')
+            ax.set_xlabel('Temporal scale $j$')
+            ax.set_ylabel(f'$S_{{{q:.1g}}}(j)$')
             ax.tick_params(bottom=False, top=False, which='minor')
 
             counter += 1
@@ -421,7 +433,7 @@ class StructureFunction(ScalingFunction):
             else:
                 CI_legend = ""
 
-            legend = rf'$s_{{{q:.2f}}}$ = {slope:.2f}' + CI_legend
+            legend = rf'$s_{{{q:.1g}}}$ = {slope:.2f}' + CI_legend
 
             ax.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label=legend, zorder=5)
@@ -465,8 +477,9 @@ class StructureFunction(ScalingFunction):
 
         ax.plot(self.q, self.slope[:, range_idx, signal_idx], **plot_kw)
         ax.set(
-            xlabel = 'q', ylabel=r'$\zeta(q)$',
-            title=self.formalism + ' - scaling function')
+            xlabel = '$q$', ylabel=r'$\zeta(q)$',
+            # title=self.formalism + ' - scaling function'
+            )
 
         # plt.draw()
 
@@ -586,7 +599,9 @@ class Cumulants(ScalingFunction):
             log_T_X_j = mask_reject(
                 log_T_X_j, idx_reject, j, mrq.interval_size)
 
-            values = robust.robust.compute_robust_cumulants(
+            from . import robust
+
+            values = robust.compute_robust_cumulants(
                 log_T_X_j, self.m, **self.robust_kwargs)
 
             self.values[:, ind_j] = values
@@ -685,8 +700,9 @@ class Cumulants(ScalingFunction):
         """
 
         return viz.plot_cumulants(
-            self, figsize, nrow, j1, filename, range_idx,
-            n_cumul=n_cumul, signal_idx=signal_idx, **kwargs)
+            self, figsize=figsize, nrow=nrow, j1=j1, filename=filename,
+            range_idx=range_idx, n_cumul=n_cumul, signal_idx=signal_idx,
+            **kwargs)
 
 
 @dataclass(kw_only=True)
@@ -799,27 +815,36 @@ class MFSpectrum(ScalingFunction):
             # mrq_values_j = mask_reject(
             #     mrq_values_j, idx_reject, j, mrq.interval_size)
 
-            idx_nan = np.isnan(mrq_values_j)
+            # idx_nan = np.isnan(mrq_values_j)
+            mask_nan = np.isnan(mrq_values_j) | np.isinf(mrq_values_j)
             temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
                             axis=0)
             # np.nan ** 0 = 1.0, adressed here
-            temp[:, idx_nan] = np.nan
+            temp[:, mask_nan] = np.nan
 
             Z = np.nansum(temp, axis=1)[:, None, :]
             Z[Z == 0] = np.nan
             R_j = temp / Z
             
-            nj = ((~idx_nan).sum(axis=0))[None, :]
+            # nj = ((~mask_nan).sum(axis=0))[None, :]
+            N_useful = ((~mask_nan).sum(axis=0))[None, :]
             self.V[:, ind_j] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
-            self.U[:, ind_j] = np.log2(nj) + fixednansum((R_j * np.log2(R_j)),
-                                                         axis=1)
+            self.U[:, ind_j] = np.log2(N_useful) + fixednansum(
+                (R_j * np.log2(R_j)), axis=1)
+            
+            idx_unreliable = N_useful < 3
+
+            if idx_unreliable.any():
+                for i in range(idx_unreliable.shape[1]):
+                    self.V[:, ind_j, :, idx_unreliable[0, i]]
+                    self.U[:, ind_j, :, idx_unreliable[0, i]]
 
         self.U[np.isinf(self.U)] = np.nan
         self.V[np.isinf(self.V)] = np.nan
 
-        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
-            self.scaling_ranges, self.j
-        )
+        # x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        #     self.scaling_ranges, self.j
+        # )
 
     def V_q(self, q):
         out = self.V[isclose(q, self.q)][0]
