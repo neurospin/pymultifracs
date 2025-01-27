@@ -3,10 +3,11 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
+# pylint: disable=C0415
+
 from enum import Enum
 from dataclasses import dataclass
 from typing import Any
-import inspect
 from collections import namedtuple
 import warnings
 
@@ -35,6 +36,9 @@ cumulants : :class:`.BiCumulants`
 
 
 class Formalism(Enum):
+    """
+    Possible multifractal formalisms.
+    """
     wavelet_coef = 1
     wavelet_leader = 2
     wavelet_pleader = 3
@@ -43,6 +47,9 @@ class Formalism(Enum):
 
 @dataclass
 class AbstractDataclass:
+    """
+    Abstract class containing information.
+    """
     bootstrapped_obj: Any | None = None
 
     def _check_enough_rep_bootstrap(self):
@@ -52,7 +59,7 @@ class AbstractDataclass:
                 f'n_rep = {ratio} per original signal too small to build '
                 'confidence intervals'
                 )
-        
+
     def _get_bootstrapped_obj(self):
 
         if self.bootstrapped_obj is None:
@@ -63,7 +70,7 @@ class AbstractDataclass:
         bootstrapped_obj._check_enough_rep_bootstrap()
 
         return bootstrapped_obj
-    
+
     def _check_bootstrap_obj(self):
 
         if self.bootstrapped_obj is None:
@@ -73,7 +80,7 @@ class AbstractDataclass:
 
         self.bootstrapped_obj._check_enough_rep_bootstrap()
 
-    def std_values(self):
+    def std_values(self):  # pylint: disable=C0116
 
         from .bootstrap import get_std
 
@@ -134,22 +141,36 @@ class AbstractDataclass:
         return self.__getattribute__(name)
 
 
-def scale2freq(scale, sfreq):
-    return pywt.scale2frequency('db3', 2 ** scale) * sfreq
-
-def freq2scale(freq, sfreq):
-    return np.log2(pywt.frequency2scale('db3', freq / sfreq))
-
-def fband2scale(fband, sfreq):
-    return (int(np.ceil(freq2scale(fband[1], sfreq))),
-            int(np.floor(freq2scale(fband[0], sfreq))))
+def scale2freq(scale, sfreq, wt_name='db3'):
+    """
+    Returns the frequency associated to a scale.
+    """
+    return pywt.scale2frequency(wt_name, 2 ** scale) * sfreq
 
 
-def pairing(long, short):
-    return long * (long - 1) / 2 + short - 1
+def freq2scale(freq, sfreq, wt_name='db3'):
+    """
+    Returns the scale associated with a frequency.
+    """
+    return np.log2(pywt.frequency2scale(wt_name, freq / sfreq))
+
+
+def fband2scale(fband, sfreq, wt_name='db3'):
+    """
+    Returns the range of scales associated with a frequency band.
+    """
+    return (int(np.ceil(freq2scale(fband[1], sfreq, wt_name))),
+            int(np.floor(freq2scale(fband[0], sfreq, wt_name))))
+
+
+# def pairing(long, short):
+#     return long * (long - 1) / 2 + short - 1
 
 
 def fast_power(array, exponent):
+    """
+    Faster version of the np.pow for often used exponents (1, 2, .5, 0, -1)
+    """
 
     # import warnings
     # warnings.filterwarnings("error")
@@ -157,24 +178,24 @@ def fast_power(array, exponent):
     if exponent == 1:
         return array
 
-    elif exponent == 2:
+    if exponent == 2:
         return array * array
         # return np.square(array)
 
-    elif exponent == 0.5:
+    if exponent == 0.5:
         return np.sqrt(array)
 
-    elif exponent == 0:
+    if exponent == 0:
         # np.nan ** 0 = 1.0, adressed here
         ixd_nan = np.isnan(array)
         res = array ** exponent
         res[ixd_nan] = np.nan
         return res
 
-    elif exponent == -1:
+    if exponent == -1:
         return array ** exponent
 
-    elif isinstance(exponent, int) and exponent > 0 and exponent <= 10:
+    if isinstance(exponent, int) and 0 < exponent <= 10:
 
         array_out = np.ones(array.shape)
 
@@ -224,6 +245,9 @@ stat2fun = {
 
 
 def fixednansum(a, **kwargs):
+    """
+    Fixes nansum.
+    """
     mx = np.isnan(a).all(**kwargs)
     res = np.nansum(a, **kwargs)
     res[mx] = np.nan
@@ -231,6 +255,9 @@ def fixednansum(a, **kwargs):
 
 
 def fixednanmax(a, **kwargs):
+    """
+    Fixes nanmax.
+    """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         a = np.nanmax(a, **kwargs)
@@ -238,14 +265,16 @@ def fixednanmax(a, **kwargs):
 
 
 def get_filter_length(wt_name):
-
+    """
+    Returns the length of the wavelet filter.
+    """
     wt = pywt.Wavelet(wt_name)
     return len(wt.dec_hi)
 
 
 def max_scale_bootstrap(mrq, idx_reject=None):
     """
-    Determines maximum scale possible to perform bootstrapping
+    Determines maximum scale possible to perform bootstrapping.
 
     Parameters
     ----------
@@ -254,6 +283,8 @@ def max_scale_bootstrap(mrq, idx_reject=None):
     """
 
     filt_len = mrq.filt_len
+
+    j = 0  # Avoids error here in the case where mrq.values is empty
 
     for j in mrq.values:
         val = mrq.values[j]
@@ -268,6 +299,9 @@ def max_scale_bootstrap(mrq, idx_reject=None):
 
 
 def isclose(a, b, rel_tol=1.98e-03):
+    """
+    Custom isclose function with chosen tolerance.
+    """
     return np.abs(a - b) <= rel_tol * max(np.max(np.abs(a)), np.max(np.abs(b)))
 
 
@@ -297,41 +331,10 @@ def scale_position(time, scale_min, scale_max, wt_leaders=None):
     return out_idx, out_leader
 
 
-def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
-    """
-    Return p-leader correction factor for finite resolution
-    """
-
-    JJ = np.arange(min_level, max_level + 1)
-    J1LF = 1
-    JJ0 = JJ - J1LF + 1
-
-    # eta_p shape (n_ranges, n_rep)
-    # JJ0 shape (n_level,)
-
-    JJ0 = JJ0[None, None, :]
-    eta_p = wt_leaders.eta_p[:, :, None]
-
-    zqhqcorr = np.log2((1 - np.power(2., -JJ0 * eta_p))
-                       / (1 - np.power(2., -eta_p)))
-    ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
-
-    # import ipdb; ipdb.set_trace()
-
-    # ZPJCorr shape (n_ranges, n_rep, n_level)
-    # wt_leaders shape (n_coef_j, n_rep)
-    # for ind_j, j in enumerate(JJ):
-    #     wt_leaders.values[j] = \
-    #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
-
-    eta_negative = eta_p <= 0
-    ZPJCorr[eta_negative[..., 0], :] = 1
-
-    # ZPJCorr shape (n_ranges, n_rep, n_level)
-    return ZPJCorr
-
-
 def mask_reject(values, idx_reject, j, interval_size):
+    """
+    Remove values from an array based on a mask.
+    """
 
     if idx_reject is None or j not in idx_reject:
         return values
@@ -343,5 +346,5 @@ def mask_reject(values, idx_reject, j, interval_size):
 
     # if delta > 0:
     #     return values * mask[delta:-delta]
-    
+
     return values * mask

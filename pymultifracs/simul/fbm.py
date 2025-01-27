@@ -1,10 +1,11 @@
-# Synthesis of fractional brownian motions through circulant matrix embedding.
-#
-# Roberto Fabio Leonarduzzi
-# January, 2019
+"""
+Authors: Roberto Fabio Leonarduzzi
+January, 2019
+
+Synthesis of fractional brownian motions through circulant matrix embedding.
+"""
 
 import numpy as np
-# import warnings
 from .pzutils import gaussian_cme, gaussian_chol
 
 
@@ -65,14 +66,17 @@ def fgn(shape, H, sigma=1, dt=None, method='cme', z0=None):
     # fbm = np.cumsum(x[:N, :], axis=0)
 
     if method == 'cme':
-        fgn = gaussian_cme(r, N, R)
+        fGn = gaussian_cme(r, N, R)
     elif method == 'chol':
-        fgn = gaussian_chol(r, N, R, z0)
+        fGn = gaussian_chol(r, N, R, z0)
     else:
         raise ValueError('Unknown synthesis method')
 
-    return fgn.squeeze() if do_squeeze else fgn
+    return fGn.squeeze() if do_squeeze else fGn
 
 
 def fbm(*args, **kwargs):
+    """
+    Simulate fBm.
+    """
     return np.cumsum(fgn(*args, **kwargs), axis=0)

@@ -14,7 +14,7 @@ import numpy as np
 from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
 # from .wavelet import wavelet_analysis, integrate_wavelet,\
 #     compute_leaders, compute_wse
-# from .estimation import estimate_hmin, _estimate_eta_p
+# from .estimation import estimate_hmin, estimate_eta_p
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
@@ -121,7 +121,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     else:
         if check_regularity:
             mrq.check_regularity(scaling_ranges, None, idx_reject)
-    
+
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
         raise ValueError(
             'weighted="bootstrap" requires R>1 or prior bootstrap')
@@ -158,7 +158,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         cumul = Cumulants._from_dict(parameters)
     if 'm' in estimates or (estimates == 'auto' and flag_q and len(q) > 1):
         spec = MFSpectrum._from_dict(parameters)
-        
+
     return MFractalVar(struct, cumul, spec)
 
 

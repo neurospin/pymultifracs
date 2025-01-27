@@ -11,9 +11,9 @@ from collections.abc import Iterable
 import numpy as np
 
 from recombinator.block_bootstrap import\
-     _verify_shape_of_bootstrap_input_data_and_get_dimensions,\
-     BlockBootstrapType, _verify_block_bootstrap_arguments,\
-     _generate_block_start_indices_and_successive_indices,\
+     _verify_shape_of_bootstrap_input_data_and_get_dimensions, \
+     BlockBootstrapType, _verify_block_bootstrap_arguments, \
+     _generate_block_start_indices_and_successive_indices, \
      _general_block_bootstrap_loop, circular_block_bootstrap
 
 from .utils import max_scale_bootstrap
@@ -39,9 +39,10 @@ def estimate_confidence_interval_from_bootstrap(
     # bootstrap_estimates: shape (..., n_CI)
     idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(axis=-1) < 3
 
-    bootstrap_confidence_interval = np.array(
-        [np.nanpercentile(bootstrap_estimates, percent / 2.0, axis=-1),
-         np.nanpercentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)])
+    bootstrap_confidence_interval = np.array([
+        np.nanpercentile(bootstrap_estimates, percent / 2.0, axis=-1),
+        np.nanpercentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)
+        ])
 
     bootstrap_confidence_interval[:, idx_unreliable] = np.nan
 
@@ -55,11 +56,14 @@ def estimate_confidence_interval_from_bootstrap(
 
     # if bootstrap_confidence_interval.ndim > 2:
     #     return bootstrap_confidence_interval.transpose(1, 2, 0)
-    
+
     return bootstrap_confidence_interval
 
 
 def get_empirical_variance(mrq, ref_mrq, name):
+    """
+    Returns empirical variance about a reference value.
+    """
 
     if mrq is None:
         return None
@@ -86,6 +90,9 @@ def get_empirical_variance(mrq, ref_mrq, name):
 
 
 def get_variance(mrq, name):
+    """
+    Returns the variance of the mrq's attribute.
+    """
 
     if mrq is None:
         return None
@@ -110,12 +117,14 @@ def get_variance(mrq, name):
 
 
 def get_std(mrq, name):
+    """
+    Returns the standard deviation of an mrq's attribute
+    """
 
     if mrq is None:
         return None
 
     attribute = getattr(mrq, name)
-
 
     if callable(attribute):
 
@@ -131,7 +140,7 @@ def get_std(mrq, name):
 
         return wrapper
 
-    n_rep = attribute.shape[-1]
+    # n_rep = attribute.shape[-1]
 
     # # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
     # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
@@ -145,12 +154,18 @@ def get_std(mrq, name):
 
 
 def reshape(attribute, n_sig):
+    """
+    Automatically reshapes to expected shape.
+    """
     if n_sig == 1:
         return attribute
     return attribute.reshape((attribute.shape[0], n_sig, -1))
 
 
 def get_confidence_interval(mrq, name):
+    """
+    Computes empirical confidence intervals for an attribute of the MRQ.
+    """
 
     if mrq is None:
         return None
@@ -177,6 +192,9 @@ def get_confidence_interval(mrq, name):
 def estimate_empirical_bootstrap(bootstrap_estimate,
                                  central_estimate,
                                  confidence_level=95.0):
+    """
+    Estimates empirical CI using bootstrap.
+    """
 
     return (central_estimate
             - estimate_confidence_interval_from_bootstrap(
@@ -191,7 +209,7 @@ def _get_align_slice(attribute, mrq, ref_mrq):
     """
 
     # Case where not scaling function (no dependence on j)
-    if (attribute.shape[0] != mrq.j.shape[0]):
+    if attribute.shape[0] != mrq.j.shape[0]:
         return np.s_[:], np.s_[:]
 
     # assert attribute.shape[0] == mrq.j.shape[0]
@@ -225,6 +243,9 @@ def _get_align_slice(attribute, mrq, ref_mrq):
 
 
 def get_empirical_CI(mrq, ref_mrq, name):
+    """
+    Returns the empirical CI for an attribue of the MRQ.
+    """
 
     if mrq is None:
         return None
@@ -247,7 +268,7 @@ def get_empirical_CI(mrq, ref_mrq, name):
             return CI
 
         return wrapper
-    
+
     mrq_slice, ref_mrq_slice = _get_align_slice(attribute, mrq, ref_mrq)
 
     CI = estimate_empirical_bootstrap(attribute[mrq_slice],
@@ -257,6 +278,9 @@ def get_empirical_CI(mrq, ref_mrq, name):
 
 
 def bootstrap(mrq, R, wt_name, min_scale=1):
+    """
+    Perform regular block bootstraping.
+    """
 
     max_scale = max_scale_bootstrap(mrq)
 
@@ -288,7 +312,8 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
     return new_mrq
 
 
-def _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale):
+def _general_leader_bootstrap_loop(
+        indices, block_length, min_scale, max_scale):
 
     if block_length / (2 ** max_scale - 1) > 1:
         raise ValueError('block length is too large w/ regards to max scale')
@@ -298,7 +323,7 @@ def _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale):
     indices_out[min_scale] = indices
 
     for scale in range(min_scale+1, max_scale + 1):
-        
+
         index = indices / (2 ** (scale - min_scale - 1))
 
         idx_int = (indices % (2 ** (scale - min_scale - 1))) == 0
@@ -313,8 +338,9 @@ def _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale):
     return indices_out
 
 
-def _general_leader_bootstrap(x, min_scale, max_scale, block_length, replications,
-                              sub_sample_length=None, link_rngs=True):
+def _general_leader_bootstrap(
+        x, min_scale, max_scale, block_length, replications,
+        sub_sample_length=None, link_rngs=True):
 
     circular = True
     replace = True
@@ -359,10 +385,11 @@ def _general_leader_bootstrap(x, min_scale, max_scale, block_length, replication
             successive_indices=successive_indices,
             sub_sample_length=sub_sample_length,
             replace=replace, link_rngs=link_rngs)
-    
+
     # Casts the lower-scale indices to higher scales => returns dict
-    indices = _general_leader_bootstrap_loop(indices, block_length, min_scale, max_scale)
-    
+    indices = _general_leader_bootstrap_loop(
+        indices, block_length, min_scale, max_scale)
+
     return indices
 
 
@@ -434,10 +461,11 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
         compact_idx = np.all(
             np.isnan(out), axis=tuple(k for k in range(out.ndim) if k != 1))
         # print(compact_idx.shape, out.shape)
-        values[scale] = out[:, ~compact_idx].transpose(*[*range(out.ndim)[1:], 0])
-        
+        values[scale] = out[:, ~compact_idx].transpose(
+            *[*range(out.ndim)[1:], 0])
+
         values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
-        
+
         nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq._from_dict({
@@ -453,7 +481,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                 'values': values_double[rep]
             })
             for rep in values_double}
-        
+
         for rep in double_mrq:
             double_mrq[rep].eta_p = None
 
@@ -513,9 +541,9 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
 
     max_scale = min(max_scale_bootstrap(reference_mrq), max_scale)
 
-    indices = _general_leader_bootstrap(reference_mrq.values[min_scale], min_scale, max_scale,
-                                        block_length, replications,
-                                        sub_sample_length, link_rngs)
+    indices = _general_leader_bootstrap(
+        reference_mrq.values[min_scale], min_scale, max_scale,
+        block_length, replications, sub_sample_length, link_rngs)
 
     indices_double = {}
 

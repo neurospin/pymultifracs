@@ -11,12 +11,16 @@ from typing import Any
 import numpy as np
 import pywt
 
-from .utils import get_filter_length, max_scale_bootstrap, _correct_pleaders,\
-    mask_reject, AbstractDataclass, max_scale_bootstrap
+from .utils import get_filter_length, max_scale_bootstrap, mask_reject, \
+    AbstractDataclass
 from . import viz, wavelet, estimation
+
 
 @dataclass(kw_only=True)
 class MultiResolutionQuantityBase(AbstractDataclass):
+    """
+    Abstract representation of all multi-resolution quantities
+    """
     n_sig: int
     bootstrapped_obj: Any | None = None
     origin_mrq: Any | None = None
@@ -56,7 +60,8 @@ class MultiResolutionQuantityBase(AbstractDataclass):
                     specifiying parameters expected by the automatically
                     generated __init__ method.
                     Using this method instead allows us to discard extraneous
-                    parameters, similarly to introducing a \*\*kwargs parameter.
+                    parameters, similarly to introducing a \*\*kwargs
+                    parameter.
         """
 
         cls = type(self)
@@ -66,15 +71,15 @@ class MultiResolutionQuantityBase(AbstractDataclass):
             for name in inspect.signature(cls).parameters.keys()
         }
 
-        input = parameters.copy()
-        input.update(d)
+        inpt = parameters.copy()
+        inpt.update(d)
 
         return cls(**{
-            k: v for k, v in input.items()
+            k: v for k, v in inpt.items()
             if k in parameters
         })
 
-    def sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
+    def _sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
         sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.n_rep))
 
@@ -86,13 +91,16 @@ class MultiResolutionQuantityBase(AbstractDataclass):
                 c_j = np.abs(self.get_values(j, idx_reject))
 
                 # c_j = mask_reject(c_j, idx_reject, j, 1)
-                
+
                 sup_c_j = np.nanmax(c_j, axis=0)
                 sup_coeffs[j-j_min, i] = sup_c_j
 
         return sup_coeffs
 
     def j2_eff(self):
+        """
+        Returns the effective maximal scale
+        """
         return max(list(self.values))
 
 
@@ -103,8 +111,8 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     It represents the wavelet coefficients of a signal :math:`d_X(j, k)`
 
-    .. note:: Should not be instantiated directly but instead created using the `wavelet_analysis` 
-        function.
+    .. note:: Should not be instantiated directly but instead created using
+        the `wavelet_analysis` function.
 
     Attributes
     ----------
@@ -168,7 +176,8 @@ class WaveletDec(MultiResolutionQuantityBase):
             MRQ containing the bootstrapped values.
         """
 
-        from .bootstrap import circular_leader_bootstrap
+        from .bootstrap import \
+            circular_leader_bootstrap  # pylint: disable=C0415
 
         block_length = get_filter_length(self.wt_name)
         max_scale = max_scale_bootstrap(self, idx_reject)
@@ -186,7 +195,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         #                if scale >= min_scale}
 
         return self.bootstrapped_obj
-    
+
     def scale2freq(self, scale, sfreq):
         """
         Get the frequencies associated to scales.
@@ -204,7 +213,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             Frequencies associated to `scales`.
         """
         return pywt.scale2frequency(self.wt_name, 2 ** scale) * sfreq
-        
+
     def freq2scale(self, freq, sfreq):
         """
         Get the scales associated to frequencies.
@@ -222,7 +231,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             Scales associated to `freq`.
         """
         return np.log2(pywt.frequency2scale(self.wt_name, freq / sfreq))
-    
+
     def max_scale_bootstrap(self, idx_reject=None):
         """
         Maximum scale at which bootstrapping can be done
@@ -241,16 +250,20 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     @classmethod
     def bootstrap_multiple(cls, R, min_scale, mrq_list):
+        """
+        Bootstrap multiple MRQs at once
+        """
 
-        from .bootstrap import circular_leader_bootstrap
+        from .bootstrap import \
+            circular_leader_bootstrap  # pylint: disable=C0415
 
-        block_length = max([
+        block_length = max(
             get_filter_length(mrq.wt_name) for mrq in mrq_list
-        ])
+        )
 
-        max_scale = min([
+        max_scale = min(
             max_scale_bootstrap(mrq) for mrq in mrq_list
-        ])
+        )
 
         # j2_eff = np.array([mrq.j2_eff() for mrq in mrq_list])
         # wrong_idx = max_scale < j2_eff
@@ -263,19 +276,23 @@ class WaveletDec(MultiResolutionQuantityBase):
         return circular_leader_bootstrap(mrq_list, min_scale, max_scale,
                                          block_length, R)
 
-    def add_values(self, coeffs, j):
+    def _add_values(self, coeffs, j):
         self.values[j] = coeffs
 
     def get_values(self, j, idx_reject=None, reshape=False):
+        """
+        Get the values of the MRQ, applying any finite size effects corrections
+        if necessary (Wavelet p-leaders).
+        """
 
         # Case where bootstrapping was done
         if self.values[j].ndim == 3:
             out = self.values[j]
         else:
             out = self.values[j][:, None, :]
-        
+
         # Bootstrapped mrq needs to realign into signal and repetitions
-        if reshape: # and self.n_rep != self.n_sig
+        if reshape:  # and self.n_rep != self.n_sig
             out = out.reshape(self.values[j].shape[0], 1, self.n_sig, -1)
 
         if idx_reject is None:
@@ -325,10 +342,10 @@ class WaveletDec(MultiResolutionQuantityBase):
             figsize=figsize, gamma=gamma, nan_idx=nan_idx,
             signal_idx=signal_idx, cbar_kw=cbar_kw, cmap=cmap)
 
-    def get_variable_name(self):
+    def _get_variable_name(self):
         return "d"
 
-    def get_suffix(self):
+    def _get_suffix(self):
         return "", ""
 
     def get_formalism(self):
@@ -341,7 +358,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         """
 
         return 'wavelet coef'
-    
+
     def integrate(self, gamint):
         """
         Fractionally integrate the wavelet coefficients.
@@ -356,7 +373,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         integrated : WaveletDec
         """
         return wavelet.integrate_wavelet(self, gamint)
-    
+
     def get_leaders(self, p_exp, interval_size=3, gamint=None):
         """
         Compute (p-)leaders from the wavelet coefficients
@@ -380,9 +397,9 @@ class WaveletDec(MultiResolutionQuantityBase):
             Wavelet (p-)leader derived from the coefficients.
         """
 
-        if type(self) != WaveletDec:
+        if type(self) is not WaveletDec:  # pylint: disable=C0123
             return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
-        
+
         if gamint is None:
             gamint = self.gamint
 
@@ -391,7 +408,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         if self.origin_mrq is not None:
             return self.origin_mrq.get_leaders(p_exp, interval_size, gamint)
-        
+
         integ = self.integrate(gamint - self.gamint)
         return integ.get_leaders(p_exp, interval_size)
 
@@ -402,7 +419,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         Parameters
         ----------
         theta : float, optional
-            Parameter controlling the angle of the cone over which the weak 
+            Parameter controlling the angle of the cone over which the weak
             scaling exponents are computed
         gamint : float, optional
             Fractional integration coefficient, defaults to 0 (no integration).
@@ -413,7 +430,7 @@ class WaveletDec(MultiResolutionQuantityBase):
             Weak scaling exponent derived from the coefficients.
         """
 
-        if type(self) != WaveletDec:
+        if type(self) is not WaveletDec:  # pylint: disable=C0123
             return self.origin_mrq.get_wse(theta, gamint)
 
         if gamint is None:
@@ -424,7 +441,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         if self.origin_mrq is not None:
             return self.origin_mrq.compute_wse(theta, gamint)
-        
+
         integ = self.integrate(gamint - self.gamint)
         return integ.get_wse(theta, gamint)
 
@@ -438,18 +455,19 @@ class WaveletDec(MultiResolutionQuantityBase):
         ----------
 
         scaling_ranges : list[tuple[int, int]]
-            List of pairs of :math:`(j_1, j_2)` ranges of scales for the analysis.
+            List of pairs of :math:`(j_1, j_2)` ranges of scales for the
+            analysis.
         weighted : str | None
-            Weighting mode for the linear regressions. Defaults to None, which is
-            no weighting. Possible values are 'Nj' which weighs by number of
+            Weighting mode for the linear regressions. Defaults to None, which
+            is no weighting. Possible values are 'Nj' which weighs by number of
             coefficients, and 'bootstrap' which weights by bootstrap-derived
             estimates of variance.
         idx_reject : dict[int, ndarray of bool]
-            Dictionary associating each scale to a boolean array indicating whether
-            certain coefficients should be removed.
+            Dictionary associating each scale to a boolean array indicating
+            whether certain coefficients should be removed.
         """
 
-        hmin, _ = estimation.estimate_hmin(
+        hmin, _ = estimation.estimate_hmin(  # pylint: disable=W0632
             self, scaling_ranges, weighted, idx_reject)
 
         hmin = hmin.min()
@@ -489,10 +507,10 @@ class WaveletDec(MultiResolutionQuantityBase):
         ndarray
             Estimate of the minimal Hölder exponent in the MRQ.
         """
-        
-        hmin, _ = estimation.estimate_hmin(
+
+        hmin, _ = estimation.estimate_hmin(  # pylint: disable=W0632
             self, scaling_ranges, weighted, idx_reject)
-        
+
         if hmin.max() <= 0:
             raise ValueError(
                 f"Maximum hmin = {hmin.max()} <= 0, no signal can be "
@@ -504,7 +522,7 @@ class WaveletDec(MultiResolutionQuantityBase):
                 f"Minimum hmin = {hmin.min()} <= 0, multifractal analysis "
                 "cannot be applied. A larger value of gamint) should be "
                 "selected.")
-            
+
         return hmin
 
     def __getattribute__(self, name: str) -> Any:
@@ -525,15 +543,50 @@ class WaveletDec(MultiResolutionQuantityBase):
     #     return super().__getattr__(name)
 
 
+def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
+    """
+    Return p-leader correction factor for finite resolution
+    """
+
+    JJ = np.arange(min_level, max_level + 1)
+    J1LF = 1
+    JJ0 = JJ - J1LF + 1
+
+    # eta_p shape (n_ranges, n_rep)
+    # JJ0 shape (n_level,)
+
+    JJ0 = JJ0[None, None, :]
+    eta_p = wt_leaders.eta_p[:, :, None]
+
+    zqhqcorr = np.log2((1 - np.power(2., -JJ0 * eta_p))
+                       / (1 - np.power(2., -eta_p)))
+    ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
+
+    # import ipdb; ipdb.set_trace()
+
+    # ZPJCorr shape (n_ranges, n_rep, n_level)
+    # wt_leaders shape (n_coef_j, n_rep)
+    # for ind_j, j in enumerate(JJ):
+    #     wt_leaders.values[j] = \
+    #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
+
+    eta_negative = eta_p <= 0
+    ZPJCorr[eta_negative[..., 0], :] = 1
+
+    # ZPJCorr shape (n_ranges, n_rep, n_level)
+    return ZPJCorr
+
+
 @dataclass(kw_only=True)
 class WaveletLeader(WaveletDec):
     """
     Wavelet Leader Representation.
 
     It contains the wavelet (p-)leader representation of a signal
-    :math:`\ell^{(p)}(j, k)`.
-    
-    .. note:: Should not be instantiated directly but instead created using the :func:`WaveletDec.get_leaders` method.
+    :math:`\\ell^{(p)}(j, k)`.
+
+    .. note:: Should not be instantiated directly but instead created using
+        the :func:`WaveletDec.get_leaders` method.
 
     Attributes
     ----------
@@ -559,11 +612,11 @@ class WaveletLeader(WaveletDec):
         P exponent used to compute the MRQ. np.inf indicates wavelet leaders,
         float indicates p-leaders.
     eta_p : float | None
-        Only for p-leaders, wavelet scaling function :math:`\eta(p)`.
+        Only for p-leaders, wavelet scaling function :math:`\\eta(p)`.
         By default only computed during mf_analysis.
     ZPJCorr : ndarray | None
         Only for p-leaders, correction factor for the finite size effects,
-        dependent on `eta_p`.
+        dependent on :math:`\\eta(p)`.
     """
     p_exp: float
     interval_size: int = 1
@@ -599,11 +652,11 @@ class WaveletLeader(WaveletDec):
 
         # return self.bootstrapped_obj
 
-    def get_var_name(self):
+    def _get_var_name(self):
 
         return r"\ell"
 
-    def get_suffix(self):
+    def _get_suffix(self):
 
         if self.p_exp == np.inf:
             return "", ""
@@ -622,7 +675,7 @@ class WaveletLeader(WaveletDec):
         if self.p_exp == np.inf:
             return 'wavelet leader'
         return 'wavelet p-leader'
-    
+
     def integrate(self, gamint):
         """
         Re-compute the (p-)leaders on the fractionally integrated wavelet
@@ -640,7 +693,7 @@ class WaveletLeader(WaveletDec):
         return self.get_leaders(self.p_exp, self.interval_size, gamint)
 
     def get_values(self, j, idx_reject=None, reshape=False):
-        
+
         # Case where bootstrapping was done
         if self.values[j].ndim == 3:
             return super().get_values(j, idx_reject, reshape)
@@ -649,7 +702,7 @@ class WaveletLeader(WaveletDec):
             return super().get_values(j, idx_reject, reshape)
 
         if self.ZPJCorr is None:
-            self.correct_pleaders()
+            self._correct_pleaders()
 
         ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
 
@@ -668,7 +721,7 @@ class WaveletLeader(WaveletDec):
 
         return super().get_leaders(p_exp, interval_size, gamint)
 
-    def correct_pleaders(self):
+    def _correct_pleaders(self):
 
         # No correction if infinite p
         if self.p_exp == np.inf:
@@ -676,9 +729,9 @@ class WaveletLeader(WaveletDec):
 
         self.ZPJCorr = _correct_pleaders(
             self, self.p_exp, min(self.values), max(self.values))
-        
+
         return self.ZPJCorr
-    
+
     def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
 
         if self.p_exp == np.inf:
@@ -686,7 +739,7 @@ class WaveletLeader(WaveletDec):
                 scaling_ranges, weighted, idx_reject).get_leaders(
                     self.p_exp, self.interval_size, self.gamint)
 
-        eta_p = estimation._estimate_eta_p(
+        eta_p = estimation.estimate_eta_p(
             self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
 
         eta_p = eta_p.min()
@@ -702,11 +755,10 @@ class WaveletLeader(WaveletDec):
         if gamint != self.gamint:
             return self.origin_mrq.get_leaders(
                 self.p_exp, self.interval_size, gamint)
-        
+
         return self
 
-    def check_regularity(self, scaling_ranges, weighted=None,
-                          idx_reject=None):
+    def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None):
         """
         Verify that the MRQ has enough regularity for analysis.
 
@@ -728,7 +780,7 @@ class WaveletLeader(WaveletDec):
             return super().check_regularity(
                 scaling_ranges, weighted, idx_reject)
 
-        eta_p = estimation._estimate_eta_p(
+        eta_p = estimation.estimate_eta_p(
             self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
 
         if eta_p.max() <= 0:
@@ -745,27 +797,31 @@ class WaveletLeader(WaveletDec):
 
         self.eta_p = eta_p
 
-        self.correct_pleaders()
+        self._correct_pleaders()
+
+        return eta_p
 
     def plot(self, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
              figsize=(4.5, 1.5), gamma=.3, nan_idx=None, signal_idx=0,
              cbar_kw=None, cmap='magma'):
-        
+
         if self.eta_p is None and not np.isinf(self.p_exp):
             self.check_regularity([(j1, j2)], None, None)
 
         super().plot(j1, j2, ax, vmin, vmax, cbar, figsize, gamma,
                      nan_idx, signal_idx, cbar_kw, cmap)
-        
+
 
 @dataclass(kw_only=True)
 class WaveletWSE(WaveletDec):
     r"""
     Wavelet Weak Scaling Exponent.
 
-    It represents the :math:`(\theta, \omega)`-leaders of a signal: :math:`\ell^{(\theta, \omega)}(j, k)`.
+    It represents the :math:`(\theta, \omega)`-leaders of a signal:
+    :math:`\ell^{(\theta, \omega)}(j, k)`.
 
-    .. note:: Should not be instantiated directly but instead created using the :func:`WaveletDec.get_wse` method.
+    .. note:: Should not be instantiated directly but instead created using
+        the :func:`WaveletDec.get_wse` method.
 
     Attributes
     ----------
@@ -792,15 +848,15 @@ class WaveletWSE(WaveletDec):
     """
     theta: float
 
-    def get_variable_name(self):
+    def _get_variable_name(self):
         return r"\ell"
 
-    def get_suffix(self):
+    def _get_suffix(self):
         return rf"^{{({self.theta}, 1)}}", "^{ws}"
 
     def get_formalism(self):
         return 'weak scaling exponent'
-    
+
     def get_wse(self, theta=0.5, gamint=None):
 
         if (theta == self.theta
@@ -809,7 +865,7 @@ class WaveletWSE(WaveletDec):
 
         return super().get_wse(theta, gamint)
 
-    def check_regularity(self, *args):
+    def check_regularity(self, *args):  # pylint: disable=unused-argument
         """
         Check that the MRQ has enough regularity for analysis
 

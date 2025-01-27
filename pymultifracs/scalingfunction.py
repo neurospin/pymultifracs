@@ -1,6 +1,12 @@
-from typing import Any
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+         Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+"""
+
+# pylint: disable=W0221
+
 from dataclasses import dataclass, field, InitVar
-import inspect  
+import inspect
 
 import numpy as np
 from scipy import special
@@ -18,6 +24,9 @@ from . import multiresquantity, viz
 
 @dataclass(kw_only=True)
 class AbstractScalingFunction(AbstractDataclass):
+    """
+    Abstract class for general scaling functions
+    """
     scaling_ranges: list[tuple[int]]
     idx_reject: InitVar[dict[int, np.ndarray] | None] = None
     weighted: str | None = None
@@ -61,12 +70,15 @@ class AbstractScalingFunction(AbstractDataclass):
         })
 
     def get_nj_interv(self, j_min, j_max):
+        """
+        Returns the number of coefficients on an interval of temporal scales.
+        """
         return self.nj[j_min-min(self.j):j_max-min(self.j)+1]
-    
+
     def _get_j_min_max(self):
 
-        j_min = min([sr[0] for sr in self.scaling_ranges])
-        j_max = max([sr[1] for sr in self.scaling_ranges])
+        j_min = min(sr[0] for sr in self.scaling_ranges)
+        j_max = max(sr[1] for sr in self.scaling_ranges)
 
         return j_min, j_max
 
@@ -74,34 +86,45 @@ class AbstractScalingFunction(AbstractDataclass):
 
         if name == 'n_rep':
             return self.intercept.shape[-1]
-        
+
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
 
         return self.__getattribute__(name)
 
+
 @dataclass(kw_only=True)
 class ScalingFunction(AbstractScalingFunction):
+    """"
+    General DWT-based scaling function.
+    """
     mrq: InitVar[multiresquantity.WaveletDec]
     variable_suffix: str = field(init=False)
     regularity_suffix: str = field(init=False)
     gamint: float = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq):
+    def __post_init__(self, idx_reject, mrq):  # pylint: disable=W0613
 
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
         self.formalism = mrq.get_formalism()
-        self.variable_suffix, self.regularity_suffix = mrq.get_suffix()
+        self.variable_suffix, self.regularity_suffix = mrq._get_suffix()
         self.j = np.array(list(mrq.values))
 
         self.nj = mrq.get_nj_interv()
 
     def compute_R2(self):
-        return compute_R2(self.values, self.slope, self.intercept, self.weights,
-                          [self._get_j_min_max()], self.j)
+        """
+        Computes :math:`R^2` for the estimated linear regressions
+        """
+        return compute_R2(
+            self.values, self.slope, self.intercept, self.weights,
+            [self._get_j_min_max()], self.j)
 
     def compute_R(self):
+        """
+        Computes :math:`R` for bootstrap-based automated range selection.
+        """
 
         values = self.values.reshape(
             *self.values.shape[:3], self.n_sig, -1)
@@ -113,6 +136,10 @@ class ScalingFunction(AbstractScalingFunction):
                          [self._get_j_min_max()], self.j)
 
     def compute_Lambda(self):
+        """
+        Computes :math:`\\Lambda` for bootstrap-based automated range
+        selection.
+        """
 
         R = self.compute_R()
         R_b = self.bootstrapped_obj.compute_R()
@@ -120,9 +147,17 @@ class ScalingFunction(AbstractScalingFunction):
         return compute_Lambda(R, R_b)
 
     def find_best_range(self):
+        """
+        Find the best range among those computed, given bootstrap was already
+        performed
+        """
         return find_max_lambda(self.compute_Lambda())
-    
+
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
+        """
+        Sanitize the scaling range :math:`[j_1, j_2]` and find the associated
+        indices in the ``mrq.j`` array.
+        """
 
         if self.bootstrapped_obj is not None and bootstrap:
             if j1 is None:
@@ -159,16 +194,16 @@ class ScalingFunction(AbstractScalingFunction):
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
             self.scaling_ranges, self.j)
-        
+
         self.intercept = np.zeros_like(slope)
 
         y = values[:, j_min_idx:j_max_idx, :, :]
-        
+
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
                 std = self.std_values()[:, j_min_idx:j_max_idx]
-        
+
             else:
 
                 if j_min < self.bootstrapped_obj.j.min():
@@ -176,7 +211,7 @@ class ScalingFunction(AbstractScalingFunction):
                         f"Bootstrap minimum scale "
                         f"{self.bootstrapped_obj.j.min()} inferior to minimum "
                         f"scale {j_min} used in estimation")
-                
+
                 std_slice = np.s_[
                     int(j_min - self.bootstrapped_obj.j.min()):
                     int(j_max - self.bootstrapped_obj.j.min() + 1)]
@@ -189,12 +224,12 @@ class ScalingFunction(AbstractScalingFunction):
         self.weights = prepare_weights(
             self.get_nj_interv, self.weighted, n_ranges, j_min, j_max,
             self.scaling_ranges, y, std)
-        
+
         # nan_weighting = np.ones_like(y)
         # nan_weighting[np.isnan(y)] = np.nan
 
         # self.weights *= nan_weighting
-        
+
         slope, self.intercept = linear_regression(x, y, self.weights)
 
         if out_name is not None:
@@ -208,7 +243,8 @@ class StructureFunction(ScalingFunction):
     """
     Contains the structre functions and their linear fit.
 
-    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
+    .. note:: Should not be instanciated but instead obtained from calling
+        :func:`pymultifracs.mfa`
 
     Attributes
     ----------
@@ -231,8 +267,8 @@ class StructureFunction(ScalingFunction):
     values : ndarray, shape (n_moments, n_j, n_scaling_ranges, n_rep)
         :math:`S_q(j, k)`.
     scaling_ranges : list[tuple[int, int]]
-        List of pairs of scales :math:`(j_1, j_2)` delimiting the temporal scale support over
-        which the estimates are regressed.
+        List of pairs of scales :math:`(j_1, j_2)` delimiting the temporal
+        scale support over which the estimates are regressed.
     slope : ndarray, shape (n_moments, n_scaling_ranges, n_rep)
         :math:`s_q`.
     H : ndarray
@@ -268,38 +304,44 @@ class StructureFunction(ScalingFunction):
         self.values = np.zeros(
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
 
-
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.get_values(j, idx_reject)
-            
+
+            mask_nan = np.isnan(c_j) | np.isinf(c_j)
+            N_useful = (~mask_nan).sum(axis=0)
+            idx_unreliable = N_useful < 3
 
             for ind_q, q in enumerate(self.q):
 
                 self.values[ind_q, ind_j] = np.log2(
                     np.nanmean(fast_power(np.abs(c_j), q), axis=0))
-            
-            mask_nan = np.isnan(c_j) | np.isinf(c_j)
-            N_useful = (~mask_nan).sum(axis=0)
-            idx_unreliable = N_useful < 3
 
-            if idx_unreliable.any():
-                for i in range(idx_unreliable.shape[0]):
-                    self.values[ind_q, ind_j, :, idx_unreliable[i]]
-            
+                if idx_unreliable.any():
+                    for i in range(idx_unreliable.shape[0]):
+                        self.values[ind_q, ind_j, :, idx_unreliable[i]] = \
+                            np.nan
+
         self.values[np.isinf(self.values)] = np.nan
 
     def _get_H(self):
-        return (self.slope[self.q == 2][0] / 2)
+        return self.slope[self.q == 2][0] / 2
 
     def S_q(self, q):
+        """
+        Returns :math:`S_q(j)` for given ``q``.
+        """
 
         out = self.values[isclose(q, self.q)][0]
-        out = out.reshape(out.shape[0], len(self.scaling_ranges), self.n_sig, -1)
+        out = out.reshape(
+            out.shape[0], len(self.scaling_ranges), self.n_sig, -1)
 
         return out
 
     def s_q(self, q):
+        """
+        Returns :math:`s_q` for given ``q``.
+        """
 
         out = self.slope[isclose(q, self.q)][0]
         out = out.reshape(out.shape[0], self.n_sig, -1)
@@ -314,7 +356,7 @@ class StructureFunction(ScalingFunction):
         if name == 'S2':
             out = self.values[self.q == 2]
             return out.reshape(out.shape[0], self.n_sig, -1)
-        
+
         if name == 'zeta':
             return self.slope
 
@@ -336,16 +378,16 @@ class StructureFunction(ScalingFunction):
         filename : str | None
             If not None, the file is saved to `filename`
         ignore_q0 : bool
-            Whether to include the structure function for :math:`q=0`, which 
-            is always going to be a constant function valued 1. Defaults to 
+            Whether to include the structure function for :math:`q=0`, which
+            is always going to be a constant function valued 1. Defaults to
             True.
         figsize : tuple[int, int] | None
             Size of the figure, in inches.
         scaling_range : int
-            If multiple scaling ranges were used in fitting, indicates the 
+            If multiple scaling ranges were used in fitting, indicates the
             index to use.
         plot_scales : tuple[int, int] | None
-            Takes a tuple of the form :math:`(j_1, j_2)`: Constrains the 
+            Takes a tuple of the form :math:`(j_1, j_2)`: Constrains the
             x-axis to the interval :math:`[j_1, j_2]`.
         plot_CI : bool
             If using bootstrap, plot bootstrap-derived confidence interval
@@ -402,7 +444,8 @@ class StructureFunction(ScalingFunction):
                 _, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
                     j1, j2)
 
-                CI = self.CIE_S_q(q)[j_min_CI:j_max_CI, scaling_range, signal_idx]
+                CI = self.CIE_S_q(q)[
+                    j_min_CI:j_max_CI, scaling_range, signal_idx]
 
                 CI -= y[:, None]
                 CI[:, 1] *= -1
@@ -436,7 +479,8 @@ class StructureFunction(ScalingFunction):
             else:
                 CI_legend = ""
 
-            legend = rf'$s_{{{q:.1g}}}{self.variable_suffix}$ = {slope:.2f}' + CI_legend
+            legend = (rf'$s_{{{q:.1g}}}{self.variable_suffix}$ = {slope:.2f}'
+                      + CI_legend)
 
             ax.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label=legend, zorder=5)
@@ -445,15 +489,13 @@ class StructureFunction(ScalingFunction):
         for j in range(counter, len(axes.flat)):
             fig.delaxes(axes[j % nrow][j // nrow])
 
-        # plt.draw()
-
         if filename is not None:
             plt.savefig(filename)
 
     def plot_scaling(self, filename=None, ax=None, signal_idx=0, range_idx=0,
                      **plot_kw):
         """
-        Plots the scaling function :math:`\zeta(q)`.
+        Plots the scaling function :math:`\\zeta(q)`.
 
         Parameters
         ----------
@@ -461,17 +503,17 @@ class StructureFunction(ScalingFunction):
         filename : str | None
             If not None, saves the figure to `filename`.
         ax : Axes | None
-            Provides the axes on which to draw the function. 
+            Provides the axes on which to draw the function.
             Defaults to None, which creates a new figure.
         signal_idx : int
             If using a multivariate signal, index of the signal to plot.
         range_idx : int
-            If multiple scaling ranges were used in fitting, indicates the 
+            If multiple scaling ranges were used in fitting, indicates the
             index to use.
         **plot_kw : dict
             Extra arguments forwarded to the plot function call.
         """
-        
+
         assert len(self.q) > 1, ("This plot is only possible if more than 1 q",
                                  " value is used")
 
@@ -481,7 +523,8 @@ class StructureFunction(ScalingFunction):
         ax.plot(self.q, self.slope[:, range_idx, signal_idx], **plot_kw)
 
         ax.set(
-            xlabel = 'Moment $q$', ylabel=rf'Scaling function $\zeta{self.variable_suffix}(q)$',
+            xlabel='Moment $q$',
+            ylabel=rf'Scaling function $\zeta{self.variable_suffix}(q)$',
             # title=self.formalism + ' - scaling function'
             )
 
@@ -495,8 +538,9 @@ class StructureFunction(ScalingFunction):
 class Cumulants(ScalingFunction):
     r"""
     Computes and analyzes cumulant.
-    
-    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
+
+    .. note:: Should not be instanciated but instead obtained from calling
+        :func:`pymultifracs.mfa`
 
     Attributes
     ----------
@@ -508,7 +552,7 @@ class Cumulants(ScalingFunction):
     gamint : float
         Value of gamint used in the computation of the underlying MRQ.
     formalism : str
-        Formalism used. Can be any of: 'wavelet coefs', 'wavelet leaders', 
+        Formalism used. Can be any of: 'wavelet coefs', 'wavelet leaders',
         'wavelet p-leaders', or 'weak scaling exponent'.
     n_sig : int
         Number of underlying signals in the wavelet decomposition. May not
@@ -527,11 +571,11 @@ class Cumulants(ScalingFunction):
     log_cumulants : ndarray, shape (n_cumulants, n_rep)
         :math:`(c_m)_m`, slopes of the curves :math:`j \times C_m(j)`.
     var_log_cumulants : ndarray, shape (n_cumulants, n_rep)
-        Estimates of the variance of log-cumulants. 
+        Estimates of the variance of log-cumulants.
     weighted : str | None
-        Weighting mode for the linear regressions. Defaults to None, which means
-        no weighting. Possible values are ``'Nj'`` which weighs by number of
-        coefficients, and 'bootstrap' which weights by bootstrap-derived
+        Weighting mode for the linear regressions. Defaults to None, which
+        means no weighting. Possible values are ``'Nj'`` which weighs by number
+        of coefficients, and 'bootstrap' which weights by bootstrap-derived
         estimates of variance.
     weights : ndarray of float, shape () #TODO: plot shape of weights here
         Weights of the linear regression.
@@ -559,15 +603,15 @@ class Cumulants(ScalingFunction):
             self.bootstrapped_obj = self.bootstrapped_obj.cumulants
 
         self.m = np.arange(1, self.n_cumul+1)
-        
+
         self.values = np.zeros(
             (len(self.m), len(self.j), len(self.scaling_ranges), mrq.n_rep))
-        
+
         if robust:
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
         else:
             self._compute(mrq, idx_reject)
-        
+
         self._compute_fit()
         self.log_cumulants = self.slope * np.log2(np.e)
 
@@ -581,11 +625,13 @@ class Cumulants(ScalingFunction):
             out += f" {param} = {getattr(self, param)}"
 
         return out
- 
-    def _compute_robust(self, mrq, idx_reject, **robust_kwargs):
 
-        moments = np.zeros_like(self.values)
-        aux = np.zeros_like(moments)
+    def _compute_robust(self, mrq, idx_reject):
+
+        # moments = np.zeros_like(self.values)
+        # aux = np.zeros_like(moments)
+
+        from . import robust  # pylint: disable=C0415
 
         for ind_j, j in enumerate(self.j):
 
@@ -603,8 +649,6 @@ class Cumulants(ScalingFunction):
             log_T_X_j = mask_reject(
                 log_T_X_j, idx_reject, j, mrq.interval_size)
 
-            from . import robust
-
             values = robust.compute_robust_cumulants(
                 log_T_X_j, self.m, **self.robust_kwargs)
 
@@ -613,7 +657,7 @@ class Cumulants(ScalingFunction):
     def _compute(self, mrq, idx_reject):
 
         moments = np.zeros_like(self.values)
-        
+
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.get_values(j, None))
@@ -622,7 +666,7 @@ class Cumulants(ScalingFunction):
 
             mask_nan = np.isnan(T_X_j)
             mask_nan |= np.isinf(T_X_j)
-            
+
             if idx_reject is not None and j in idx_reject:
                 # delta = (mrq.interval_size - 1) // 2
                 mask_nan |= idx_reject[j]
@@ -672,7 +716,7 @@ class Cumulants(ScalingFunction):
 
         if name == 'M':
             return -self.c2
-        
+
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
 
@@ -691,13 +735,13 @@ class Cumulants(ScalingFunction):
         nrow : int
             Number of rows of the figure.
         j1 : int
-            Constrains the plot to scales :math:`j \geq j_1`.
+            Constrains the plot to scales :math:`j \\geq j_1`.
         filename : str | None
             If not None, saves the figure to ``filename``.
         signal_idx : int
             If using a multivariate signal, index of the signal to plot.
         range_idx : int
-            If multiple scaling ranges were used in fitting, indicates the 
+            If multiple scaling ranges were used in fitting, indicates the
             index to use.
         **kwargs : dict
             Optional arguments sent to :func:`pymultifracs.viz.plot_cumulants`.
@@ -716,7 +760,8 @@ class MFSpectrum(ScalingFunction):
 
     Based on equations 2.74 - 2.78 of Herwig Wendt's thesis [1]_
 
-    .. note:: Should not be instanciated but instead obtained from calling :func:`pymultifracs.mfa`
+    .. note:: Should not be instanciated but instead obtained from calling
+        :func:`pymultifracs.mfa`
 
     Attributes
     ----------
@@ -740,16 +785,17 @@ class MFSpectrum(ScalingFunction):
         nrow : int
             Number of rows of the figure.
         j1 : int
-            Constrains the plot to scales :math:`j \geq j_1`.
+            Constrains the plot to scales :math:`j \\geq j_1`.
         filename : str | None
             If not None, saves the figure to ``filename``.
         signal_idx : int
             If using a multivariate signal, index of the signal to plot.
         range_idx : int
-            If multiple scaling ranges were used in fitting, indicates the 
+            If multiple scaling ranges were used in fitting, indicates the
             index to use.
         **kwargs : dict
-            Optional arguments sent to :func:`pymultifracs.viz.plot_cumulants`.[Tuple[int]]
+            Optional arguments sent to
+            :func:`pymultifracs.viz.plot_cumulants`.[Tuple[int]]
         List of pairs of (j1, j2) ranges of scales for the analysis
     Dq : ndarray, shape (n_exponents, n_rep)
         Fractal dimensions : :math:`D(q)`, y-axis of the multifractal spectrum
@@ -829,19 +875,19 @@ class MFSpectrum(ScalingFunction):
             Z = np.nansum(temp, axis=1)[:, None, :]
             Z[Z == 0] = np.nan
             R_j = temp / Z
-            
+
             # nj = ((~mask_nan).sum(axis=0))[None, :]
             N_useful = ((~mask_nan).sum(axis=0))[None, :]
             self.V[:, ind_j] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
             self.U[:, ind_j] = np.log2(N_useful) + fixednansum(
                 (R_j * np.log2(R_j)), axis=1)
-            
+
             idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
                 for i in range(idx_unreliable.shape[1]):
-                    self.V[:, ind_j, :, idx_unreliable[0, i]]
-                    self.U[:, ind_j, :, idx_unreliable[0, i]]
+                    self.V[:, ind_j, :, idx_unreliable[0, i]] = np.nan
+                    self.U[:, ind_j, :, idx_unreliable[0, i]] = np.nan
 
         self.U[np.isinf(self.U)] = np.nan
         self.V[np.isinf(self.V)] = np.nan
@@ -851,24 +897,32 @@ class MFSpectrum(ScalingFunction):
         # )
 
     def V_q(self, q):
+        """
+        Returns :math:`V_q(j)` for given ``q``.
+        """
         out = self.V[isclose(q, self.q)][0]
         return out.reshape(out.shape[0], self.n_sig, -1)
 
     def U_q(self, q):
+        """
+        Returns :math:`U_q(j)` for given ``q``.
+        """
         out = self.U[np.isclose(q, self.q)][0]
         return out.reshape(out.shape[0], self.n_sig, -1)
-    
+
     def D_q(self):
+        """
+        Returns :math:`\\mathcal{L}(q)`.
+        """
         return self.Dq.reshape(
-            len(self.q), len(self.scaling_ranges), self.n_sig, -1)#[
-            #     :
-            # ]
-    
+            len(self.q), len(self.scaling_ranges), self.n_sig, -1)
+
     def h_q(self):
+        """
+        Returns :math:`h(q)`.
+        """
         return self.hq.reshape(
-            len(self.q), len(self.scaling_ranges), self.n_sig, -1)#[
-            #     :
-            # ]
+            len(self.q), len(self.scaling_ranges), self.n_sig, -1)
 
     def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
              signal_idx=0, shift_gamint=False, **plot_kwargs):
@@ -886,13 +940,13 @@ class MFSpectrum(ScalingFunction):
         fmt : str
             Format string for the plot.
         range_idx : int
-            If multiple scaling ranges were used in fitting, indicates the 
+            If multiple scaling ranges were used in fitting, indicates the
             index to use.
         signal_idx : int
             If using a multivariate signal, index of the signal to plot.
         shift_gamint : bool
-            If fractional integration was used, shifts the spectrum on the x-axis
-            by :math:`-\gamma`.
+            If fractional integration was used, shifts the spectrum on the
+            x-axis by :math:`-\\gamma`.
         **plot_kwargs : dict
             Optional arguments sent to the plotting function :func:`plt.plot`.
 
@@ -917,8 +971,8 @@ class MFSpectrum(ScalingFunction):
             CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
             CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
 
-            assert(CI_Dq < 0).sum() == 0
-            assert(CI_hq < 0).sum() == 0
+            assert (CI_Dq < 0).sum() == 0
+            assert (CI_hq < 0).sum() == 0
 
             CI_Dq = CI_Dq.transpose()
             CI_hq = CI_hq.transpose()
@@ -934,7 +988,8 @@ class MFSpectrum(ScalingFunction):
                     **plot_kwargs)
 
         ax.set(xlabel=f'Regularity $h{self.regularity_suffix}$',
-               ylabel=rf'Fractal dimension $\mathcal{{L}}{self.variable_suffix}(h)$',
+               ylabel=rf'Fractal dimension $\mathcal{{L}}'
+                      f'{self.variable_suffix}(h)$',
                ylim=(0, 1.1), xlim=(0, 1.5),
                title=self.formalism + ' - multifractal spectrum')
 

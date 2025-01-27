@@ -1,3 +1,9 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+
+Extends rupture package functionality for outlier detection.
+"""
+
 from numba import jit
 import numpy as np
 import ruptures as rpt
@@ -5,9 +11,12 @@ import ruptures as rpt
 
 @jit(nopython=True)
 def hilbert(a, b):
+    """
+    Modified Hilbert metric.
+    """
 
     norm = np.linalg.norm
-    
+
     return np.log(
         (1 + norm(b - a, ord=2) / norm(1 - a, ord=2))
         * (1 + norm(b-a, ord=2) / norm(1 - b, ord=2)))
@@ -15,20 +24,26 @@ def hilbert(a, b):
 
 @jit(nopython=True)
 def w_hilbert(a, b, w):
+    """
+    Weighted version of the modified Hilbert metric.
+    """
 
     w = np.sqrt(w)
     norm = np.linalg.norm
     a = a * w
     b = b * w
     one = w
-    
+
     return np.log(
         (1 + norm(b - a, ord=2) / norm(one - a, ord=2))
         * (1 + norm(b-a, ord=2) / norm(one - b, ord=2)))
 
 
 @jit(nopython=True)
-def numba_mean(X, axis=None):
+def _numba_mean(X, axis=None):
+    """
+    Mean function for numba
+    """
 
     if axis is None:
         return np.mean(X)
@@ -37,9 +52,9 @@ def numba_mean(X, axis=None):
 
 
 @jit(nopython=True)
-def hilbert_cost(X, w):
+def _hilbert_cost(X, w):
 
-    mu = np.exp(numba_mean(np.log(X), axis=0))
+    mu = np.exp(_numba_mean(np.log(X), axis=0))
 
     distance = np.zeros(X.shape[0])
 
@@ -50,17 +65,26 @@ def hilbert_cost(X, w):
 
 
 class HilbertCost(rpt.base.BaseCost):
-        model=""
-        min_size=2
+    """
+    Custom cost class for the ruptures package
+    """
+    model = ""
+    min_size = 2
 
-        def __init__(self, w=None):
-            self.w = w
+    def __init__(self, w=None):
+        self.w = w
 
-        def fit(self, signal):
+    def fit(self, signal):
+        """
+        Sets the signal.
+        """
 
-            self.signal = signal
-            return self
+        self.signal = signal
+        return self
 
-        def error(self, start, end):
+    def error(self, start, end):
+        """
+        Compute modified Hilbert metric cost.
+        """
 
-            return hilbert_cost(self.signal[start:end], self.w)
+        return _hilbert_cost(self.signal[start:end], self.w)

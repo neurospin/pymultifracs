@@ -1,10 +1,18 @@
+"""
+Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+         Merlin Dumeur <merlin@dumeur.net>
+"""
+
 from math import floor
 
 import numpy as np
 
 
-def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
-                    y, std=None):
+def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
+                    scaling_ranges, y, std=None):
+    """
+    Calculate regression weights.
+    """
 
     if weighted == 'Nj':
 
@@ -15,11 +23,8 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
 
     elif weighted == 'bootstrap':
 
-        # try:
         std[std == 0] = std[std != 0].min()
         std = 1/std
-        # except ValueError:
-            # import ipdb; ipdb.set_trace()
 
         # std shape (n_moments, n_scales, n_scaling_ranges, n_sig) ->
         # (n_moments, n_scales, n_scaling_ranges, n_rep)
@@ -48,10 +53,13 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max, scaling_ranges,
 
 
 def prepare_regression(scaling_ranges, j):
+    """
+    Prepare range of scales and x support for regression.
+    """
 
     n_ranges = len(scaling_ranges)
-    j_min = min([sr[0] for sr in scaling_ranges])
-    j_max = max([sr[1] for sr in scaling_ranges])
+    j_min = min(sr[0] for sr in scaling_ranges)
+    j_max = max(sr[1] for sr in scaling_ranges)
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     x = np.arange(j_min, j_max + 1)[None, :, None, None]
@@ -104,6 +112,9 @@ def linear_regression(x, y, nj, return_variance=False):
 
 
 def compute_R2(moment, slope, intercept, weights, j_min_max, j):
+    """
+    Computes :math:`R^2` for linear regression.
+    """
 
     weights = 1 / weights
 

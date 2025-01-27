@@ -1,40 +1,14 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
+
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, lfilter
 from joblib import Parallel, delayed
 
 from .fbm import fbm
 from .mrw import mrw
 from .. import mfa, wavelet_analysis
-
-
-# def create_mask_markov(length, lambd=1e3, p_to_active=.011, p_to_inactive=.1):
-
-#     rng = np.random.default_rng(seed=42)
-
-#     mark = 0
-#     elements = []
-#     # length = X_diff.shape[0]
-#     while mark < length:
-#         segment_length = rng.geometric(1 / lambd)
-#         mark += segment_length
-
-#         segment = np.ones(segment_length)
-#         if mark > length:
-#             segment = segment[:length - mark]
-#         elements.append(segment)
-
-#     active = 0
-
-#     for e in elements:
-#         if active:
-#             active *= rng.binomial(1, 1 - p_to_inactive)
-#         else:
-#             active += rng.binomial(1, p_to_active)
-
-#         e *= active
-
-#     return np.concatenate(elements)
 
 
 # def create_mask2(length, count, size):
@@ -61,6 +35,9 @@ from .. import mfa, wavelet_analysis
 
 
 def create_mask3(length, count, size, align_scale):
+    """
+    Create a mask of evenly spaced spikes aligned to a specific scale.
+    """
 
     size = int(size)
     mask = np.zeros(length, dtype=bool)
@@ -149,6 +126,9 @@ def create_mask3(length, count, size, align_scale):
 
 
 def generate_simuls_bb(N, lambd=None):
+    """
+    Generate simulations for a noisy signal with broadband noise.
+    """
 
     if lambd is None:
         X = fbm(shape=N, H=.8)
@@ -160,6 +140,9 @@ def generate_simuls_bb(N, lambd=None):
 
 
 def gen_noisy(signal, noise, coverage, SNR, align_scale):
+    """
+    Generates a noisy signal.
+    """
 
     N = noise.shape[0]
 
@@ -169,10 +152,14 @@ def gen_noisy(signal, noise, coverage, SNR, align_scale):
                                       align_scale=align_scale))
     mask = np.array(mask_list).transpose()
 
-    return signal[:, None, None] + noise[:, None, None] * mask[:, :, None] * SNR[None, None, :]
+    return (signal[:, None, None]
+            + noise[:, None, None] * mask[:, :, None] * SNR[None, None, :])
 
 
 def estimate(gen_func, **gen_func_kwargs):
+    """
+    Estimation function.
+    """
 
     noisy_X = gen_func(**gen_func_kwargs)
 
@@ -185,33 +172,47 @@ def estimate(gen_func, **gen_func_kwargs):
     return lwt.cumulants
 
 
-def gen_estimate(N, gen_func, SNRgrid, covgrid, align_scale, n_jobs=10, n_rep=1):
+def gen_estimate(
+        N, gen_func, SNRgrid, covgrid, align_scale, n_jobs=10, n_rep=1):
+    """
+    Generate and estimate.
+    """
 
     df_list = []
 
-    for rep in range(n_rep):
+    for _ in range(n_rep):
 
         signal, noise = gen_func(N=N)
 
         covlist = np.array_split(covgrid, n_jobs)
 
         cms = Parallel(n_jobs=n_jobs)(delayed(estimate)(
-            gen_noisy, signal=signal, noise=noise, coverage=cov, SNR=SNRgrid, align_scale=align_scale)
+            gen_noisy, signal=signal, noise=noise, coverage=cov, SNR=SNRgrid,
+            align_scale=align_scale)
             for cov in covlist)
 
-        c1_dfs = [pd.DataFrame(cms[i].c1.squeeze().reshape(-1, SNRgrid.shape[0]), index=cov, columns=SNRgrid)
-                  for i, cov in enumerate(covlist)]
-        c2_dfs = [pd.DataFrame(cms[i].c2.squeeze().reshape(-1, SNRgrid.shape[0]), index=cov, columns=SNRgrid)
-                  for i, cov in enumerate(covlist)]
-        c3_dfs = [pd.DataFrame(cms[i].c3.squeeze().reshape(-1, SNRgrid.shape[0]), index=cov, columns=SNRgrid)
-                  for i, cov in enumerate(covlist)]
+        c1_dfs = [
+            pd.DataFrame(cms[i].c1.squeeze().reshape(-1, SNRgrid.shape[0]),
+                         index=cov, columns=SNRgrid)
+            for i, cov in enumerate(covlist)]
+        c2_dfs = [
+            pd.DataFrame(cms[i].c2.squeeze().reshape(-1, SNRgrid.shape[0]),
+                         index=cov, columns=SNRgrid)
+            for i, cov in enumerate(covlist)]
+        c3_dfs = [
+            pd.DataFrame(cms[i].c3.squeeze().reshape(-1, SNRgrid.shape[0]),
+                         index=cov, columns=SNRgrid)
+            for i, cov in enumerate(covlist)]
 
-        c1_df = pd.concat(c1_dfs).rename_axis(columns='SNR', index=['coverage'])
-        c2_df = pd.concat(c2_dfs).rename_axis(columns='SNR', index=['coverage'])
-        c3_df = pd.concat(c3_dfs).rename_axis(columns='SNR', index=['coverage'])
+        c1_df = pd.concat(c1_dfs).rename_axis(
+            columns='SNR', index=['coverage'])
+        c2_df = pd.concat(c2_dfs).rename_axis(
+            columns='SNR', index=['coverage'])
+        c3_df = pd.concat(c3_dfs).rename_axis(
+            columns='SNR', index=['coverage'])
 
         df = pd.concat([c1_df, c2_df, c3_df], keys=['c1', 'c2', 'c3'], axis=1,
-                        names=['cumulant', 'SNR'])
+                       names=['cumulant', 'SNR'])
 
         df_list.append(df)
 

@@ -1,3 +1,9 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+
+Automated scaling range selection based on bootstrapping.
+"""
+
 import numpy as np
 from .regression import prepare_regression
 

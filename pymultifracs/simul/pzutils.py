@@ -1,7 +1,9 @@
-# Various helper functions for the synthesis of random processes.
-#
-# Roberto Fabio Leonarduzzi
-# January, 2019
+"""
+Authors: Roberto Fabio Leonarduzzi
+January, 2019
+
+Various helper functions for the synthesis of random processes.
+"""
 
 
 import numpy as np

@@ -565,7 +565,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), N, *CDF[j1].shape[1:]))
 
 #     # agg shape N_coef, N_aggregates, N_ranges, N_signals
-#     # N_coef is determined by the upsampled number of coefficients 
+#     # N_coef is determined by the upsampled number of coefficients
 
 #     end = 0
 
@@ -598,7 +598,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #         output_line[:] = np.nan
 #         output_line[:] = stats.mstats.gmean(
 #             np.lib.stride_tricks.sliding_window_view(input_line, window_size), axis=1)
-#         output_line[:] = inv_log_gamma_cdf(output_line, window_size)        
+#         output_line[:] = inv_log_gamma_cdf(output_line, window_size)
 
 
 # def compute_all_aggregate2(CDF, j1, j2):
@@ -608,7 +608,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 #     acc = 0
 #     for j in range(j1, j2+1):
-        
+
 #         for i in range(j2-j + 1):
 
 #             agg[:, acc] = np.repeat(ndimage.generic_filter1d(
@@ -618,7 +618,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #             acc += 1
 
 #     # agg shape N_coef, N_aggregates, N_ranges, N_signals
-#     # N_coef is determined by the upsampled number of coefficients 
+#     # N_coef is determined by the upsampled number of coefficients
 
 #     return agg
 
@@ -633,7 +633,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), j2-j1+1, *CDF[j1].shape[1:]))
 
 #     # agg shape N_coef, N_aggregates, N_ranges, N_signals
-#     # N_coef is determined by the upsampled number of coefficients 
+#     # N_coef is determined by the upsampled number of coefficients
 
 #     end = 0
 
@@ -729,16 +729,16 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
 # def cluster_reject_leaders(j1, j2, p_exp, cm, coefs, leaders, verbose,
 #                            generalized=False):
 
-#     ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())
+#     ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
 #     ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
 
 #     if generalized:
 
 #         j_array, C1_array, scale, shape = get_location_scale_shape(cm)
-        
+
 #         CDF = {
 #             j: gen_cdf(
-#             np.log(leaders.values[j][:, None]), 
+#             np.log(leaders.values[j][:, None]),
 #             C1_array[j_array == j] - ZPJCorr[j_array==j],
 #             scale[j_array==j], shape[j_array==j])
 #             for j in range(j1, j2+1)
@@ -746,10 +746,10 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
 
 #     else:
 #         j_array, C1_array, C2_array = get_location_scale(cm)
-    
+
 #         CDF = {
 #             j: normal_cdf(
-#             np.log(leaders.values[j][:, None]), 
+#             np.log(leaders.values[j][:, None]),
 #             C1_array[j_array == j] - ZPJCorr[j_array==j],
 #             np.sqrt(C2_array[j_array == j]),
 #             p=1)
@@ -795,7 +795,7 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
 #         ).fit_transform(agg[~mask_nan, :, idx_signal, idx_range])
 
 #         if verbose:
-#             plt.figure()    
+#             plt.figure()
 #             N = (~mask_nan).sum()
 #             cmap = sns.color_palette('inferno', as_cmap=True)
 #             ax = sns.scatterplot(
@@ -813,7 +813,7 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
 #             plt.figure()
 #             sns.histplot(clusterer.minimum_spanning_tree_.to_pandas().distance.values, log=True)
 
-#         # First slice to mask_nan shape, which correspond to the 
+#         # First slice to mask_nan shape, which correspond to the
 #         idx_reject[j1][:mask_nan.shape[0]][~mask_nan, idx_signal, idx_range] = p == -1
 
 #     # if verbose:
@@ -893,14 +893,14 @@ def compute_aggregate(CDF, j1, j2):
 def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                            generalized=False, pelt_jump=1, threshold=2.5,
                            hilbert_weighted=False):
-    
+
     from .hilbert import HilbertCost, w_hilbert
     import ruptures as rpt
-    
-    # ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())
+
+    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
     idx_j = np.s_[cm.j.min() - min(leaders.values):
                   cm.j.max() - min(leaders.values) + 1]
-    ZPJCorr = leaders.correct_pleaders()[..., idx_j]
+    ZPJCorr = leaders._correct_pleaders()[..., idx_j]
     ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
 
     if generalized:
@@ -917,10 +917,10 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
     else:
         j_array, C1_array, scale = get_location_scale(cm)
-    
+
         CDF = {
             j: normal_cdf(
-            np.log(leaders.values[j][:, None]), 
+            np.log(leaders.values[j][:, None]),
             C1_array[j_array == j] - ZPJCorr[j_array==j],
             np.sqrt(scale[j_array == j]),
             p=1)
@@ -987,7 +987,7 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
             sns.heatmap(kernel_matrix)
             plt.vlines(result, 0, max(result))
             plt.show()
-        
+
         reachable_index = np.arange(agg.shape[0])[~mask_nan_global]
         result_j = [reachable_index[r] for r in result]
         result_j[-1] += 1
@@ -1023,10 +1023,10 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
                 samp = samples[i]
 
-                # python >= 3.11 
+                # python >= 3.11
                 # other_samples = np.r_[*samples[:i], *samples[i+1:]]
                 other_samples = np.concatenate((*samples[:i], *samples[i+1:]))
-                
+
                 # bins = np.linspace(0, 1, N_bins)
                 # samp_hist, _ = np.histogram(samp, bins=bins)
                 # other_hist, _ = np.histogram(other_samples, bins=bins)
@@ -1115,7 +1115,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
     """
 
     from .. import mfa
-    
+
     p_exp = 1
     n_cumul = 4 if generalized else 2
 
@@ -1123,7 +1123,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul,
               robust=robust_cm)
-    
+
     j2 = max(sr[1] for sr in scaling_ranges)
     min_scale = min(sr[0] for sr in scaling_ranges)
 
@@ -1163,7 +1163,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
             idx_reject[j][:-3] |= idx_reject[j][start:end]
 
     if verbose:
-        
+
         idx_reject_pos = {
             scale: np.arange(idx_reject[scale].shape[0])[idx_reject[scale][:, 0, 0]]
             for scale in idx_reject

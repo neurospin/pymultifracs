@@ -1,103 +1,27 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
+
+
 import time
 import os
 from collections import namedtuple
-from dataclasses import dataclass
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import PowerNorm
 import seaborn as sns
 import numpy as np
-import pandas as pd
 from scipy.signal import welch
 
-# from .wavelet import _estimate_eta_p, wavelet_analysis
-from . import wavelet, multiresquantity
+# from .wavelet import estimate_eta_p, wavelet_analysis
+from . import wavelet, multiresquantity, estimation
 
 
-# def plot_multiscale(results, seg2color, ax=None):
-
-#     ax = plt.gca() if ax is None else ax
-
-#     segs = {*results.index.get_level_values(1).unique()}
-#     subjects = results.index.get_level_values(0).unique()
-#     n = len(subjects)
-
-#     maxf = {
-#         seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(max).min()
-#         for seg in segs
-#     }
-
-#     minf = {
-#         seg: results.loc[pd.IndexSlice[:, seg], 'freq'].apply(min).max()
-#         for seg in segs
-#     }
-
-#     trimmed = {
-#         seg: pd.Series([row[1].mscale[(row[1].freq <= maxf[seg])
-#                                       & (row[1].freq >= minf[seg])]
-#                         for row in results.loc[pd.IndexSlice[:, seg],
-#                                                ['freq', 'mscale']].iterrows()],
-#                        index=subjects)
-#         for seg in segs
-#     }
-
-#     stacks = {
-#         seg: np.vstack(trimmed[seg])
-#         for seg in segs
-#     }
-
-#     averages = {
-#         seg: stacks[seg].mean(axis=0)
-#         for seg in segs
-#     }
-
-#     freqs_avg = {
-#         seg: (freq := results.loc[subjects[0], seg].freq)[
-#             (freq <= maxf[seg]) & (freq >= minf[seg])]
-#         for seg in segs
-#     }
-
-#     freqs = {
-#         seg: results.loc[pd.IndexSlice[:, seg], 'freq']
-#         for seg in segs
-#     }
-
-#     mscales = {
-#         seg: results.loc[pd.IndexSlice[:, seg], 'mscale']
-#         for seg in segs
-#     }
-
-#     mscales = ([mscale for seg in segs
-#                 for mscale in results.loc[pd.IndexSlice[:, seg], 'mscale']]
-#                + [*averages.values()])
-#     freqs = ([freq for seg in segs
-#               for freq in results.loc[pd.IndexSlice[:, seg], 'freq']]
-#              + [*freqs_avg.values()])
-
-#     color = ([seg2color[seg] for seg in segs for i in range(n)]
-#              + [seg2color[seg + '_avg'] for seg in segs])
-#     lw = ([1] * (len(segs) * n)) + ([2] * len(segs))
-
-#     log_plot(freqs, mscales, lowpass_freq=50, color=color, linewidth=lw, ax=ax)
-
-#     ticks = ax.get_xticks()
-#     labels = [f'{t:g}\n{2 ** t:.2g}' for t in ticks]
-
-#     ax.set_xticks(ticks)
-#     ax.set_xticklabels(labels)
-
-#     sns.despine()
-
-#     ax.set_xlabel('log2 f', fontsize=18, c='black')
-#     ylim = ax.get_ylim()
-#     ax.vlines(x=[results.iloc[0].slope[0][0], results.iloc[0].slope[0][-1]],
-#               ymin=ylim[0], ymax=ylim[1], linestyles='dashed',
-#               colors='#0000003f')
-#     ax.set_ylim(ylim)
-
-
-def cp_string_format(cp, CI=False):
+def _cp_string_format(cp, CI=False):
+    """
+    Formats :math:`c_p` coefficients' values.
+    """
 
     threshold_1 = .2 if CI else .1
     threshold_2 = .01 if CI else .001
@@ -116,7 +40,10 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
               fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
               C_fmt='--.', lw_C=None, offset=0, plot_CI=True, signal_idx1=0,
               signal_idx2=0, **C_kwargs):
-    
+    """
+    Plots bivariate cumulants.
+    """
+
     if cm.mode == 'pairwise':
         signal_idx2 = 0
 
@@ -180,7 +107,7 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
         slope_log2_e = getattr(cm, f'c{m1}{m2}')[
             scaling_range, signal_idx1, signal_idx2, 0]
         slope = slope_log2_e / np.log2(np.e)
-        
+
         # match m1, m2:
         #     case 0, m2:
         #         intercept = cm.margin2_intercept[ind_m2, scaling_range].
@@ -195,12 +122,12 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
             CI = getattr(cm, f"CIE_c{m1}{m2}")[
                 scaling_range, signal_idx1, signal_idx2]
             CI_legend = (
-                f"; [{cp_string_format(CI[scaling_range, 1], True)}, "
-                f"{cp_string_format(CI[scaling_range, 0], True)}]")
+                f"; [{_cp_string_format(CI[scaling_range, 1], True)}, "
+                f"{_cp_string_format(CI[scaling_range, 0], True)}]")
         else:
             CI_legend = ""
 
-        legend = (rf'$c_{{{m1}{m2}}}$ = {cp_string_format(slope_log2_e)}'
+        legend = (rf'$c_{{{m1}{m2}}}$ = {_cp_string_format(slope_log2_e)}'
                   + CI_legend)
 
         ax.plot([x0, x1], [y0, y1], color=fit_color,
@@ -225,13 +152,14 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         Cumulants to plot.
     ind_m : int
         Index of the cumulant order :math:`m` to plot.
-        For example if ``cm.m = [1, 2, 3]`` then ``ind_m=2`` plots :math:`C_2(j)`.
+        For example if ``cm.m = [1, 2, 3]`` then ``ind_m=2`` plots
+        math:`C_2(j)`.
     j1 : int
         Lower limit of temporal scales to plot.
     j2 : int
         Upper limit of temporal scales to plot.
     range_idx : int
-        If multiple scaling ranges were used in fitting, indicates the 
+        If multiple scaling ranges were used in fitting, indicates the
         index to use.
     ax : :class:`~matplotlib.axes.Axes`
         Mandatory argument: axes on which to plot the function.
@@ -250,16 +178,19 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
     lw_C : int | None
         Linewidth of the :math:`C_m(j)` plot.
     offset : int
-        y-axis offset for the plot, useful when showing multiple signals at once.
+        y-axis offset for the plot, useful when showing multiple signals at
+        once.
     plot_CI : bool
         If bootstrapping was used, show bootstrap-derived confidence intervals.
     signal_idx : int
         If using a multivariate signal, index of the signal to plot.
     shift_gamint : bool
         If fractional integration was used, shifts the :math:`C_1(j)` plot by
-        :math:`-j \gamma / \log_2(e)`, and adjusts the :math:`c_1` fit accordingly.
+        :math:`-j \\gamma / \\log_2(e)`, and adjusts the :math:`c_1` fit
+        accordingly.
     **C_kwargs : dict
-        Additional arguments are passed to the plotting function for :math:`C_m(j)`
+        Additional arguments are passed to the plotting function for
+        :math:`C_m(j)`
     """
 
     j1, j2, j_min, j_max = cm.get_jrange(j1, j2, plot_CI)
@@ -290,7 +221,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 #         assert (CI < 0).sum() == 0
         CI[CI < 0] = 0
         CI = CI.transpose()
-        
+
     else:
         CI = None
 
@@ -304,12 +235,14 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 
     ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
 
-    ax.set(xlabel='Temporal scale $j$', ylabel=f'$C_{m}{cm.variable_suffix}(j)$')
+    ax.set(xlabel='Temporal scale $j$',
+           ylabel=f'$C_{m}{cm.variable_suffix}(j)$')
 
     if len(cm.log_cumulants) > 0 and plot_fit:
 
         x0, x1 = cm.scaling_ranges[range_idx]
-        slope_log2_e = cm.log_cumulants[ind_m, range_idx].reshape(cm.n_sig, -1)[signal_idx, 0]
+        slope_log2_e = cm.log_cumulants[ind_m, range_idx].reshape(
+            cm.n_sig, -1)[signal_idx, 0]
 
         if shift_gamint and ind_m == 0:
             slope_log2_e -= cm.gamint
@@ -317,7 +250,8 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         slope = slope_log2_e / np.log2(np.e)
         # slope = cm.slope[ind_m, scaling_range, signal_idx]
 
-        intercept = cm.intercept[ind_m, range_idx].reshape(cm.n_sig, -1)[signal_idx, 0]
+        intercept = cm.intercept[ind_m, range_idx].reshape(
+            cm.n_sig, -1)[signal_idx, 0]
 
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset
@@ -326,13 +260,14 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
             CI = getattr(cm, f"CIE_c{m}")[range_idx, signal_idx]
 
             CI_legend = (
-                f"; [{cp_string_format(CI[1], True)}, "
-                f"{cp_string_format(CI[0], True)}]")
+                f"; [{_cp_string_format(CI[1], True)}, "
+                f"{_cp_string_format(CI[0], True)}]")
         else:
             CI_legend = ""
 
-        legend = (rf'$c_{m}{cm.variable_suffix}$ = {cp_string_format(slope_log2_e)}'
-                  + CI_legend)
+        legend = (
+            rf'$c_{m}{cm.variable_suffix}$ = {_cp_string_format(slope_log2_e)}'
+            + CI_legend)
 
         ax.plot([x0, x1], [y0, y1], color=fit_color,
                 linestyle='-', linewidth=lw_fit, label=legend, zorder=0)
@@ -347,6 +282,9 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 def plot_cumulants(cm, figsize, nrow=2, j1=None, j2=None, filename=None,
                    range_idx=0, legend=True, n_cumul=None, signal_idx=0,
                    **kw):
+    """
+    Plots cumulants from a :class:`.Cumulants` object.
+    """
 
     if n_cumul is None:
         n_cumul = len(cm.m)
@@ -370,14 +308,15 @@ def plot_cumulants(cm, figsize, nrow=2, j1=None, j2=None, filename=None,
                              sharex=True,
                              layout='tight')
 
-    for ind_m, m in enumerate(cm.m[:n_cumul]):
+    # for ind_m, m in enumerate(cm.m[:n_cumul]):
+    for ind_m in range(n_cumul):
 
         ax = axes[ind_m % nrow][ind_m // nrow]
 
         plot_cm(
             cm=cm, ind_m=ind_m, j1=j1, j2=j2, range_idx=range_idx,
             ax=ax, plot_legend=legend, signal_idx=signal_idx, **kw)
-        
+
     for j in range(ind_m):
 
         if j % nrow == nrow-1:
@@ -395,9 +334,12 @@ def plot_cumulants(cm, figsize, nrow=2, j1=None, j2=None, filename=None,
 def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
               figsize=(2.5, 1), gamma=1, nan_idx=None, signal_idx=0,
               cbar_kw=None, cmap='magma'):
+    """
+    Plots the coefficients from a MRQ.
+    """
 
     leader = isinstance(mrq, multiresquantity.WaveletLeader)
-    leader_idx_correction = True
+    # leader_idx_correction = True
 
     if vmax is None:
         max_scale = [
@@ -415,21 +357,21 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
 
         if mrq.eta_p is None:
 
-            mrq.eta_p = wavelet._estimate_eta_p(
+            mrq.eta_p = estimation.estimate_eta_p(
                 mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
             )
 
-        ZPJCorr = mrq.correct_pleaders()[None, 0, signal_idx]
+        ZPJCorr = mrq._correct_pleaders()[None, 0, signal_idx]
 
         if vmax is None:
             max_scale = [
-                m * ZPJCorr[:, scale-j1] 
+                m * ZPJCorr[:, scale-j1]
                 for m, scale in zip(max_scale, range(j1, j2+1))
             ]
 
         if vmin is None:
             min_scale = [
-                m * ZPJCorr[:, scale-j1] 
+                m * ZPJCorr[:, scale-j1]
                 for m, scale in zip(min_scale, range(j1, j2+1))
             ]
 
@@ -439,14 +381,16 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         vmin = min(min_scale)
 
     if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')#, width_ratios=[20, 1])
+        _, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
+        # , width_ratios=[20, 1])
 
     norm = PowerNorm(vmin=vmin, vmax=vmax, gamma=gamma)
     if isinstance(cmap, str):
         cmap = sns.color_palette(cmap, as_cmap=True)
     cmap.set_bad('grey')
 
-    for i, scale in enumerate(range(j1, j2 + 1)):
+    # for i, scale in enumerate(range(j1, j2 + 1)):
+    for scale in range(j1, j2 + 1):
 
         if scale not in mrq.values:
             continue
@@ -454,8 +398,6 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         temp = mrq.get_values(scale)[:, 0, signal_idx]
 
         X = ((np.arange(temp.shape[0] + 1)
-            #   + (1 if leader and leader_idx_correction else 0))
-            #   + 1
               ) * (2 ** (scale - j1)))
         # X += scale - 1
         # if leader and scale > 1:
@@ -504,8 +446,10 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     # ax.set_facecolor('grey')
 
     if cbar:
-        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
-        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False,
+        #    minor_thresholds=(np.inf, np.inf))
+        # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False,
+        #    minor_thresholds=(np.inf, np.inf))
 
         if cbar_kw is None:
             cbar_kw = dict(
@@ -513,7 +457,8 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
                 ticks=mpl.ticker.MaxNLocator(4, symmetric=False))
 
         if 'label' not in cbar_kw:
-            cbar_kw['label'] = f"${mrq.get_variable_name()}{mrq.get_suffix()[0]}(j, k)$"
+            cbar_kw['label'] = (
+                f"${mrq._get_variable_name()}{mrq._get_suffix()[0]}(j, k)$")
 
         cb = plt.colorbar(qm, ax=ax, **cbar_kw)
         # plt.colorbar(qm, ax=ax    es[0], ticks=locator, aspect=1)
@@ -521,12 +466,9 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         cb.ax.tick_params(which='minor', right=False)
 
 
-
 # From pyvista, since https://github.com/pyvista/pyvista/issues/1125 is not yet
 # fixed
-
-
-"""Start xvfb from Python."""
+# Start xvfb from Python.
 
 XVFB_INSTALL_NOTES = """Please install Xvfb with:
 Debian
@@ -547,7 +489,7 @@ def start_xvfb(wait=3, window_size=None):
         Window size of the virtual frame buffer.  Defaults to the
         default window size in ``rcParams``.
     """
-    from pyvista import rcParams
+    from pyvista import rcParams  # pylint: disable=C0415
 
     if os.name != 'posix':
         raise OSError('`start_xvfb` is only supported on Linux')
@@ -555,8 +497,12 @@ def start_xvfb(wait=3, window_size=None):
     if os.system('which Xvfb > /dev/null'):
         raise OSError(XVFB_INSTALL_NOTES)
 
+    if window_size is None:
+        window_size = rcParams['window_size']
+
     # use current default window size
-    window_size_parm = '%dx%dx24' % tuple(rcParams['window_size'])
+    # pylint: disable=C0209
+    window_size_parm = '%dx%dx24' % tuple(window_size)
     display_num = ':99'
     os.system(f'Xvfb {display_num} -screen 0 {window_size_parm} '
               '> /dev/null 2>&1 &')
@@ -595,7 +541,7 @@ def plot_psd(signal, fs, wt_name='db2', log_base=2, ax=None, **welch_kwargs):
 
     wt_name : str
         Name of the decomposing wavelet.
-    
+
     log_base : int
         Base of the logarithm in the plot axes.
 
@@ -631,28 +577,10 @@ log_function = {'log2': np.log2,
                 'log': np.log}
 
 
-def _log_psd(freq, psd):
-    """
-    Compute the logged values of a PSD and its frequency support similarly to
-    the MATLAB toolbox
-    """
-
-    # Avoid computing log(0)
-    if np.any(freq == 0):
-        support = [freq != 0.0][0]
-        freq, psd = freq[support], psd[support]
-
-    # Compute the logged values of the frequency and psd
-    log = log_function[log]
-    freq, psd = log(freq), log(psd)
-
-    return freq, psd
-
-
-def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
-             log_base=2, lowpass_freq=np.inf, xticks=None,
+def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
+             slope=None, log_base=2, lowpass_freq=np.inf,
              title='Power Spectral Density', ax=None, show=False,
-             plot_kwargs={}, linewidth=None):
+             linewidth=None, **plot_kwargs):
     """
     Perform a log-log plot over a list of paired frequency range and PSD, with
     optional legend and fitted slope
@@ -671,7 +599,7 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
     color: list | None
         colors to assign to the plotted PSDs
 
-    slope: [(freq, psd)] | []
+    slope: [(freq, psd)] | None
         list of 2-tuples containing the frequency support and PSD
         representation of a slope to plot
         TODO: replace (freq, psd) with (beta, log_C)
@@ -680,10 +608,13 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
         base of the logarithm in the x- and y-axes.
     """
 
+    if slope is None:
+        slope = []
+
     ax = plt.gca() if ax is None else ax
 
-    ax.set_xlabel(f'$f$ (Hz)')
-    ax.set_ylabel(f'PSD')
+    ax.set_xlabel('Frequency $f$ (Hz)')
+    ax.set_ylabel('PSD')
     ax.set_title(title)
 
     if color is None:
@@ -701,15 +632,15 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None, slope=[],
 
         indx = tuple([freq < lowpass_freq])
         freq, psd = freq[indx], psd[indx]
-        # log_freq, psd = _log_psd(freq, psd, log_base)  # Log frequency and psd
+        # log_freq, psd = _log_psd(freq, psd, log_base) # Log frequency and psd
 
         ax.loglog(freq, psd, f, base=log_base, c=col, lw=lw, **plot_kwargs)
 
         # if xticks is not None and i == len(freq_list) - 1:
-            # ax.set_xticks(log_freq)
-            # ax.set_xticklabels([f'{fr:.2f}' if fr < 1 else f'{fr:.1f}'
-                                # for fr in freq])
-            # plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
+        #     ax.set_xticks(log_freq)
+        #     ax.set_xticklabels([f'{fr:.2f}' if fr < 1 else f'{fr:.1f}'
+        #                         for fr in freq])
+        #     plt.xticks(log_freq, [f'{fr:.2f}' for fr in freq])
 
     if color is None:
         c_gen = (f'C{i}' for i in range(len(freq_list)))
@@ -758,16 +689,16 @@ def welch_estimation(signal, fs, **kwargs):
 
     # PSD
     freq, psd = welch(signal,
-                   window='hamming',
-                #    nperseg=seg_size,
-                #    noverlap=seg_size / 2,
-                #    nfft=n_fft,
-                   detrend=False,
-                   return_onesided=True,
-                   scaling='density',
-                   average='mean',
-                   fs=fs,
-                   **kwargs)
+                      window='hamming',
+                      #   nperseg=seg_size,
+                      #   noverlap=seg_size / 2,
+                      #   nfft=n_fft,
+                      detrend=False,
+                      return_onesided=True,
+                      scaling='density',
+                      average='mean',
+                      fs=fs,
+                      **kwargs)
 
     psd = np.array(psd)
 
@@ -800,7 +731,7 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     # PSD
     WT = wavelet.wavelet_analysis(
         signal, j2=j2, normalization=1, wt_name=wt_name)
-    
+
     psd = [np.nanmean(np.square(arr), axis=0) for arr in WT.values.values()]
     psd = np.array(psd)
 

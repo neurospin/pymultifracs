@@ -20,6 +20,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     Estimate the value of the uniform regularity exponent hmin using
     wavelet coefficients.
     """
+    # TODO: change so it returns a constant number of outputs
 
     x, n_ranges, j_min, j_max, *_ = prepare_regression(
         scaling_ranges, np.array([*mrq.values])
@@ -28,7 +29,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is not None:
 
         std = np.std(
-            mrq.bootstrapped_obj.sup_coeffs(
+            mrq.bootstrapped_obj._sup_coeffs(
                 n_ranges, j_max, j_min, scaling_ranges, idx_reject
                 ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_sig, -1),
             axis=-1)[None, :]
@@ -36,11 +37,11 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     else:
         std = None
 
-    sup_coeffs = mrq.sup_coeffs(
+    sup_coeffs = mrq._sup_coeffs(
         n_ranges, j_max, j_min, scaling_ranges, idx_reject)
 
     y = np.log2(sup_coeffs)[None, :]
-    
+
     w = prepare_weights(mrq, weighted, n_ranges, j_min, j_max,
                         scaling_ranges, y, std=std)
 
@@ -58,7 +59,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     return hmin, intercept[0]
 
 
-def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
+def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
     """
     Estimate the value of eta_p
     """
@@ -81,6 +82,9 @@ def _estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
 
 
 def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):
+    """
+    Plots the regression used to show :math:`h_{min}`
+    """
 
     hmin, intercept, y = estimate_hmin(wt_coefs, j1, j2_eff, weighted, warn)
     x = np.arange(j1, j2_eff+1)

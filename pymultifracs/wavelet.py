@@ -1,20 +1,16 @@
 """
-Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
-         Merlin Dumeur <merlin@dumeur.net>
+Authors: Merlin Dumeur <merlin@dumeur.net>
+         Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 import warnings
-# from collections import namedtuple
-# from copy import deepcopy
-from math import ceil#, floor
+from math import ceil
 
 import pywt
 import numpy as np
-# from scipy import signal
 
 from . import multiresquantity
-# from .multiresquantity import WaveletDec, WaveletWSE, WaveletLeader
-from .utils import fast_power, max_scale_bootstrap #,get_filter_length
+from .utils import fast_power, max_scale_bootstrap
 
 
 # def _check_formalism(p_exp):
@@ -38,8 +34,7 @@ def decomposition_level_bootstrap(X, wt_name):
 
     """
 
-    return max_scale_bootstrap(
-        wavelet_analysis(X, wt_name=wt_name, p_exp=None)[0])
+    return max_scale_bootstrap(wavelet_analysis(X, wt_name=wt_name))
 
 
 # def decomposition_level(length, wt_name):
@@ -52,7 +47,8 @@ def decomposition_level_bootstrap(X, wt_name):
 #     length: int
 #         Length of the signal considered
 #     wt_name: str
-#         Name of the wavelet function to use, following the pywavelet convention
+#         Name of the wavelet function to use, following the pywavelet
+#         convention
 
 #     Returns
 #     -------
@@ -135,9 +131,7 @@ def _decomposition_level(signal, filter_len, j2, warn=True):
 #     return detail, approx
 
 
-def filtering2(approx, wt):
-    """
-    """
+def _filtering2(approx, wt):
 
     # mode = 'per' if standard == 'matlab' else 'zero'
     mode = 'zero'
@@ -167,6 +161,7 @@ def filtering2(approx, wt):
         low_slice = np.s_[fp:lp+1]
 
     return -high[:-1], low[low_slice]
+
 
 def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
@@ -232,7 +227,6 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
 
 # def compute_leaders2(wt_coefs, gamint, p_exp, size=3):
-#     # TODO: call from wavelet_analysis
 
 #     formalism = _check_formalism(p_exp)
 
@@ -260,7 +254,7 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 #             max_level = scale-1
 #             break
 
-#         wt_leaders.add_values(leaders, scale)
+#         wt_leaders._add_values(leaders, scale)
 
 #     return wt_leaders
 
@@ -292,7 +286,8 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 
     for scale in range(1, max_level + 1):
 
-        # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]), p_exp)
+        # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]),
+        #                                 p_exp)
         coefs = fast_power(
             np.abs(wt_coefs.values[scale]), p_exp)
 
@@ -329,7 +324,8 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
             leaders = np.sum(scale_contribution, axis=0)
             pleader_p[scale] = leaders
 
-            # pleader_p[scale] = fast_power(np.power(2., -scale)*leaders, 1/p_exp)
+            # pleader_p[scale] = fast_power(np.power(2., -scale)*leaders,
+            #                               1/p_exp)
             # print(pleader_p[scale].shape)
             continue
 
@@ -342,8 +338,10 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 
         lower_contribution = np.zeros((2, *coefs.shape)) + np.nan
 
-        lower_contribution[0][:max_index] = pleader_p[scale-1][::2][:max_index]
-        lower_contribution[1][:max_index] = pleader_p[scale-1][1::2][:max_index]
+        lower_contribution[0][:max_index] = \
+            pleader_p[scale-1][::2][:max_index]
+        lower_contribution[1][:max_index] = \
+            pleader_p[scale-1][1::2][:max_index]
 
         # lower_contribution = np.stack([
         #     pleader_p[scale-1][:-size:2],
@@ -386,15 +384,7 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     for scale in range(1, max_level + 1):
 
         leaders = fast_power(pleader_p[scale], 1/p_exp)
-        wt_leaders.add_values(leaders, scale)
-
-    # if formalism == 'wavelet p-leader':
-
-    #     working_coefs = deepcopy(wt_coefs)
-
-    #     if idx_reject is not None:
-    #         for scale in idx_reject:
-    #             working_coefs.values[scale][1:-1][idx_reject[scale][0].squeeze().transpose()] = np.nan
+        wt_leaders._add_values(leaders, scale)
 
     return wt_leaders
 
@@ -446,7 +436,7 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 #         # if 0 in np.sum(finite_idx_coef, axis=0):
 
 #         # detail[~finite_idx_coef] = np.nan
-#         wt_coefs.add_values(detail, scale)
+#         wt_coefs._add_values(detail, scale)
 
 #     # "effective" j2, used in linear regression
 #     j2_eff = int(min(max_level, j2) if j2 is not None else max_level)
@@ -472,9 +462,9 @@ def integrate_wavelet(wt_coefs, gamint):
 
     for scale in wt_coefs.values:
 
-        wt_int.add_values(
+        wt_int._add_values(
             wt_coefs.values[scale] * 2 ** (gamint * scale), scale)\
-            
+
     return wt_int
 
 
@@ -536,20 +526,21 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
     wavelet = pywt.Wavelet(wt_name)
     # Investigate why -1
     high_filter = -1*np.array(wavelet.dec_hi)[:, None]
-    low_filter = np.array(wavelet.dec_lo)[:, None]
+    # low_filter = np.array(wavelet.dec_lo)[:, None]
 
     max_level = _decomposition_level(signal, len(high_filter), j2)
     approx = signal
 
     # Initialize structures
-    wt_coefs = multiresquantity.WaveletDec(gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
+    wt_coefs = multiresquantity.WaveletDec(
+        gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
 
     for scale in range(1, max_level + 1):
 
         # detail shape (N_coef_at_scale, n_realisations)
 
-        detail, approx = filtering2(approx, wavelet)
-        
+        detail, approx = _filtering2(approx, wavelet)
+
         # normalization
         detail = detail*2**(scale*(0.5-1/normalization))
 
@@ -564,46 +555,64 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
             break
 
         # remove infinite values and store wavelet coefficients
-        wt_coefs.add_values(detail, scale)
+        wt_coefs._add_values(detail, scale)
 
     if max_level == 0:
         return None
-    
+
     return wt_coefs
 
 
 def compute_wse(wt_coefs, theta=0.5):
+    """
+    Compute the (theta,1)-leaders from the wavelet transform.
+    """
 
     wse_coef = multiresquantity.WaveletWSE(
         n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
         gamint=wt_coefs.gamint, theta=theta)
 
     for scale, dwt in wt_coefs.values.items():
-        lower_scale = max(1,int(scale-scale**(theta))) # On définit une tranche d'échelle J/sqrt(J)
-        lower_scale = min(lower_scale,scale)  # On prend en compte où on dépasse le nombre d'échelle max
+
+        # Define a scale slice j/sqrt(j)
+        lower_scale = max(1, int(scale-scale**(theta)))
+        # Check the case where j>j_max
+        lower_scale = min(lower_scale, scale)
         # J2 = 1  # Dans les cas des leaders J2=1
 
         wse = np.zeros_like(dwt)  # On initialise le max à 0
         wse.fill(np.nan)
-        for k in range(dwt.shape[0]): # On calcule les coefficient l(J1,k)
-            
-            for j in range(scale,lower_scale-1,-1): # On parcourt les tranches d'échelle allant de J2 à J1
-                packet_size = (scale-j)+1  # On prend des paquets de coefficients qui varie
+
+        # On calcule les coefficient l(J1,k)
+        for k in range(dwt.shape[0]):
+
+            # On parcourt les tranches d'échelle allant de J2 à J1
+            for j in range(scale, lower_scale-1, -1):
+
+                # On prend des paquets de coefficients qui varie
+                packet_size = (scale-j)+1
                 # packet_size = 1  # Pour calculer les leaders
 
-                cwav = wt_coefs.values[j] # On stock tous les coefs en ondelettes
+                # On stock tous les coefs en ondelettes
+                cwav = wt_coefs.values[j]
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
-                left_bound = int(max(1, 2**(scale-j) * (k-packet_size+1)))-1 # On calcule la borne de gauche
-                right_bound = int(min(nwav,2**(scale-j) * (k+packet_size+1)))-1 # On calcule la borne de droite
+                # On calcule la borne de gauche
+                left_bound = int(
+                    max(1, 2**(scale-j) * (k-packet_size+1))) - 1
+                # On calcule la borne de droite
+                right_bound = int(
+                    min(nwav, 2**(scale-j) * (k+packet_size+1))) - 1
 
                 # if right_bound <= left_bound:
-                    # continue
+                #     continue
 
-                wse[k] = np.max(np.r_[wse[k], np.max(abs(cwav[left_bound:right_bound]), axis=0)], axis=0) # On détermine le WSE
+                # On détermine le WSE
+                wse[k] = np.max(
+                    np.r_[wse[k],
+                          np.max(abs(cwav[left_bound:right_bound]), axis=0)],
+                    axis=0)
 
-                # wse[k] = np.nanmax(np.r_[wse[k], np.nanmax(abs(cwav[left_bound:right_bound]), axis=0)], axis=0) # On détermine le WSE
-
-        wse_coef.add_values(wse, scale)
+        wse_coef._add_values(wse, scale)
 
     return wse_coef

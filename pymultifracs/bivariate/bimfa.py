@@ -1,10 +1,12 @@
-from collections.abc import Iterable
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+         Omar D. Domingues <omar.darwiche-domingues@inria.fr>
+"""
 
 import numpy as np
 
 from ..autorange import sanitize_scaling_ranges
 from ..utils import MFractalBiVar
-from ..wavelet import wavelet_analysis
 from .biscaling_function import BiStructureFunction, BiCumulants
 
 
@@ -35,7 +37,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     q2 : ndarray of float, shape (n_exponents,)
         List of q values used in the multifractal analysis of the ``mrq2``.
     mode : str, optional
-        Mode of bivariate analysis. Either: 
+        Mode of bivariate analysis. Either:
             - 'all2all': each possible pair of signals between ``mrq1`` and
                 ``mrq2`` is analyzed, generating ``mrq1.n_sig x mrq2.n_sig``
                 pairs
@@ -165,30 +167,3 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
 
     return MFractalBiVar(bistruct, bicumul)
 
-
-# def bivariate_analysis_full(signal1, signal2, scaling_ranges, normalization=1,
-#                             gamint=0.0, weighted=None, wt_name='db3',
-#                             p_exp=None, q1=None, q2=None, n_cumul=3,
-#                             bootstrap_weighted=None, R=1, estimates='sc'):
-
-#     wt_param = {
-#         'p_exp': p_exp,
-#         'wt_name': wt_name,
-#         'gamint': gamint,
-#         'normalization': normalization,
-#     }
-
-#     WT1 = wavelet_analysis(signal1, **wt_param)
-#     WT2 = wavelet_analysis(signal2, **wt_param)
-
-#     mrq1 = [WT1.wt_coefs]
-#     mrq2 = [WT2.wt_coefs]
-
-#     if WT1.wt_leaders is not None:
-#         mrq1 += [WT1.wt_leaders]
-#     if WT2.wt_leaders is not None:
-#         mrq2 += [WT2.wt_leaders]
-
-#     return bivariate_analysis(
-#         mrq1, mrq2, scaling_ranges, weighted, n_cumul, q1, q2,
-#         bootstrap_weighted, R, estimates)
