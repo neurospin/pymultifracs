@@ -325,6 +325,12 @@ class WaveletDec(MultiResolutionQuantityBase):
             figsize=figsize, gamma=gamma, nan_idx=nan_idx,
             signal_idx=signal_idx, cbar_kw=cbar_kw, cmap=cmap)
 
+    def get_variable_name(self):
+        return "d"
+
+    def get_suffix(self):
+        return "", ""
+
     def get_formalism(self):
         """
         Obtains the fomalism of the multi-resolution quantity
@@ -423,6 +429,25 @@ class WaveletDec(MultiResolutionQuantityBase):
         return integ.get_wse(theta, gamint)
 
     def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
+        """
+        Automatically integrates the signal to match the requirements of
+        the multifractal formalism associated to the multi-resolution
+        quantity.
+
+        Parameters
+        ----------
+
+        scaling_ranges : list[tuple[int, int]]
+            List of pairs of :math:`(j_1, j_2)` ranges of scales for the analysis.
+        weighted : str | None
+            Weighting mode for the linear regressions. Defaults to None, which is
+            no weighting. Possible values are 'Nj' which weighs by number of
+            coefficients, and 'bootstrap' which weights by bootstrap-derived
+            estimates of variance.
+        idx_reject : dict[int, ndarray of bool]
+            Dictionary associating each scale to a boolean array indicating whether
+            certain coefficients should be removed.
+        """
 
         hmin, _ = estimation.estimate_hmin(
             self, scaling_ranges, weighted, idx_reject)
@@ -573,6 +598,17 @@ class WaveletLeader(WaveletDec):
         # #                if scale >= min_scale}
 
         # return self.bootstrapped_obj
+
+    def get_var_name(self):
+
+        return r"\ell"
+
+    def get_suffix(self):
+
+        if self.p_exp == np.inf:
+            return "", ""
+
+        return f"^{{({self.p_exp})}}", f"^{{({self.p_exp})}}"
 
     def get_formalism(self):
         """
@@ -755,6 +791,12 @@ class WaveletWSE(WaveletDec):
         Cone spread parameter in computing the WSE.
     """
     theta: float
+
+    def get_variable_name(self):
+        return r"\ell"
+
+    def get_suffix(self):
+        return rf"^{{({self.theta}, 1)}}", "^{ws}"
 
     def get_formalism(self):
         return 'weak scaling exponent'

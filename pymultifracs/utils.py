@@ -3,6 +3,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
          Merlin Dumeur <merlin@dumeur.net>
 """
 
+from enum import Enum
 from dataclasses import dataclass
 from typing import Any
 import inspect
@@ -31,6 +32,13 @@ Attributes
 strucuture : :class:`.BiStructureFunction`
 cumulants : :class:`.BiCumulants`
 """
+
+
+class Formalism(Enum):
+    wavelet_coef = 1
+    wavelet_leader = 2
+    wavelet_pleader = 3
+    weak_scaling_exponent = 4
 
 
 @dataclass

@@ -12,7 +12,7 @@ from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
-    AbstractDataclass
+    AbstractDataclass, Formalism
 from . import multiresquantity, viz
 
 
@@ -23,7 +23,7 @@ class AbstractScalingFunction(AbstractDataclass):
     weighted: str | None = None
     n_sig: int = field(init=False)
     j: np.ndarray = field(init=False)
-    formalism: str = field(init=False)
+    formalism: Formalism = field(init=False)
     nj: dict[int, np.ndarray] = field(init=False, repr=False)
     values: np.ndarray = field(init=False, repr=False)
     slope: np.ndarray = field(init=False, repr=False)
@@ -83,6 +83,8 @@ class AbstractScalingFunction(AbstractDataclass):
 @dataclass(kw_only=True)
 class ScalingFunction(AbstractScalingFunction):
     mrq: InitVar[multiresquantity.WaveletDec]
+    variable_suffix: str = field(init=False)
+    regularity_suffix: str = field(init=False)
     gamint: float = field(init=False)
 
     def __post_init__(self, idx_reject, mrq):
@@ -90,6 +92,7 @@ class ScalingFunction(AbstractScalingFunction):
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
         self.formalism = mrq.get_formalism()
+        self.variable_suffix, self.regularity_suffix = mrq.get_suffix()
         self.j = np.array(list(mrq.values))
 
         self.nj = mrq.get_nj_interv()
@@ -412,7 +415,7 @@ class StructureFunction(ScalingFunction):
             ax = axes[counter % nrow][counter // nrow]
             ax.errorbar(x, y, CI, fmt='r--.', zorder=4)
             ax.set_xlabel('Temporal scale $j$')
-            ax.set_ylabel(f'$S_{{{q:.1g}}}(j)$')
+            ax.set_ylabel(f'$S_{{{q:.1g}}}{self.variable_suffix}(j)$')
             ax.tick_params(bottom=False, top=False, which='minor')
 
             counter += 1
@@ -433,7 +436,7 @@ class StructureFunction(ScalingFunction):
             else:
                 CI_legend = ""
 
-            legend = rf'$s_{{{q:.1g}}}$ = {slope:.2f}' + CI_legend
+            legend = rf'$s_{{{q:.1g}}}{self.variable_suffix}$ = {slope:.2f}' + CI_legend
 
             ax.plot([x0, x1], [y0, y1], color='k',
                     linestyle='-', linewidth=2, label=legend, zorder=5)
@@ -473,11 +476,12 @@ class StructureFunction(ScalingFunction):
                                  " value is used")
 
         if ax is None:
-            _, ax = plt.subplots()
+            _, ax = plt.subplots(figsize=(4, 2.5), layout='tight')
 
         ax.plot(self.q, self.slope[:, range_idx, signal_idx], **plot_kw)
+
         ax.set(
-            xlabel = '$q$', ylabel=r'$\zeta(q)$',
+            xlabel = 'Moment $q$', ylabel=rf'Scaling function $\zeta{self.variable_suffix}(q)$',
             # title=self.formalism + ' - scaling function'
             )
 
@@ -588,7 +592,7 @@ class Cumulants(ScalingFunction):
             T_X_j = np.abs(mrq.values[j])
             T_X_j = T_X_j[:, None, :]
 
-            if self.formalism == 'wavelet p-leader':
+            if self.formalism == Formalism.wavelet_pleader:
                 T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             log_T_X_j = np.log(T_X_j)
@@ -929,7 +933,8 @@ class MFSpectrum(ScalingFunction):
                     CI_Dq, CI_hq, fmt,
                     **plot_kwargs)
 
-        ax.set(xlabel='Regularity $h$', ylabel='Fractal dimension $D(h)$',
+        ax.set(xlabel=f'Regularity $h{self.regularity_suffix}$',
+               ylabel=rf'Fractal dimension $\mathcal{{L}}{self.variable_suffix}(h)$',
                ylim=(0, 1.1), xlim=(0, 1.5),
                title=self.formalism + ' - multifractal spectrum')
 

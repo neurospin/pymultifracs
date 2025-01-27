@@ -1,6 +1,7 @@
 import time
 import os
 from collections import namedtuple
+from dataclasses import dataclass
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -303,7 +304,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 
     ax.errorbar(x, y, CI, fmt=C_fmt, color=C_color, lw=lw_C, **errobar_params)
 
-    ax.set(xlabel='Temporal scale $j$', ylabel=f'$C_{m}(j)$')
+    ax.set(xlabel='Temporal scale $j$', ylabel=f'$C_{m}{cm.variable_suffix}(j)$')
 
     if len(cm.log_cumulants) > 0 and plot_fit:
 
@@ -330,7 +331,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         else:
             CI_legend = ""
 
-        legend = (rf'$c_{m}$ = {cp_string_format(slope_log2_e)}'
+        legend = (rf'$c_{m}{cm.variable_suffix}$ = {cp_string_format(slope_log2_e)}'
                   + CI_legend)
 
         ax.plot([x0, x1], [y0, y1], color=fit_color,
@@ -505,12 +506,14 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     if cbar:
         # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
         # formatter = mpl.ticker.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
-        # 
 
         if cbar_kw is None:
             cbar_kw = dict(
                 fraction=.1, aspect=8,
                 ticks=mpl.ticker.MaxNLocator(4, symmetric=False))
+
+        if 'label' not in cbar_kw:
+            cbar_kw['label'] = f"${mrq.get_variable_name()}{mrq.get_suffix()[0]}(j, k)$"
 
         cb = plt.colorbar(qm, ax=ax, **cbar_kw)
         # plt.colorbar(qm, ax=ax    es[0], ticks=locator, aspect=1)
