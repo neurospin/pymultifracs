@@ -1,6 +1,8 @@
 .. -*- mode: rst -*-
 
-|Codecov|_ |Binder|_
+|Python|_ |Doc|_ |Codecov|_ |Binder|_
+
+.. |Python| image:: https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-brightgreen
 
 .. |Codecov| image:: https://codecov.io/gh/neurospin/pymultifracs/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/neurospin/pymultifracs
@@ -8,9 +10,8 @@
 .. |Binder| image:: https://mybinder.org/badge_logo.svg
 .. _Binder: https://mybinder.org/v2/gh/neurospin/pymultifracs/master
 
-.. |CircleCI| image:: https://circleci.com/gh/neurospin/pymultifracs.svg?style=svg
-.. _CircleCI: https://circleci.com/gh/neurospin/pymultifracs
-
+.. |Doc| image:: https://img.shields.io/badge/docs-online-brightgreen
+.. _Doc:  https://neurospin.github.io/pymultifracs/
 
 
 Introduction
