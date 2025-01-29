@@ -60,6 +60,7 @@ class AbstractDataclass:
                 'confidence intervals'
                 )
 
+
     def _get_bootstrapped_obj(self):
 
         if self.bootstrapped_obj is None:
@@ -342,9 +343,31 @@ def mask_reject(values, idx_reject, j, interval_size):
     mask = np.ones_like(idx_reject[j], dtype=float)
     mask[idx_reject[j]] = np.nan
 
+    out = values * mask
+
+    mask_fewcoeff = (~np.isnan(out)).sum(axis=0) < 3
+
+    out[:, mask_fewcoeff] = np.nan
+
     # delta = (interval_size - 1) // 2
 
     # if delta > 0:
     #     return values * mask[delta:-delta]
 
-    return values * mask
+    return out
+
+
+def get_edge_reject(WT):
+
+    idx_reject = {
+        j: np.isnan(WT.values[j], dtype=bool)[:, None] for j in WT.values}
+
+    for j in np.sort(np.arange(7, 12))[::-1]:
+
+        if j not in idx_reject:
+            continue
+
+        if j-1 in idx_reject:
+            idx_reject[j-1][:idx_reject[j].shape[0] * 2] |= np.repeat(idx_reject[j], 2, axis=0)
+
+    return idx_reject

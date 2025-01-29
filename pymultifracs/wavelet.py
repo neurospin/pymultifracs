@@ -153,7 +153,7 @@ def _filtering2(approx, wt):
     low[lp:] = np.nan
 
     if approx.shape[0] % 2 == 1:
-        return -high[:-1], low[fp:lp]
+        return -high[:-2], low[fp:lp]
 
     if lp == -1:
         low_slice = np.s_[fp:]
@@ -384,6 +384,10 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     for scale in range(1, max_level + 1):
 
         leaders = fast_power(pleader_p[scale], 1/p_exp)
+
+        mask_nan = ((~np.isnan(leaders)).sum(axis=0) >= 3)
+        leaders *= mask_nan[None, :]
+
         wt_leaders._add_values(leaders, scale)
 
     return wt_leaders
@@ -458,7 +462,7 @@ def integrate_wavelet(wt_coefs, gamint):
 
     wt_int = multiresquantity.WaveletDec(
         gamint=wt_coefs.gamint + gamint, wt_name=wt_coefs.wt_name,
-        n_sig=wt_coefs.n_sig)
+        n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs)
 
     for scale in wt_coefs.values:
 

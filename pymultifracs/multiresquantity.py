@@ -141,7 +141,7 @@ class WaveletDec(MultiResolutionQuantityBase):
     origin_mrq: MultiResolutionQuantityBase | None = None
     interval_size: int = field(init=False, default=1)
 
-    def get_nj_interv(self, j1=None, j2=None):
+    def get_nj_interv(self, j1=None, j2=None, idx_reject=None):
         """
         Returns nj as an array, for j in [j1,j2]
         """
@@ -151,7 +151,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         if j2 is None:
             j2 = max(self.values)
 
-        return np.array([(~np.isnan(self.values[j])).sum(axis=0)
+        return np.array([(~np.isnan(self.get_values(j, idx_reject))).sum(axis=0)
                          for j in range(j1, j2+1)])
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
@@ -329,7 +329,8 @@ class WaveletDec(MultiResolutionQuantityBase):
             Exponent of the power-law color normalization, set to 1 for no
             normalization.
         nan_idx : dict[str, ndarray] | None
-            Index of values to highlight.
+            Index of values to highlight (smart indexing), or boolean mask
+            index of values to highlight as output by `robust.get_outliers`.
         signal_idx : int, optional
             Index of the signal to plot, defaults to the first signal.
         cbar_kw : dict | None
@@ -337,6 +338,14 @@ class WaveletDec(MultiResolutionQuantityBase):
         cmap : str
             Colormap for the plot.
         """
+
+        if nan_idx is not None and nan_idx[j1].dtype == bool:
+
+            nan_idx = {
+                scale: np.arange(nan_idx[scale].shape[0])[nan_idx[scale][:, 0, signal_idx]]
+                for scale in nan_idx
+            }
+
         viz.plot_coef(
             self, j1, j2, ax=ax, vmin=vmin, vmax=vmax, cbar=cbar,
             figsize=figsize, gamma=gamma, nan_idx=nan_idx,
@@ -485,7 +494,8 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         return self
 
-    def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None):
+    def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None,
+                         min_j=None):
         r"""
         Verify that the MRQ has enough regularity for analysis.
 
@@ -621,7 +631,7 @@ class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, repr=False, default=None)
-    ZPJCorr: np.ndarray = field(init=False, default=None)
+    # ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
 
@@ -698,13 +708,15 @@ class WaveletLeader(WaveletDec):
         if self.values[j].ndim == 3:
             return super().get_values(j, idx_reject, reshape)
 
-        if self.p_exp == np.inf or self.eta_p is None:
+        if self.p_exp == np.inf:
             return super().get_values(j, idx_reject, reshape)
 
         if self.ZPJCorr is None:
             self._correct_pleaders()
 
-        ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
+        # ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
+
+        ZPJCorr = self.correct_pleaders(j, j)[..., 0]
 
         if reshape:
             ZPJCorr = ZPJCorr[..., None]
@@ -721,7 +733,12 @@ class WaveletLeader(WaveletDec):
 
         return super().get_leaders(p_exp, interval_size, gamint)
 
-    def _correct_pleaders(self):
+    def _correct_pleaders(self, min_j=None, max_j=None):
+
+        if min_j is None:
+            min_j = min(self.values)
+        if max_j is None:
+            max_j = max(self.values)
 
         # No correction if infinite p
         if self.p_exp == np.inf:
@@ -758,7 +775,8 @@ class WaveletLeader(WaveletDec):
 
         return self
 
-    def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None):
+    def check_regularity(self, scaling_ranges, weighted=None,
+                          idx_reject=None, min_j=None):
         """
         Verify that the MRQ has enough regularity for analysis.
 

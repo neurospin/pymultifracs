@@ -4,24 +4,17 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from collections.abc import Iterable
-import warnings
 
 import numpy as np
 
-# from .mfspectrum import MultifractalSpectrum
-# from .cumulants import Cumulants
-# from .structurefunction import StructureFunction
 from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
-# from .wavelet import wavelet_analysis, integrate_wavelet,\
-#     compute_leaders, compute_wse
-# from .estimation import estimate_hmin, estimate_eta_p
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 
 
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         bootstrap_weighted=None, R=1, estimates="auto", robust=False,
-        robust_kwargs=None, idx_reject=None, check_regularity=True):
+        robust_kwargs=None, idx_reject=None, check_regularity=True, min_j=1):
     """
     Perform multifractal analysis, given wavelet coefficients.
 
@@ -41,27 +34,28 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     n_cumul : int
         Number of cumulants computed.
     q : ndarray of float, shape (n_exponents,) | None
-        List of :math:`q` values used in the multifractal analysis. Defaults to None
-        which sets ``q = [2]``.
+        List of :math:`q` values used in the multifractal analysis.
+        Defaults to None which sets ``q = [2]``.
     bootstrap_weighted : str | None
         Whether the boostrapped mrqs will have weighted regressions.
         See the description of ``weighted``.
     R : int
         Number of bootstrapped repetitions.
     estimates : str
-        String containing characters which dictate which quantities to estimate.
+        String containing characters which dictate which quantities to
+        estimate.
         The following characters are available:
             - ``'c'``: cumulants
             - ``'m'``: multifractal spectrum
             - ``'s'``: structure function
 
-        For example, ``"cms"`` would indicate that all should be computed, whereas
-        ``"c"`` results in only the cumulants being computed.
+        For example, ``"cms"`` would indicate that all should be computed,
+        whereas ``"c"`` results in only the cumulants being computed.
 
-        Defaults to ``"auto"`` which determines which quantities to estimate based
-        on the ``q`` argument passed: If ``len(q) >= 2`` , then the spectrum is
-        estimated, otherwise only the cumulants and structure functions are
-        computed.
+        Defaults to ``"auto"`` which determines which quantities to estimate
+        based on the ``q`` argument passed: If ``len(q) >= 2`` , then the
+        spectrum is estimated, otherwise only the cumulants and structure
+        functions are computed.
 
     robust : bool
         Use robust estimates of cumulants.
@@ -110,29 +104,37 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. ")
 
+    j1 = min([sr[0] for sr in scaling_ranges])
+
     if (R > 1 and (
             mrq.bootstrapped_obj is None
             or mrq.bootstrapped_obj.n_rep // mrq.bootstrapped_obj.n_sig != R)):
-        j1 = min([sr[0] for sr in scaling_ranges])
         mrq.check_regularity(
             scaling_ranges, weighted if weighted != 'bootstrap' else None,
             idx_reject)
         mrq.bootstrap(R, j1)
     else:
         if check_regularity:
-            mrq.check_regularity(scaling_ranges, None, idx_reject)
+            mrq.check_regularity(scaling_ranges, None, idx_reject, min_j=min_j)
 
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
         raise ValueError(
             'weighted="bootstrap" requires R>1 or prior bootstrap')
 
-    if R > 1 or mrq.bootstrapped_obj is not None:
+    if mrq.bootstrapped_obj is not None:
         mfa_boot = mfa(
             mrq.bootstrapped_obj, scaling_ranges, bootstrap_weighted,
             n_cumul, q, None, 1, estimates, robust,
             robust_kwargs, idx_reject, check_regularity=False)
     else:
         mfa_boot = None
+
+    if min_j == 'auto':
+        min_j = j1
+
+    if min_j > j1:
+        raise ValueError(
+            'Minimum j should be lower than the smallest fitting scale')
 
     parameters = {
         'q': q,
@@ -143,6 +145,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         'bootstrapped_obj': mfa_boot,
         'robust': robust,
         'idx_reject': idx_reject,
+        'min_j': min_j,
     }
 
     if robust_kwargs is not None:
@@ -160,88 +163,3 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         spec = MFSpectrum._from_dict(parameters)
 
     return MFractalVar(struct, cumul, spec)
-
-
-# def mfa_wse(wt_coef, scaling_ranges, theta=0.5, gamint=0, **kwargs):
-
-#     if wt_coef.formalism != 'wavelet coef' or wt_coef.gamint > 0:
-#         raise ValueError(
-#             'Input `wt_coef` should be wavelet coefficients with zero gamint')
-
-#     mrq = compute_wse(wt_coef, theta, gamint)
-
-#     return mfa(mrq, scaling_ranges, p_exp=None, gamint=0, **kwargs)
-
-
-# def mf_analysis_full(signal, scaling_ranges, normalization=1, gamint=0.0,
-#                      weighted=None, wt_name='db3', p_exp=None, q=None,
-#                      n_cumul=3, bootstrap_weighted=None,
-#                      estimates='scm', R=1):
-#     """Perform multifractal analysis on a signal.
-
-#     .. note:: This function combines wavelet analysis and multifractal analysis
-#               for practicality.
-#               The use of parameters is better described in their
-#               respective functions
-
-#     Parameters
-#     ----------
-#     signal : ndarray, shape (n_samples,)
-#         The signal to perform the analysis on.
-#     j1 : int
-#         Minimum scale to perform fit on.
-#     j2 : int
-#         Maximum sacle to perform fit on.
-#     normalization : int
-#         Norm to use, by default 1.
-#     gamint : float
-#         Fractional integration coefficient, by default set to 0.
-#         To understand how to specify gamint, see ~
-#     weighted : str | None
-#         Whether to perform a weighted linear regression, by default None.
-#     wt_name : str, optional
-#         Name of the wavelet to use, following pywavelet convention,
-#         by default Daubechies with 3 vanishing moments.
-#     p_exp : int | np.inf | None
-#         Value of the p-exponent of the wavelet leaders, by default None.
-#     q : list (float)
-#         List of values of q to perform estimates on.
-#     n_cumul : int, optional
-#         [description], by default 3
-#     minimal : bool, optional
-#         [description], by default False.
-
-#     Returns
-#     -------
-#     MFractalData
-#         The output of the multifractal analysis
-
-#     See also
-#     --------
-#     mf_analysis
-#     :obj:`~pymultifracs.wavelet.wavelet_analysis`
-#     """
-
-#     j2 = max([sr[1] for sr in scaling_ranges])
-
-#     wt_transform = wavelet_analysis(signal, p_exp=p_exp, wt_name=wt_name,
-#                                     j2=j2, gamint=gamint,
-#                                     normalization=normalization)
-
-#     mrq = wt_transform.wt_coefs
-
-#     if wt_transform.wt_leaders is not None:
-#         mrq = [mrq, wt_transform.wt_leaders]
-
-#     mf_data = mf_analysis(
-#         mrq,
-#         scaling_ranges,
-#         weighted=weighted,
-#         n_cumul=n_cumul,
-#         q=q,
-#         bootstrap_weighted=bootstrap_weighted,
-#         R=R,
-#         estimates=estimates,
-#     )
-
-#     return mf_data

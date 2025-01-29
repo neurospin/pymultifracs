@@ -64,6 +64,7 @@ class Benchmark:
     # noise_gen_func: Callable
     estimation_grid: dict[str, Callable]
     WT_params: dict[str, Any]
+    folder: Path = Path('.')
     # parameters_df: pd.DataFrame = field(init=False, default=None, repr=False)
     results: pd.DataFrame = field(init=False, repr=False)
 
@@ -71,7 +72,7 @@ class Benchmark:
         """
         Get results filename.
         """
-        return Path('results.pkl')
+        return Path(self.folder / 'results.pkl')
 
     def generate_grids(self):
         """

@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 # from .multiresquantity import WaveletDec
 from .regression import prepare_weights, prepare_regression, \
-    linear_regression, compute_R2
+    linear_regression, compute_R2, compute_RMSE
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
     AbstractDataclass, Formalism
@@ -99,25 +99,35 @@ class ScalingFunction(AbstractScalingFunction):
     General DWT-based scaling function.
     """
     mrq: InitVar[multiresquantity.WaveletDec]
+    min_j: InitVar[int] = 1
     variable_suffix: str = field(init=False)
     regularity_suffix: str = field(init=False)
     gamint: float = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq):  # pylint: disable=W0613
+    def __post_init__(self, idx_reject, mrq, min_j):  # pylint: disable=W0613
 
         self.gamint = mrq.gamint
         self.n_sig = mrq.n_sig
         self.formalism = mrq.get_formalism()
         self.variable_suffix, self.regularity_suffix = mrq._get_suffix()
         self.j = np.array(list(mrq.values))
+        self.j = self.j[self.j >= min_j]
 
-        self.nj = mrq.get_nj_interv()
+        self.nj = mrq.get_nj_interv(min_j, idx_reject=idx_reject)
 
     def compute_R2(self):
         """
-        Computes :math:`R^2` for the estimated linear regressions
+        Computes :math:`R^2` for the estimated linear regressions.
         """
         return compute_R2(
+            self.values, self.slope, self.intercept, self.weights,
+            [self._get_j_min_max()], self.j)
+
+    def compute_RMSE(self):
+        """
+        Computes root mean square error for the estimated linear regressions.
+        """
+        return compute_RMSE(
             self.values, self.slope, self.intercept, self.weights,
             [self._get_j_min_max()], self.j)
 
@@ -289,9 +299,9 @@ class StructureFunction(ScalingFunction):
     q: np.ndarray
     H: np.ndarray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq):
+    def __post_init__(self, idx_reject, mrq, min_j):
 
-        super().__post_init__(idx_reject, mrq)
+        super().__post_init__(idx_reject, mrq, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -323,6 +333,8 @@ class StructureFunction(ScalingFunction):
                             np.nan
 
         self.values[np.isinf(self.values)] = np.nan
+
+        # print(self.values)
 
     def _get_H(self):
         return self.slope[self.q == 2][0] / 2
@@ -595,9 +607,9 @@ class Cumulants(ScalingFunction):
     m: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq, robust, robust_kwargs):
+    def __post_init__(self, idx_reject, mrq, min_j, robust, robust_kwargs):
 
-        super().__post_init__(idx_reject, mrq)
+        super().__post_init__(idx_reject, mrq, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.cumulants
@@ -635,11 +647,11 @@ class Cumulants(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(mrq.values[j])
+            T_X_j = np.abs(mrq.get_values(j))
             T_X_j = T_X_j[:, None, :]
 
-            if self.formalism == Formalism.wavelet_pleader:
-                T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
+            # if self.formalism == 'wavelet p-leader':
+            #     T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             log_T_X_j = np.log(T_X_j)
 
@@ -828,9 +840,9 @@ class MFSpectrum(ScalingFunction):
     U: np.array = field(init=False)
     V: np.array = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq):
+    def __post_init__(self, idx_reject, mrq, min_j):
 
-        super().__post_init__(idx_reject, mrq)
+        super().__post_init__(idx_reject, mrq, min_j)
 
         self.U = np.zeros(
             (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))

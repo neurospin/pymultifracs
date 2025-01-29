@@ -31,13 +31,14 @@ class BiScalingFunction(AbstractScalingFunction):
     """
     mrq1: InitVar[WaveletDec]
     mrq2: InitVar[WaveletDec]
+    min_j: InitVar[int] = 1
     mode: str = 'all2all'
     gamint1: float = field(init=False)
     gamint2: float = field(init=False)
     n_sig: tuple[int] = field(init=False)
     nj_margin: dict[str, np.ndarray] = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq1, mrq2):
+    def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
 
         if mrq1.get_formalism() != mrq2.get_formalism():
             raise ValueError(
@@ -64,10 +65,12 @@ class BiScalingFunction(AbstractScalingFunction):
         else:
             self.j = np.array(list(mrq2.values))
 
-        self.nj_margin = np.array([mrq1.get_nj_interv(), mrq2.get_nj_interv()])
+        self.j = self.j[self.j >= min_j]
+
+        self.nj_margin = np.array([mrq1.get_nj_interv(min_j), mrq2.get_nj_interv(min_j)])
         self.nj = (
             (self.nj_margin[0][:, None] + self.nj_margin[1][..., None]) / 2
-            ).reshape(len(self.j), -1)
+            ).reshape(len(self.j), len(self.scaling_ranges), -1)
 
     def get_nj_interv(self, j_min, j_max):
         """
@@ -193,9 +196,9 @@ class BiStructureFunction(BiScalingFunction):
     q2: np.ndarray
     coherence: np.ndarray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq1, mrq2):
+    def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
 
-        super().__post_init__(idx_reject, mrq1, mrq2)
+        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -384,14 +387,14 @@ class BiCumulants(BiScalingFunction):
     rho_mf: float = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq1, mrq2):
+    def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
 
         if self.n_cumul > 2:
             raise NotImplementedError(
                 'Bivariate analysis for cumulant order >= 3 not yet '
                 'implemented.')
 
-        super().__post_init__(idx_reject, mrq1, mrq2)
+        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -403,6 +406,7 @@ class BiCumulants(BiScalingFunction):
                   if m1 + m2 <= self.n_cumul]
 
         self._compute(mrq1, mrq2, idx_reject)
+
 
         self.slope = np.zeros(
             (self.n_cumul+1, self.n_cumul+1, len(self.scaling_ranges),
@@ -418,10 +422,12 @@ class BiCumulants(BiScalingFunction):
         self.slope[idx_margin1] = slope1[:, 0, :, :, None]
         self.intercept[idx_margin1] = intercept1[:, 0, :, :, None]
 
+
         slope2, intercept2, _ = self._compute_fit(
             mrq1, mrq2, margin=1, value_name='margin2_values')
         self.slope[idx_margin2] = slope2[:, 0, :, None]
         self.intercept[idx_margin2] = intercept2[:, 0, :, None]
+
 
         idx = np.s_[1:, 1:]
         self.slope[idx], self.intercept[idx], _ = self._compute_fit(mrq1, mrq2)
@@ -429,7 +435,9 @@ class BiCumulants(BiScalingFunction):
         # self.margin1_log_cumulants = self.margin1_slope * np.log2(np.e)
         # self.margin2_log_cumulants = self.margin2_slope * np.log2(np.e)
 
+
         self.log_cumulants = self.slope * np.log2(np.e)
+
 
         self._compute_rho()
 
@@ -601,6 +609,9 @@ class BiCumulants(BiScalingFunction):
         #                      f"{self.j.min()} instead")
 
         ncol = self.n_cumul + 1
+
+        if figsize is None:
+            figsize = (3.3 * ncol, 3.3 * ncol)
 
         fig, axes = plt.subplots(ncol,
                                  ncol,

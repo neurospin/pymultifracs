@@ -18,7 +18,7 @@ from scipy.optimize import bisect
 # import hdbscan
 # import umap
 
-from ..utils import fast_power
+from ..utils import fast_power, get_edge_reject
 
 
 # def _qn(a, c):
@@ -50,7 +50,8 @@ from ..utils import fast_power
 #     trial, output = 0, 0
 #     a_sorted = np.sort(a)
 #     left = np.array([n - i + 1 for i in range(0, n)], dtype=np.intc)
-#     right = np.array([n if i <= h else n - (i - h) for i in range(0, n)], dtype=np.intc)
+#     right = np.array([n if i <= h else n - (i - h) for i in range(0, n)],
+#                      dtype=np.intc)
 #     weights = np.zeros((n,), dtype=np.intc)
 #     work = np.zeros((n,), dtype=np.double)
 #     p = np.zeros((n,), dtype=np.intc)
@@ -100,7 +101,7 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 
     from statsmodels.robust.scale import qn_scale
     from statsmodels.robust.norms import estimate_location, TukeyBiweight
-    from statsmodels.tools.validation import array_like, float_like
+    # from statsmodels.tools.validation import array_like, float_like
 
     # shape X (n_j, n_ranges, n_rep)
 
@@ -117,7 +118,8 @@ def compute_robust_cumulants(X, m_array, alpha=1):
             values[:, range, rep] = np.nan
             continue
 
-        X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]), range, rep]
+        X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]),
+                   range, rep]
 
         if X_norm.shape[0] > 10000:
             values[:, range, rep] = np.nan
@@ -204,11 +206,12 @@ def get_location_scale(cm, fix_c2_slope=False):
 
     if fix_c2_slope and slope_c2 > 0:
         slope_c2[:] = 0
-        for k, range in enumerate(cm.scaling_ranges):
+        for k, scaling_range in enumerate(cm.scaling_ranges):
             j_min = cm.j.min()
-            intercept_c2[:, k] = cm.C2[np.s_[range[0]-j_min:range[1]-j_min]].mean()
+            intercept_c2[:, k] = cm.C2[
+                np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
 
-    j_array = np.arange(1, cm.j.max() + 1)
+    j_array = np.arange(cm.j.min(), cm.j.max() + 1)
 
     C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
     C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
@@ -228,9 +231,10 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
     if fix_c2_slope and slope_c2 > 0:
         slope_c2[:] = 0
-        for k, range in enumerate(cm.scaling_ranges):
+        for k, scaling_range in enumerate(cm.scaling_ranges):
             j_min = cm.j.min()
-            intercept_c2[:, k] = cm.C2[np.s_[range[0]-j_min:range[1]-j_min]].mean()
+            intercept_c2[:, k] = cm.C2[
+                np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
 
     slope_c4 = cm.slope[3][None, :]
     intercept_c4 = cm.intercept[3][None, :]
@@ -241,8 +245,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
     C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
     C4_array = slope_c4 * j_array[:, None, None] + intercept_c4
 
-    m2 = C2_to_m2(C2_array)
-    m4_array = C4_to_m4(C4_array, m2)
+    # m2 = C2_to_m2(C2_array)
+    # m4_array = C4_to_m4(C4_array, m2)
     # print(C2_array, m4_array)
 
     # m2[m2 < 0] = 0
@@ -262,13 +266,11 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
                 beta[i, k, l] = 1
                 continue
 
-            # f_beta = lambda beta: gamma(5/beta) * gamma(1/beta) / gamma(3/beta)**2 - 3 - m4[k, l]
             f_beta = lambda beta: (
                 special.gamma(5/beta)
                 * special.gamma(1/beta)
                 / special.gamma(3/beta)**2
                 - 3 - C4[k, l])
-            # f_beta = lambda beta: special.gamma(5/beta) * special.gamma(1/beta) / special.gamma(3/beta)**2 - 3 - C4[k, l] / C2[k, l] ** 2
 
             if f_beta(.1) > 0 and f_beta(10) > 0:
 
@@ -283,7 +285,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
             else:
                 beta[i, k, l] = bisect(f_beta, .1, 10)
 
-        alpha[i] = np.sqrt(C2 * special.gamma(1/beta[i]) / special.gamma(3/beta[i]))
+        alpha[i] = np.sqrt(
+            C2 * special.gamma(1/beta[i]) / special.gamma(3 / beta[i]))
 
     idx_zero = (alpha < 0) | (np.isnan(alpha))
     alpha[idx_zero] = 0
@@ -566,6 +569,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 #     # agg shape N_coef, N_aggregates, N_ranges, N_signals
 #     # N_coef is determined by the upsampled number of coefficients
+#     # N_coef is determined by the upsampled number of coefficients
 
 #     end = 0
 
@@ -599,6 +603,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #         output_line[:] = stats.mstats.gmean(
 #             np.lib.stride_tricks.sliding_window_view(input_line, window_size), axis=1)
 #         output_line[:] = inv_log_gamma_cdf(output_line, window_size)
+#         output_line[:] = inv_log_gamma_cdf(output_line, window_size)
 
 
 # def compute_all_aggregate2(CDF, j1, j2):
@@ -608,6 +613,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 #     acc = 0
 #     for j in range(j1, j2+1):
+
 
 #         for i in range(j2-j + 1):
 
@@ -649,10 +655,12 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 
 def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
-             leader_idx_correction=True, pval=False, cbar=True, figsize=(2.5, 1),
-             gamma=.3, nan_idx=None, signal_idx=0, range_idx=0):
+             leader_idx_correction=True, pval=False, cbar=True,
+             figsize=(2.5, 1), gamma=.3, nan_idx=None, signal_idx=0,
+             range_idx=0):
 
-    min_all = min([np.nanmin(np.abs(cdf[s])) for s in range(j1, j2+1) if s in cdf])
+    min_all = min([np.nanmin(np.abs(cdf[s]))
+                   for s in range(j1, j2+1) if s in cdf])
 
     if vmax is None:
         vmax = max([np.nanmax(cdf[s]) for s in range(j1, j2+1) if s in cdf])
@@ -852,9 +860,6 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
 #     return .5 * (1 + erf((x - p * mu) / (p * sigma * np.sqrt(2))))
 
 
-from scipy import stats, special
-
-
 def gen_cdf(x, mu, alpha, beta):
     return (
         .5 + np.sign(x - mu) / 2
@@ -892,16 +897,17 @@ def compute_aggregate(CDF, j1, j2):
 
 def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                            generalized=False, pelt_jump=1, threshold=2.5,
-                           hilbert_weighted=False):
+                           hilbert_weighted=False, remove_edges=False):
 
     from .hilbert import HilbertCost, w_hilbert
     import ruptures as rpt
 
-    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
-    idx_j = np.s_[cm.j.min() - min(leaders.values):
-                  cm.j.max() - min(leaders.values) + 1]
-    ZPJCorr = leaders._correct_pleaders()[..., idx_j]
-    ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
+    # ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())
+    # idx_j = np.s_[cm.j.min() - min(leaders.values):
+    #               cm.j.max() - min(leaders.values) + 1]
+
+    # ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())#[..., idx_j]
+    # ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
 
     if generalized:
 
@@ -909,21 +915,22 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
         CDF = {
             j: gen_cdf(
-            np.log(leaders.values[j][:, None]),
-            C1_array[j_array == j] - ZPJCorr[j_array==j],
-            scale[j_array==j], shape[j_array==j])
+                np.log(leaders.get_values(j)),
+                C1_array[j_array == j],  #- ZPJCorr[j_array==j],
+                scale[j_array == j], shape[j_array == j])
             for j in range(j1, j2+1)
         }
 
     else:
+
         j_array, C1_array, scale = get_location_scale(cm)
 
         CDF = {
             j: normal_cdf(
-            np.log(leaders.values[j][:, None]),
-            C1_array[j_array == j] - ZPJCorr[j_array==j],
-            np.sqrt(scale[j_array == j]),
-            p=1)
+                np.log(leaders.get_values(j)),
+                C1_array[j_array == j],  # - ZPJCorr[j_array==j],
+                np.sqrt(scale[j_array == j]),
+                p=1)
             for j in range(j1, j2+1)
         }
 
@@ -938,12 +945,16 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
     if verbose:
         plt.figure()
         plot_cdf(CDF, j1, j2, pval=False)
+        plt.show()
 
-    idx_reject = {
-        j: np.zeros_like(CDF[j], dtype=bool) for j in CDF
-        # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
-        for j in CDF
-    }
+    if remove_edges:
+        idx_reject = get_edge_reject(leaders)
+    else:
+        idx_reject = {
+            j: np.zeros_like(CDF[j], dtype=bool) for j in CDF
+            # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
+            for j in CDF
+        }
 
     agg = compute_aggregate(CDF, j1, j2)
     # max_index = agg.shape[0]
@@ -1077,7 +1088,7 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
 
 def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
-                 robust_cm=False, verbose=False, generalized=False):
+                 robust_cm=False, verbose=False, generalized=False, remove_edges=False):
     """Detect outliers in a signal.
 
     Parameters
@@ -1121,20 +1132,20 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     leaders = wt_coefs.get_leaders(p_exp, 1, 1)
 
-    lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul,
-              robust=robust_cm)
-
     j2 = max(sr[1] for sr in scaling_ranges)
     min_scale = min(sr[0] for sr in scaling_ranges)
 
+    lwt = mfa(leaders, scaling_ranges=scaling_ranges, n_cumul=n_cumul,
+              robust=robust_cm, min_j=min_scale, estimates='c')
+
     if verbose:
-        lwt.cumulants.plot(j1=4, nrow=4, figsize=(3.3, 4), n_cumul=4)
+        lwt.cumulants.plot(j1=min_scale, nrow=4, figsize=(3.3, 4), n_cumul=4)
         plt.show()
 
     idx_reject = cluster_reject_leaders(
         min_scale, j2, lwt.cumulants, leaders, verbose=verbose,
         generalized=generalized, pelt_beta=pelt_beta, pelt_jump=pelt_jump,
-        threshold=threshold)
+        threshold=threshold, remove_edges=remove_edges)
 
     for j in range(min(idx_reject), max(idx_reject)):
 
@@ -1143,6 +1154,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
         combined = (left_reject | right_reject)[:idx_reject[j+1].shape[0]]
         idx_reject[j+1][combined] = True
+        print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):
 

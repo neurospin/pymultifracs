@@ -11,7 +11,7 @@ from .biscaling_function import BiStructureFunction, BiCumulants
 
 
 def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
-          q2=None, mode='all2all',
+          q2=None, mode='all2all', min_j=1,
           bootstrap_weighted=None, R=1, estimates='auto', robust=False,
           robust_kwargs=None, idx_reject=None, check_regularity=True):
     """
@@ -105,9 +105,10 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     #                                q1, q2, bootstrap_weighted, R=1,
     #                                estimates=estimates[i])
     #             for i, m1 in enumerate(mrq1)]
+    
+    j1 = min([sr[0] for sr in scaling_ranges])
 
     if R > 1:
-        j1 = min([sr[0] for sr in scaling_ranges])
         mrq1.bootstrap_multiple(R, j1, [mrq1, mrq2])
 
     bimfa_boot = None
@@ -142,6 +143,12 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
             mrq1.bootstrapped_obj, mrq2.bootsrapped_mrq, scaling_ranges,
             bootstrap_weighted, n_cumul, q1, q2, None, 1, estimates)
 
+    if min_j == 'auto':
+        min_j = j1
+
+    if min_j > j1:
+        raise ValueError('Minimum j should be lower than the smallest fitting scale')
+    
     parameters = {
         'q1': q1,
         'q2': q2,
@@ -154,6 +161,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         'bootstrapped_obj': bimfa_boot,
         'robust': robust,
         'idx_reject': idx_reject,
+        'min_j': min_j,
     }
 
     bistruct, bicumul = None, None

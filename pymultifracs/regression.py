@@ -16,11 +16,14 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
 
     if weighted == 'Nj':
 
-        w = np.tile(
-            sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[
-                None, :, None, :],
-            (1, 1, n_ranges, 1))
+        # w = np.tile(
+        #     sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[None, :]
+        #     #     None, :, None, :],
+        #     # (1, 1, n_ranges, 1)
+        # )
 
+        w = sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[None, :]
+        
     elif weighted == 'bootstrap':
 
         std[std == 0] = std[std != 0].min()
@@ -28,7 +31,7 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
 
         # std shape (n_moments, n_scales, n_scaling_ranges, n_sig) ->
         # (n_moments, n_scales, n_scaling_ranges, n_rep)
-        if len(std.shape) == 2:
+        if std.ndim == 2:
             # TODO check this
             w = np.tile(std[:, :, None, None], (1, 1, n_ranges, 1)) ** 2
         # std shape (n_moments, n_scales, n_scaling_ranges, n_sig)
@@ -121,7 +124,7 @@ def compute_R2(moment, slope, intercept, weights, j_min_max, j):
     x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    moment = moment[:, j_min_idx:j_max_idx, None, :]
+    moment = moment[:, j_min_idx:j_max_idx, :]
     slope = slope[:, None, :]
     intercept = intercept[:, None, :]
 
@@ -133,3 +136,21 @@ def compute_R2(moment, slope, intercept, weights, j_min_max, j):
     tot = ((moment * weights - avg) ** 2).sum(axis=1)
 
     return 1 - res / tot
+
+
+def compute_RMSE(moment, slope, intercept, weights, j_min_max, j):
+
+    weights = 1 / weights
+
+    x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
+
+    # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+    moment = moment[:, j_min_idx:j_max_idx, :]
+    slope = slope[:, None, :]
+    intercept = intercept[:, None, :]
+
+    # x = np.arange(j_min, j_max + 1)[None, :, None, None]
+
+    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).mean(axis=1)
+
+    return np.sqrt(res)

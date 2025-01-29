@@ -341,44 +341,47 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     leader = isinstance(mrq, multiresquantity.WaveletLeader)
     # leader_idx_correction = True
 
+    # if vmax is None:
+    #     max_scale = [
+    #         np.nanmax(mrq.values[s][:, signal_idx])
+    #         for s in range(j1, j2+1) if s in mrq.values
+    #     ]
+
+    # if vmin is None:
+    #     min_scale = [
+    #         np.nanmin(np.abs(mrq.values[s][:, signal_idx]))
+    #         for s in range(j1, j2+1) if s in mrq.values
+    #     ]
+
+    values = [mrq.get_values(scale)[:, 0, signal_idx]
+              for scale in range(j1, j2+1)]
+
+    # if leader and not np.isinf(mrq.p_exp):
+
+    #     if mrq.eta_p is None:
+
+    #         mrq.eta_p = wavelet._estimate_eta_p(
+    #             mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
+    #         )
+
+    #     ZPJCorr = mrq.correct_pleaders()[None, 0, signal_idx]
+
+    #     if vmax is None:
+    #         max_scale = [
+    #             m * ZPJCorr[:, scale-j1]
+    #             for m, scale in zip(max_scale, range(j1, j2+1))
+    #         ]
+
+    #     if vmin is None:
+    #         min_scale = [
+    #             m * ZPJCorr[:, scale-j1]
+    #             for m, scale in zip(min_scale, range(j1, j2+1))
+    #         ]
+
     if vmax is None:
-        max_scale = [
-            np.nanmax(mrq.values[s][:, signal_idx])
-            for s in range(j1, j2+1) if s in mrq.values
-        ]
-
+        vmax = max([np.nanmax(val) for val in values])
     if vmin is None:
-        min_scale = [
-            np.nanmin(np.abs(mrq.values[s][:, signal_idx]))
-            for s in range(j1, j2+1) if s in mrq.values
-        ]
-
-    if leader and not np.isinf(mrq.p_exp):
-
-        if mrq.eta_p is None:
-
-            mrq.eta_p = estimation.estimate_eta_p(
-                mrq.origin_mrq, mrq.p_exp, [(j1, j2)], False, None
-            )
-
-        ZPJCorr = mrq._correct_pleaders()[None, 0, signal_idx]
-
-        if vmax is None:
-            max_scale = [
-                m * ZPJCorr[:, scale-j1]
-                for m, scale in zip(max_scale, range(j1, j2+1))
-            ]
-
-        if vmin is None:
-            min_scale = [
-                m * ZPJCorr[:, scale-j1]
-                for m, scale in zip(min_scale, range(j1, j2+1))
-            ]
-
-    if vmax is None:
-        vmax = max(max_scale)
-    if vmin is None:
-        vmin = min(min_scale)
+        vmin = min([np.nanmin(abs(val)) for val in values])
 
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
@@ -395,7 +398,8 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         if scale not in mrq.values:
             continue
 
-        temp = mrq.get_values(scale)[:, 0, signal_idx]
+        # temp = mrq.get_values(scale)[:, 0, signal_idx]
+        temp = values[i]
 
         X = ((np.arange(temp.shape[0] + 1)
               ) * (2 ** (scale - j1)))
