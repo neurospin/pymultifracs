@@ -21,7 +21,7 @@ def test_confidence_interval(mrw_file):
         WTpL = WT.get_leaders(2)
 
         j2 = WTpL.max_scale_bootstrap()
-        scaling_ranges=[(2, j2), (3, j2)]
+        scaling_ranges = [(2, j2), (3, j2)]
 
         WT = WT.auto_integrate(scaling_ranges)
 

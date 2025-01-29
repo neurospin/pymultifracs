@@ -104,7 +104,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if len(scaling_ranges) == 0:
         raise ValueError("No valid scaling range provided. ")
 
-    j1 = min([sr[0] for sr in scaling_ranges])
+    j1 = min(sr[0] for sr in scaling_ranges)
 
     if (R > 1 and (
             mrq.bootstrapped_obj is None
@@ -131,6 +131,9 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     if min_j == 'auto':
         min_j = j1
+
+    if min_j < (mrq_jmin := min(mrq.values)):
+        min_j = mrq_jmin
 
     if min_j > j1:
         raise ValueError(

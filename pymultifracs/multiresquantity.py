@@ -714,9 +714,9 @@ class WaveletLeader(WaveletDec):
         if self.ZPJCorr is None:
             self._correct_pleaders()
 
-        # ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
+        ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
 
-        ZPJCorr = self.correct_pleaders(j, j)[..., 0]
+        # ZPJCorr = self._correct_pleaders(j, j)[..., 0]
 
         if reshape:
             ZPJCorr = ZPJCorr[..., None]
@@ -776,7 +776,7 @@ class WaveletLeader(WaveletDec):
         return self
 
     def check_regularity(self, scaling_ranges, weighted=None,
-                          idx_reject=None, min_j=None):
+                         idx_reject=None, min_j=None):
         """
         Verify that the MRQ has enough regularity for analysis.
 

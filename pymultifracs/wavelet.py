@@ -385,8 +385,8 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 
         leaders = fast_power(pleader_p[scale], 1/p_exp)
 
-        mask_nan = ((~np.isnan(leaders)).sum(axis=0) >= 3)
-        leaders *= mask_nan[None, :]
+        # mask_nan = ((~np.isnan(leaders)).sum(axis=0) >= 3) + np.nan
+        # leaders *= mask_nan[None, :]
 
         wt_leaders._add_values(leaders, scale)
 

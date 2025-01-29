@@ -902,11 +902,11 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
     from .hilbert import HilbertCost, w_hilbert
     import ruptures as rpt
 
-    # ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())
+    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
     # idx_j = np.s_[cm.j.min() - min(leaders.values):
     #               cm.j.max() - min(leaders.values) + 1]
 
-    # ZPJCorr = leaders.correct_pleaders(cm.j.min(), cm.j.max())#[..., idx_j]
+    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())#[..., idx_j]
     # ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
 
     if generalized:

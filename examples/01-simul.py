@@ -6,6 +6,9 @@ Analysis of simulated MRWs
 ==========================
 """
 
+# pylint: disable=C0413
+# flake8: disabel=E402
+
 # %% [markdown]
 # The ``pymultifracs`` package estimates the multifractal properties of time series. This is an example using simulated Multifractal Random Walks which covers all steps of the multifractal analysis procedure and gives an overview of the toolbox's features.
 #
@@ -36,15 +39,15 @@ plt.show()
 
 # %% [markdown]
 # Wavelet transform is performed the :func:`pymultifracs.wavelet_analysis` function
-# 
+#
 # Parameters:
-# 
+#
 # - ``wt_name``: The discrete wavelet to use, following the convention of the :mod:`pywavelets` package.
-# 
+#
 # - ``j2``: The largest scale to analyze, by default ``None`` which means that the analysis is carried to the coarsest possible temporal scale. The motivation for setting a lower value is to reduce the computation time and memory footprint.
-# 
+#
 # - ``normalization``: Normalization norm for the wavelet coefficients: takes the value of :math:`p` to define the :math:`p`-norm used in normalization. Defaults to 1 (:math:`1`-norm) which is appropriate for scale invariance analysis.
-# 
+#
 # Multivariate time series, such as we are dealing with here, are passed with the shape `(n_samples, n_channels)`
 
 # %%
@@ -54,7 +57,7 @@ WT = wavelet_analysis(X, wt_name='db3', j2=None, normalization=1)
 
 # %%
 # The output is a :class:`.WaveletDec` object, which contains the wavelet transform of the time series.
-# 
+#
 # It may be visualized using the `plot` method, specifying ``j1`` and ``j2``, the lower and upper bounds on the scales temporal scales displayed, respectively.
 
 # %%
@@ -95,7 +98,7 @@ WSE.check_regularity(scaling_ranges)
 
 # %% [markdown]
 # In case the minimal regularity is too low, it may be necessary to fractionally integrate the time series.
-# 
+#
 # A simple approach is provided in the :meth:`.WaveletDec.auto_integrate` method, which will try to find a fractional integration coefficient large enough that all signals may be analyzed, and return the properly integrated multi-resolution quantity.
 
 # %%
@@ -113,15 +116,15 @@ WT_int = WT.integrate(.5)
 
 # %% [markdown]
 # Multifractal analysis is carried out using the :func:`mfa` function.
-# 
+#
 # Basic parameters:
 #
 # - ``mrq``: Multi-resolution quantity (:class:`.WaveletDec`, :class:`.WaveletLeader`, :class:`.WaveletWSE`) on which to perform the analysis.
-# 
+#
 # - ``weighted``: whether the linear regressions should be weighted. Defaults to None, which means no weighting is performed. ``"Nj"`` indicates that the weights are determined from the number of coefficients at each scale.
-# 
+#
 # - ``q``: list of moments.
-# 
+#
 # .. note:: by default, :func:`mfa` checks the regularity of the time series. It is possible to disable this by passing ``check_regularity=False``.
 
 # %%
@@ -132,11 +135,11 @@ pwt = mfa(WTpL, scaling_ranges, weighted='Nj', q=[-2, -1, 0, 1, 2])
 
 # %% [markdown]
 # The function outputs a :class:`.MFractalVar` object, which contains:
-# 
+#
 # - ``structure``: the structure functions (:class:`.StructureFunction`) and associated exponents
-# 
+#
 # - ``cumulants``: the cumulant scaling functions (:class:`.Cumulants`) and log-cumulants
-# 
+#
 # - ``spectrum``: the multifractal spectrum (:class:`.MFSpectrum`)
 
 # %% [markdown]
@@ -157,7 +160,7 @@ pwt.structure.plot(figsize=(10, 4), nrow=2)
 pwt.structure.plot_scaling()
 
 # %% [markdown]
-# **Cumulants** 
+# **Cumulants**
 
 # %% [markdown]
 # The cumulant scaling functions may be visualized using :meth:`.Cumulants.plot`

@@ -648,7 +648,7 @@ class Cumulants(ScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.get_values(j))
-            T_X_j = T_X_j[:, None, :]
+            # T_X_j = T_X_j[:, None, :]
 
             # if self.formalism == 'wavelet p-leader':
             #     T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
