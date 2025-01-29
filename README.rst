@@ -3,6 +3,7 @@
 |Python|_ |Doc|_ |Codecov|_ |Binder|_
 
 .. |Python| image:: https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-brightgreen
+.. _Python: https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-brightgreen
 
 .. |Codecov| image:: https://codecov.io/gh/neurospin/pymultifracs/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/neurospin/pymultifracs
