@@ -23,7 +23,7 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
         # )
 
         w = sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[None, :]
-        
+
     elif weighted == 'bootstrap':
 
         std[std == 0] = std[std != 0].min()

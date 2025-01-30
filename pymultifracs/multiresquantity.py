@@ -495,7 +495,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         return self
 
     def check_regularity(self, scaling_ranges, weighted=None, idx_reject=None,
-                         min_j=None):
+                         min_j=1):
         r"""
         Verify that the MRQ has enough regularity for analysis.
 
@@ -796,7 +796,7 @@ class WaveletLeader(WaveletDec):
 
         if self.p_exp == np.inf:
             return super().check_regularity(
-                scaling_ranges, weighted, idx_reject)
+                scaling_ranges, weighted, idx_reject, min_j)
 
         eta_p = estimation.estimate_eta_p(
             self.origin_mrq, self.p_exp, scaling_ranges, weighted, idx_reject)
@@ -883,7 +883,7 @@ class WaveletWSE(WaveletDec):
 
         return super().get_wse(theta, gamint)
 
-    def check_regularity(self, *args):  # pylint: disable=unused-argument
+    def check_regularity(self, *args, **kwargs):  # pylint: disable=W0613
         """
         Check that the MRQ has enough regularity for analysis
 
