@@ -4,7 +4,7 @@ Authors: Merlin Dumeur <merlin@dumeur.net>
 """
 
 import warnings
-from math import ceil
+from math import ceil, floor
 
 import pywt
 import numpy as np
@@ -567,7 +567,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
     return wt_coefs
 
 
-def compute_wse(wt_coefs, theta=0.5):
+def compute_wse(wt_coefs, theta=0.5, omega=1):
     """
     Compute the (theta,1)-leaders from the wavelet transform.
     """
@@ -579,7 +579,8 @@ def compute_wse(wt_coefs, theta=0.5):
     for scale, dwt in wt_coefs.values.items():
 
         # Define a scale slice j/sqrt(j)
-        lower_scale = max(1, int(scale-scale**(theta)))
+        # lower_scale = max(1, int(scale-scale**(theta)))
+        lower_scale = max(1, ceil(scale-scale**(theta)))
         # Check the case where j>j_max
         lower_scale = min(lower_scale, scale)
         # J2 = 1  # Dans les cas des leaders J2=1
@@ -594,7 +595,7 @@ def compute_wse(wt_coefs, theta=0.5):
             for j in range(scale, lower_scale-1, -1):
 
                 # On prend des paquets de coefficients qui varie
-                packet_size = (scale-j)+1
+                packet_size = (scale - j) ** omega
                 # packet_size = 1  # Pour calculer les leaders
 
                 # On stock tous les coefs en ondelettes
@@ -602,20 +603,32 @@ def compute_wse(wt_coefs, theta=0.5):
                 nwav = cwav.shape[0]  # On compte le nombre de coefs
 
                 # On calcule la borne de gauche
-                left_bound = int(
-                    max(1, 2**(scale-j) * (k-packet_size+1))) - 1
+                # left_bound = int(
+                #     max(1, 2**(scale-j) * (k-packet_size+1))) - 1
+                left_bound = max(
+                    0, 2**(scale-j) * (k + .5 - packet_size) - .5)
+
                 # On calcule la borne de droite
-                right_bound = int(
-                    min(nwav, 2**(scale-j) * (k+packet_size+1))) - 1
+                right_bound = min(
+                    nwav, 2**(scale-j) * (k + .5 + packet_size) - .5 + 1)
+
+                # Calculate indices associated with the bounds
+                left_idx = ceil(left_bound)
+                right_idx = floor(right_bound)
 
                 # if right_bound <= left_bound:
                 #     continue
 
                 # On détermine le WSE
-                wse[k] = np.max(
-                    np.r_[wse[k],
-                          np.max(abs(cwav[left_bound:right_bound]), axis=0)],
-                    axis=0)
+
+                wse[k] = np.nanmax(
+                    np.c_[wse[k],
+                          np.max(abs(cwav[left_idx:right_idx]), axis=0)],
+                    axis=1)
+
+        # print(wse[k].shape)
+        # print(np.c_[wse[k],
+        #             np.max(abs(cwav[left_bound:right_bound]), axis=0)].shape)
 
         wse_coef._add_values(wse, scale)
 

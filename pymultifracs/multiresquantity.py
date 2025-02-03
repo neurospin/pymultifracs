@@ -421,15 +421,22 @@ class WaveletDec(MultiResolutionQuantityBase):
         integ = self.integrate(gamint - self.gamint)
         return integ.get_leaders(p_exp, interval_size)
 
-    def get_wse(self, theta=.5, gamint=None):
+    def get_wse(self, theta=.5, omega=1, gamint=None):
         """
         Compute weak scaling exponents from the wavelet coefficients
 
         Parameters
         ----------
         theta : float, optional
+            Parameter controlling to which extent the cone reaches in the lower
+            scales. Practically, :math:`(\\theta, \\omega)`-leaders
+            computed at scale :math:`j` reach down to :math:`j-j^{\\theta}`.
+        omega : float, optional
             Parameter controlling the angle of the cone over which the weak
-            scaling exponents are computed
+            scaling exponents are computed: practically, for computing the
+            :math:`(\\theta, \\omega)`-leaders at scale :math:`j`, the width
+            of the cone at scale :math:`j\\prime` is
+            :math:`(j-j\\prime)^{omega} + 1`.
         gamint : float, optional
             Fractional integration coefficient, defaults to 0 (no integration).
 
@@ -446,13 +453,13 @@ class WaveletDec(MultiResolutionQuantityBase):
             gamint = self.gamint
 
         if gamint == self.gamint:
-            return wavelet.compute_wse(self, theta)
+            return wavelet.compute_wse(self, theta, omega)
 
         if self.origin_mrq is not None:
-            return self.origin_mrq.compute_wse(theta, gamint)
+            return self.origin_mrq.compute_wse(theta, omega, gamint)
 
         integ = self.integrate(gamint - self.gamint)
-        return integ.get_wse(theta, gamint)
+        return integ.get_wse(theta, omega, gamint)
 
     def auto_integrate(self, scaling_ranges, weighted=None, idx_reject=None):
         """
@@ -875,13 +882,13 @@ class WaveletWSE(WaveletDec):
     def get_formalism(self):
         return 'weak scaling exponent'
 
-    def get_wse(self, theta=0.5, gamint=None):
+    def get_wse(self, theta=0.5, omega=1, gamint=None):
 
-        if (theta == self.theta
+        if (theta == self.theta and omega == self.omega
                 and (gamint is None or gamint == self.gamint)):
             return self
 
-        return super().get_wse(theta, gamint)
+        return super().get_wse(theta=theta, omega=omega, gamint=gamint)
 
     def check_regularity(self, *args, **kwargs):  # pylint: disable=W0613
         """
