@@ -621,10 +621,14 @@ def compute_wse(wt_coefs, theta=0.5, omega=1):
 
                 # On détermine le WSE
 
-                wse[k] = np.nanmax(
-                    np.c_[wse[k],
-                          np.max(abs(cwav[left_idx:right_idx]), axis=0)],
-                    axis=1)
+                joint = np.c_[wse[k],
+                              np.max(abs(cwav[left_idx:right_idx]), axis=0)]
+
+                # skipping if all nan: wse[k] is already set to nan.
+                if np.isnan(joint).all():
+                    continue
+
+                wse[k] = np.nanmax(joint, axis=1)
 
         # print(wse[k].shape)
         # print(np.c_[wse[k],

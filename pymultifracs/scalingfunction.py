@@ -759,6 +759,9 @@ class Cumulants(ScalingFunction):
             Optional arguments sent to :func:`pymultifracs.viz.plot_cumulants`.
         """
 
+        if n_cumul is None:
+            n_cumul = self.n_cumul
+
         if n_cumul > self.n_cumul:
             raise ValueError(
                 'Cannot plot more cumulants than were computed '
