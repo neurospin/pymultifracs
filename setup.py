@@ -14,22 +14,30 @@ with open(op.join('pymultifracs', '_version.py'), 'r') as fid:
 if version is None:
     raise RuntimeError('Could not determine version')
 
+extras = {
+    'bootstrap': 'recombinator',
+    'robust': ['statsmodels', 'ruptures', 'numba', 'tqdm'],
+    'test': [
+        'pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator',
+        'joblib'],
+    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme', 'sphinx-gallery'],
+}
 
 setup(name='pymultifracs',
       version=version,
       description='Implements wavelet based fractal and multifractal analysis '
                   'of 1d signals.',
       url='https://github.com/neurospin/pymultifracs',
-      author='Omar Darwiche Domingues, Merlin Dumeur',
+      author='Merlin Dumeur, Omar Darwiche Domingues',
       author_email='',
       license='MIT',
       packages=['pymultifracs'],
       install_requires=[
-          'numpy', 'scipy', 'scikit-learn', 'pywavelets', 'seaborn',
-          'recombinator', 'statsmodels',
+          'numpy', 'scipy', 'pywavelets', 'seaborn',
       ],
+      extras_require=extras,
       zip_safe=False,
-      python_requires='>=3.7',
+      python_requires='>=3.10',
       long_description=long_description,
       long_description_content_type='text/x-rst',
       classifiers=['Intended Audience :: Science/Research',
@@ -49,4 +57,4 @@ setup(name='pymultifracs',
         'Tracker': 'https://github.com/neurospin/pymultifracs/issues/',
       },
       platforms='any',
-      )
+)

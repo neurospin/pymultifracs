@@ -1,3 +1,5 @@
-from .bimfa import bivariate_analysis, bivariate_analysis_full
+# pylint: disable=C0114
+from .bimfa import bimfa
+from .biscaling_function import BiStructureFunction, BiCumulants
 
-__all__ = ['bivariate_analysis', 'bivariate_analysis_full']
+__all__ = ['bimfa', 'BiStructureFunction', 'BiCumulants']

@@ -8,4 +8,4 @@ Contents
    :caption: Overview:
 
    reference
-   theory
+   auto_examples/index

@@ -13,29 +13,31 @@ jobs:
     if: github.repository == 'neurospin/pymultifracs'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Cache conda
-        uses: actions/cache@v2
-        env:
-          CACHE_NUMBER: 0
+      - uses: actions/checkout@v4
+      # - name: Cache conda
+      #   uses: actions/cache@v2
+      #   env:
+      #     CACHE_NUMBER: 0
+      #   with:
+      #     path: ~/conda_pkgs_dir
+      #     key:
+      #       doc-conda-${{ env.CACHE_NUMBER }}-${{
+      #       hashFiles('meta.yml') }}
+      - name: Setup python with mamba
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          path: ~/conda_pkgs_dir
-          key:
-            doc-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('meta.yml') }}
-      - name: Setup python with conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          activate-environment: test
-          python-version: 3.11
+          # mamba-version: "*"
+          miniforge-version: latest
+          activate-environment: pymultifracs
+          python-version: 3.13
           environment-file: meta.yml
-          use-only-tar-bz2: true
+          channel-priority: strict
+          channels: conda-forge,numba
       - name: Build doc
         shell: bash -el {0}
+        # mamba install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme nbsphinx
         run: |
-          conda install -c conda-forge pip sphinx numpydoc pydata-sphinx-theme
-          python -m pip install .
+          pip install .[bootstrap,robust,doc]
           cd doc
           make html
           touch _build/html/.nojekyll
@@ -45,7 +47,7 @@ jobs:
             echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
       - name: Upload gh page artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
           path: doc/_build/html/
@@ -55,9 +57,9 @@ jobs:
     needs: build-docs
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
+    # permissions:
+    #   pages: write      # to deploy to Pages
+    #   id-token: write   # to verify the deployment originates from an appropriate source
 
     # Deploy to the github-pages environment
     environment:
@@ -69,6 +71,6 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/deploy-pages@v4 # or the latest "vX.X.X" version tag for this action
+        # with:
+        #   token: ${{ secrets.GITHUB_TOKEN }}

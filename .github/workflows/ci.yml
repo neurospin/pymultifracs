@@ -13,19 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Full git history is needed to get a proper
           # list of changed files within `super-linter`
           fetch-depth: 0
       - name: Lint code
-        uses: github/super-linter/slim@v4
+        uses: super-linter/super-linter/slim@v7.2.1
         env:
           LINTER_RULES_PATH: .
           DEFAULT_BRANCH: master
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FILTER_REGEX_INCLUDE: ./pymultifracs/*.py
+          FILTER_REGEX_INCLUDE: ^(pymultifracs|tests)/.*\.py$
+          PYTHON_PYLINT_CONFIG_FILE: .pylintrc
           VALIDATE_PYTHON_FLAKE8: true
           VALIDATE_PYTHON_PYLINT: true
 
@@ -36,42 +37,59 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: linter-check
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.8"]
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python-version: "3.10"
+          - os: macos-latest
+            python-version: "3.10"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Get Date
         id: get-date
         run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Cache conda
-        uses: actions/cache@v2
-        env:
-          CACHE_NUMBER: 0
+      # - name: Cache conda
+      #   uses: actions/cache@v2
+      #   env:
+      #     CACHE_NUMBER: 0
+      #   with:
+      #     path: ~/conda_pkgs_dir
+      #     key:
+      #       ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+      #       hashFiles('env.yml') }}
+      - name: Setup python ${{ matrix.python-version }} with mamba
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          path: ~/conda_pkgs_dir
-          key:
-            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-            hashFiles('env.yml') }}
-      - name: Setup python ${{ matrix.python-version }} with conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
           python-version: ${{ matrix.python-version }}
+          # installer-url: https://github.com/conda-forge/miniforge/releases/download/24.11.3-0/Miniforge3-24.11.3-0-Linux-x86_64.sh
+          # miniforge-variant: Miniforge3
+          miniforge-version: latest
           environment-file: meta.yml
-          use-only-tar-bz2: true
+          conda-remove-defaults: "true"
+          channels: conda-forge,numba
+          channel-priority: strict
+          activate-environment: pymultifracs
+          # mamba-version: "*"
+          # use-only-tar-bz2: true
       - name: Testing
+        # mamba install -c numba -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
         run: |
-          conda install -c conda-forge pytest pytest-xdist pytest-cov
-          pip install -e .
+          mamba list
+          mamba --version
+          pip install -e .[bootstrap,robust,test]
+          mamba list
           pytest -n auto -x --cov=./ --cov-report=xml
       - name: Upload coverage
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.10' }} 
-        uses: codecov/codecov-action@v3
+        # if: ${{ github.event_name == 'push' && matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.13' }}
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.13' }}
+        uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml # optional
           name: codecov-umbrella # optional
-          fail_ci_if_error: true # optional (default = false)
+          fail_ci_if_error: false # optional (default = false)
           verbose: true # optional (default = false)

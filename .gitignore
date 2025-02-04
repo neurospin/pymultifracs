@@ -21,6 +21,10 @@ dist/
 docs/
 doc/_build/
 doc/_autosummary/
+doc/auto_examples/
+doc/auto_tutorials/
+doc/generated/
+doc/sg_execution_times.rst
 
 .ipynb_checkpoints/
 .vscode
@@ -49,3 +53,4 @@ notebooks/figures
 examples/*.html
 data/
 examples/*.mat
+*.pkl

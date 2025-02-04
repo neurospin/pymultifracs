@@ -1,17 +1,18 @@
-# Synthesis of multifractal random walk and derived processes.
-#
-# Roberto Fabio Leonarduzzi
-# January, 2019
+"""
+Authors: Roberto Fabio Leonarduzzi
+January, 2019
+
+Synthesis of multifractal random walk and derived processes.
+"""
 
 import numpy as np
+from numpy.fft import fft, ifft
+
 from .fbm import fgn
 from .pzutils import gaussian_cme, gaussian_chol
-from numpy.fft import fft, ifft
-# import math
-# import matplotlib.pyplot as plt
 
 
-def mrw(shape, H, lam, L, sigma=1, method='cme', z0=(None, None)):
+def mrw(shape, H, lam, L=None, sigma=1, method='cme', z0=(None, None)):
     '''
     Create a realization of fractional Brownian motion using circulant
     matrix embedding.
@@ -52,6 +53,9 @@ def mrw(shape, H, lam, L, sigma=1, method='cme', z0=(None, None)):
     # Is 0.5 or 0 the lower bound ? Search biblio
     if not 0 <= H <= 1:
         raise ValueError('H must satisfy 0 <= H <= 1')
+
+    if L is None:
+        L = N
 
     if L > N:
         raise ValueError('Integral scale L is larger than data length N')
@@ -173,6 +177,8 @@ def gaussian_w(N, R, L, lam, dt=1, method='cme', z0=None):
         w = gaussian_cme(cov, N, R, z0)
     elif method == 'chol':
         w = gaussian_chol(cov, N, R, z0)
+    else:
+        raise ValueError('Method should be either "cme" or "chol"')
 
     return w
 
@@ -210,7 +216,7 @@ def skewness_convolution_dumb(e, K0, alpha, beta=1, dt=1):
     return scorr
 
 
-def mrw2D(shape, H, lam, L,  sigma=1):
+def mrw2D(shape, H, lam, L, sigma=1):
     '''
     Create a realization of fractional Brownian motion using circulant
     matrix embedding.

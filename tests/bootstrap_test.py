@@ -3,28 +3,7 @@ import json
 
 import numpy as np
 
-from pymultifracs.wavelet import decomposition_level_bootstrap, \
-    wavelet_analysis
-from pymultifracs.estimation import estimate_hmin
-from pymultifracs.mfa import mf_analysis_full
-
-
-@pytest.mark.bootstrap
-def test_wavelet_bootstrap(mrw_file):
-
-    for fname in mrw_file:
-
-        with open(fname, 'rb') as f:
-            X = np.load(f)
-
-        j2 = 8
-        wt_coefs, _, j2_eff, _ = wavelet_analysis(X, p_exp=None, j2=j2)
-        hmin = estimate_hmin(wt_coefs, [(1, j2_eff)], weighted=None)[0]
-        hmin = hmin.min()
-        gamint = 0.0 if hmin >= 0 else 1
-        WT = wavelet_analysis(X, p_exp=2, j2=j2, gamint=gamint)
-        WT.wt_coefs.bootstrap(5)
-        WT.wt_leaders.bootstrap(5)
+from pymultifracs import mfa, wavelet_analysis
 
 
 @pytest.mark.bootstrap
@@ -38,17 +17,22 @@ def test_confidence_interval(mrw_file):
         with open(fname, 'rb') as f:
             X = np.load(f)
 
-        # j2 = decomposition_level(X.shape[0], 'db3')
-        j2 = decomposition_level_bootstrap(X, 'db3')
-        scaling_ranges = [(2, j2)]
+        WT = wavelet_analysis(X[:, :20])
+        WTpL = WT.get_leaders(2)
 
-        dwt, lwt = mf_analysis_full(
-            X, scaling_ranges, weighted='bootstrap', p_exp=2, n_cumul=2,
-            R=5, estimates=['s', 'c'])
+        j2 = WTpL.max_scale_bootstrap()
+        scaling_ranges = [(2, j2), (3, j2)]
 
-        print(
-            dwt.structure.S_q(2).shape,
-            dwt.structure.bootstrapped_mrq.S_q(2).shape)
+        WT = WT.auto_integrate(scaling_ranges)
+
+        dwt, lwt = mfa(
+            [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+            R=5, estimates='sc')
+
+        lwt.cumulants.compute_Lambda()
+        lwt.cumulants.get_jrange(1, 2, True)
+
+        dwt.structure.compute_Lambda()
 
         dwt.structure.CIE_S_q(2)
         dwt.structure.CI_S_q(2)
@@ -60,29 +44,12 @@ def test_confidence_interval(mrw_file):
         lwt.cumulants.CI_C2
         lwt.cumulants.CIE_C2
 
-        assert abs(dwt.structure.H.mean() - config_list[i]['H'] < 0.1)
-        assert abs(lwt.cumulants.log_cumulants[1, :].mean()
+        lwt.cumulants.VE_c2
+        lwt.cumulants.SE_c2
+        lwt.cumulants.V_c2
+        lwt.cumulants.STD_c2
+
+        assert abs(
+            dwt.structure.H[0].mean() - WT.gamint - config_list[i]['H'] < 0.1)
+        assert abs(lwt.cumulants.c2[0].mean()
                    + (config_list[i]['lam'] ** 2)) < 0.025
-
-
-@pytest.mark.bootstrap
-def test_autorange(mrw_file):
-
-    for i, fname in enumerate(mrw_file):
-
-        with open(fname, 'rb') as f:
-            X = np.load(f)
-
-        j2 = decomposition_level_bootstrap(X, 'db3')
-        scaling_ranges = [(2, j2)]
-
-        dwt, lwt = mf_analysis_full(
-            X, scaling_ranges, weighted='bootstrap', p_exp=2, n_cumul=2,
-            R=5, estimates=['s', 'c'])
-
-        print(
-            dwt.structure.S_q(2).shape,
-            dwt.structure.bootstrapped_mrq.S_q(2).shape)
-
-        lwt.cumulants.compute_Lambda()
-        dwt.structure.compute_Lambda()
