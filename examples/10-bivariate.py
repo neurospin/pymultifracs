@@ -66,6 +66,13 @@ q1 = np.array([0, 1, 2])
 q2 = np.array([0, 1, 2])
 
 pwt = bimfa(WTpL, WTpL, scaling_ranges=[(3, 9)], q1=q1, q2=q2)
+
+# %%
+
+# We can obtain the multifractal correlation matrix :math:`\rho_{mf}`:
+
+print(pwt.cumulants.rho_mf.squeeze())
+
 # %%
 # We can plot the structure function:
 pwt.structure.plot()
