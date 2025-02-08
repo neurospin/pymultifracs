@@ -6,15 +6,14 @@ Analysis of simulated MRWs
 ==========================
 """
 
-# pylint: disable=C0413
-# flake8: disabel=E402
-
 # %% [markdown]
 # The ``pymultifracs`` package estimates the multifractal properties of time series. This is an example using simulated Multifractal Random Walks which covers all steps of the multifractal analysis procedure and gives an overview of the toolbox's features.
 #
 # Let us first generate a few Multifractal Random Walks with parameters :math:`H = 0.8` and :math:`\lambda=\sqrt{0.05}`
 
 # %% [python]
+# pylint: disable=C0413
+# flake8: disabel=E402
 
 # sphinx_gallery_start_ignore
 import seaborn as sns

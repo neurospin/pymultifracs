@@ -20,7 +20,8 @@ extras = {
     'test': [
         'pytest', 'pytest-xdist', 'pytest-cov', 'statsmodels', 'recombinator',
         'joblib'],
-    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme', 'sphinx-gallery', 'joblib'],
+    'doc': ['sphinx', 'numpydoc', 'pydata-sphinx-theme', 'sphinx-gallery', 'joblib',
+            'pooch'],
 }
 
 setup(name='pymultifracs',

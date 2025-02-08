@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, InitVar
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from scipy import special
 
 
@@ -312,7 +313,7 @@ class BiStructureFunction(BiScalingFunction):
         idx = np.s_[j_min:j_max]
 
         _, axes = plt.subplots(len(self.q1), len(self.q2), sharex=True,
-                               figsize=figsize)
+                               figsize=figsize, squeeze=False)
 
         x = self.j[idx]
 
@@ -343,7 +344,7 @@ class BiStructureFunction(BiScalingFunction):
                 ax.errorbar(x, y, CI)
                 # ax.tick_params(bottom=False, top=False, which='minor')
                 ax.set(xlabel='Temporal scale $j$',
-                       ylabel=f'$q_1={q1:.1f}$, $q_2={q2:.1f}$')
+                       ylabel=f'$q_1={q1:.1g}$, $q_2={q2:.1f}$')
 
                 x0, x1 = self.scaling_ranges[scaling_range]
 
@@ -407,7 +408,6 @@ class BiCumulants(BiScalingFunction):
 
         self._compute(mrq1, mrq2, idx_reject)
 
-
         self.slope = np.zeros(
             (self.n_cumul+1, self.n_cumul+1, len(self.scaling_ranges),
              *self.values.shape[4:]))
@@ -422,12 +422,10 @@ class BiCumulants(BiScalingFunction):
         self.slope[idx_margin1] = slope1[:, 0, :, :, None]
         self.intercept[idx_margin1] = intercept1[:, 0, :, :, None]
 
-
         slope2, intercept2, _ = self._compute_fit(
             mrq1, mrq2, margin=1, value_name='margin2_values')
         self.slope[idx_margin2] = slope2[:, 0, :, None]
         self.intercept[idx_margin2] = intercept2[:, 0, :, None]
-
 
         idx = np.s_[1:, 1:]
         self.slope[idx], self.intercept[idx], _ = self._compute_fit(mrq1, mrq2)
@@ -435,9 +433,7 @@ class BiCumulants(BiScalingFunction):
         # self.margin1_log_cumulants = self.margin1_slope * np.log2(np.e)
         # self.margin2_log_cumulants = self.margin2_slope * np.log2(np.e)
 
-
         self.log_cumulants = self.slope * np.log2(np.e)
-
 
         self._compute_rho()
 
@@ -624,7 +620,7 @@ class BiCumulants(BiScalingFunction):
         for m1 in range(self.n_cumul + 1):
             for m2 in range(self.n_cumul + 1):
 
-                if m1 != 0 and m2 !=0 and (m1, m2) not in self.m:
+                if m1 != 0 and m2 != 0 and (m1, m2) not in self.m:
                     fig.delaxes(axes[m1][m2])
                     continue
 
@@ -637,37 +633,51 @@ class BiCumulants(BiScalingFunction):
         if filename is not None:
             plt.savefig(filename)
 
-    def _compute_legendre(self, h_support=(0, 1.5), resolution=100):
+    def _compute_legendre(self, h_support=(0, 1.5), resolution=100,
+                          signal_idx1=0, signal_idx2=1, idx_range=0):
         """
         Compute the bivariate Legendre spectrum.
         """
 
+        if signal_idx1 == signal_idx2:
+            raise ValueError('signal_idx1 should be different from signal_idx2')
+
         h_support = np.linspace(*h_support, resolution)
 
-        b = (self.c20 * self.c02) - (self.c11 ** 2)
+        sl_ = np.s_[:, signal_idx1, signal_idx2, idx_range]
+
+        c11 = self.c11[sl_]
+        c10 = self.c10[sl_]
+        c01 = self.c01[sl_]
+        c20 = self.c20[sl_]
+        c02 = self.c02[sl_]
+
+        b = (c20 * c02) - (c11 ** 2)
 
         L = np.ones((resolution, resolution))
 
         for i, h in enumerate(h_support):
-            L[i, :] += self.c02 * b / 2 * (((h - self.c10) / b) ** 2)
-            L[:, i] += self.c20 * b / 2 * (((h - self.c01) / b) ** 2)
+            L[i, :] += c02 * b / 2 * (((h - c10) / b) ** 2)
+            L[:, i] += c20 * b / 2 * (((h - c01) / b) ** 2)
 
         for i, h1 in enumerate(h_support):
             for j, h2 in enumerate(h_support):
-                L[i, j] -= (self.c11 * b
-                            * ((h1 - self.c10) / b)
-                            * ((h2 - self.c01) / b))
+                L[i, j] -= (c11 * b
+                            * ((h1 - c10) / b)
+                            * ((h2 - c01) / b))
 
         return h_support, L
 
-    def plot_legendre(self, h_support=(0, 1.5), resolution=30,
-                      figsize=(10, 10), cmap=None):
+    def plot_legendre(self, h_support=(0, 1.5), resolution=100,
+                      figsize=(10, 10), cmap=None, signal_idx1=0,
+                      signal_idx2=1, idx_range=0):
         """
         Plot the bivariate Legendre spectrum
         """
 
-        h, L = self._compute_legendre(h_support=h_support,
-                                      resolution=200)
+        h, L = self._compute_legendre(
+            h_support=h_support, resolution=200, signal_idx1=signal_idx1,
+            signal_idx2=signal_idx2, idx_range=idx_range)
 
         h_x = h[L.max(axis=0) >= 0]
         h_y = h[L.max(axis=1) >= 0]
@@ -677,10 +687,13 @@ class BiCumulants(BiScalingFunction):
 
         h, L = self._compute_legendre((hmin, hmax), resolution)
 
-        cmap = cmap or plt.cm.coolwarm  # pylint: disable=no-member
+        cmap = cmap or plt.cm.viridis  # pylint: disable=no-member
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.gca(projection='3d')
+        fig, ax = plt.subplots(
+            figsize=figsize, subplot_kw={'projection': '3d'})
+        # ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+        ax.set_proj_type('persp', focal_length=.15)
 
         h_x = h[L.max(axis=0) >= 0]
         h_y = h[L.max(axis=1) >= 0]
@@ -688,23 +701,44 @@ class BiCumulants(BiScalingFunction):
         L = L[:, L.max(axis=0) >= 0]
         L = L[L.max(axis=1) >= 0, :]
 
+        L[L < 0] = None
+
         colors = cmap(L)
         colors[L < 0] = 0
 
         X, Y = np.meshgrid(h_x, h_y)
 
+        light = mpl.colors.LightSource(azdeg=60, altdeg=60)
+
         # Plot the surface.
-        surf = ax.plot_surface(X, Y, L, cmap=cmap,
-                               linewidth=1, antialiased=False,
-                               vmin=0, vmax=1,
-                               rstride=1, cstride=1,
-                               facecolors=colors, shade=False, linestyle='-',
-                               edgecolors='black', zorder=1)
+        surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
+                            #   facecolors=colors,
+                            # lightsource=light,
+                            #    linewidth=1, vmin=0, vmax=1,
+                            #    rstride=1, cstride=1,
+                            # linestyle='-',
+                            #    zorder=1)
+        )
+
+        # argmax = np.argmax(L, axis=-1)
+        # ax.contour(X[..., argmax], Y[..., argmax], L[..., argmax], zdir='x')
+
+        # ax.contour(X, Y, L > 1, zdir='x', offset=h_x.min(), levels=0)
+
+        ax.set(xlabel='$h_1$', ylabel='$h_2$', zlabel='$\mathcal{L}(h_1, h_2)$')
+
+        # ax.contour(X, Y, L, zdir='y', offset=h_y.max(), levels=[0])
+
+        # ax.contour(X, Y, L, zdir='x', levels=10)
+        # ax.contour(X, Y, L, zdir='y', levels=10)
+        # ax.contour(X, Y, L, zdir='z', levels=10)
+
+        # surf.set_edgecolors((0.1, 0.2, 0.5, 1))
         ax.set_zlim(0, 1)
         ax.view_init(elev=45)
 
         # TODO manage to plot the contours or switch to 3D plotting libs
-        fig.colorbar(surf, shrink=0.6, aspect=10)
+        # fig.colorbar(surf, shrink=0.6, aspect=10)
 
     def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
                          use_ipyvtk=False):
