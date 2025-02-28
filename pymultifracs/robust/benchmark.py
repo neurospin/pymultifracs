@@ -68,8 +68,8 @@ class Benchmark:
     """
     Compute and plot benchmarks, varying the models and analysis parameters.
 
-    Arguments
-    ---------
+    Attributes
+    ----------
     signal_gen_grid : dict[str, Callable]
         Dictionary associating a name to a function that samples time series.
     signal_param_grid : dict[str, ndarray of Any] | \
@@ -83,11 +83,8 @@ class Benchmark:
     estimation_param_grid : dict[str, dict[str, ndarray of Any]]
         Dictionary associating to each estimation method the dictionary of
         estimation parameters. May be empty.
-    folder : Path
+    folder : str | Path
         Path to the folder which will contain the output files.
-
-    Attributes
-    ----------
     results : DataFrame
         Dataframe collecting the outcomes of the estimation on the generated
         signals.
@@ -100,16 +97,22 @@ class Benchmark:
     estimation_grid: dict[str, Callable]
     estimation_param_grid: dict[str, dict[str, Callable]]
     # WT_params: dict[str, Any]
-    folder: Path = Path('.')
+    folder: str | Path = '.'
     # parameters_df: pd.DataFrame = field(init=False, default=None, repr=False)
     results: pd.DataFrame = field(init=False, repr=False)
 
     def __post_init__(self):
+        self.folder = Path(self.folder)
         self._load_df()
 
     def get_df_fnames(self):
         """
         Get results filename.
+
+        Returns
+        -------
+        Path
+            Path to the results filename (if saved)
         """
         return Path(self.folder / 'results.pkl')
 
@@ -166,7 +169,7 @@ class Benchmark:
             a different signal configuration.
         save_load_signals : bool
             Whether to save the signals, and load them if found, to speed up
-            computation
+            computation. Currently not implemented yet.
         save : bool
             Whether the save the final results dataframe to a pickled file.
         """
