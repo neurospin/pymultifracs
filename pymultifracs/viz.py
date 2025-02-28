@@ -571,6 +571,9 @@ def plot_psd(signal, fs, wt_name='db2', log_base=2, ax=None, **welch_kwargs):
 
     # Plotting
 
+    freq_fourier = freq_fourier[1:]
+    psd_fourier = psd_fourier[1:]
+
     freq = [freq_fourier, freq_wavelet]
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet']
