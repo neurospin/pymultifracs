@@ -3,6 +3,9 @@ Pelt implementation based on:
 https://github.com/deepcharles/ruptures/blob/master/src/ruptures/detection/pelt.py
 Which has been accelerated
 
+Copyright (c) 2017-2021, ENS Paris-Saclay, CNRS
+All rights reserved.
+
 Authors:
     Original authors of the Pelt python implementation.
     Merlin Dumeur <merlin@dumeur.net>.
