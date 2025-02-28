@@ -80,7 +80,7 @@ def compute_R(moment, slope, intercept, weights, j_min_max, j):
     moment = moment[:, j_min_idx:j_max_idx]
     slope = slope[:, None]
     intercept = intercept[:, None]
-    weights = weights[..., None]
+    # weights = weights[..., None]
     x = x[..., None]
 
     return np.nansum(

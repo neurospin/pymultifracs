@@ -142,7 +142,13 @@ class ScalingFunction(AbstractScalingFunction):
         intercept = self.intercept.reshape(
             *self.intercept.shape[:2], self.n_sig, -1)
 
-        return compute_R(values, slope, intercept, self.weights,
+        if self.weights.shape[-1] > 1:
+            weights = self.weights.reshape(
+                *self.weights.shape[:3], self.n_sig, -1)
+        else:
+            weights = self.weights[..., None]
+
+        return compute_R(values, slope, intercept, weights,
                          [self._get_j_min_max()], self.j)
 
     def compute_Lambda(self):
