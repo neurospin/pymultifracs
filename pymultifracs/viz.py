@@ -641,7 +641,9 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
         freq, psd = freq[indx], psd[indx]
         # log_freq, psd = _log_psd(freq, psd, log_base) # Log frequency and psd
 
-        ax.loglog(freq, psd, f, base=log_base, c=col, lw=lw, **plot_kwargs)
+        idx_pos = (freq > 0) & (psd > 0)
+
+        ax.loglog(freq[idx_pos], psd[idx_pos], f, base=log_base, c=col, lw=lw, **plot_kwargs)
 
         # if xticks is not None and i == len(freq_list) - 1:
         #     ax.set_xticks(log_freq)
@@ -739,7 +741,7 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     WT = wavelet.wavelet_analysis(
         signal, j2=j2, normalization=1, wt_name=wt_name)
 
-    psd = [np.nanmean(np.square(arr), axis=0) for arr in WT.values.values()]
+    psd = [np.nanmean(np.square(arr[:, 0]), axis=0) for arr in WT.values.values()]
     psd = np.array(psd)
 
     # Frequency
@@ -747,6 +749,6 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     # freq = (3/4 * fs) / (np.power(2, scale))
     freq = WT.scale2freq(np.array([*WT.values]), fs)
 
-    psd /= freq[:, None]  # amplitude to density
+    psd /= freq  # amplitude to density
 
     return PSD(freq=freq, psd=psd)
