@@ -2,6 +2,7 @@ import pytest
 import json
 
 from pymultifracs.simul import fbm, mrw
+from pymultifracs.simul.mrw import skewed_mrw
 
 
 def test_fbm():
@@ -43,11 +44,13 @@ def test_mrw():
 
 def test_mrw_failure():
 
+    # testing H range
     with pytest.raises(ValueError):
         mrw(100, H=-1.0, lam=0.1, L=100)
     with pytest.raises(ValueError):
         mrw(100, H=2.0, lam=0.1, L=100)
 
+    # testing L too high failure
     with pytest.raises(ValueError):
         mrw(100, H=0.5, lam=0.1, L=200)
 
@@ -61,3 +64,12 @@ def test_mrw_shape():
     for shape in [(100, 2), (100, 3), (400, 2)]:
         X = mrw(shape, 0.5, 0.1, shape[0])
         assert X.shape == shape
+
+
+# def test_skewed_mrw():
+
+#     with open('tests/mrw_config.json', 'rb') as f:
+#         config_list = json.load(f)
+
+#     for param_set in config_list:
+#         skewed_mrw(shape=100, L=100, **param_set)

@@ -1,6 +1,7 @@
 """
 Authors: Roberto Fabio Leonarduzzi
 January, 2019
+Copyright all rights reserved
 
 Various helper functions for the synthesis of random processes.
 """

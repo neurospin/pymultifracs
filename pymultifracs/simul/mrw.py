@@ -1,6 +1,7 @@
 """
 Authors: Roberto Fabio Leonarduzzi
 January, 2019
+Copyright all rights reserved
 
 Synthesis of multifractal random walk and derived processes.
 """
@@ -19,8 +20,8 @@ def mrw(shape, H, lam, L=None, sigma=1, method='cme', z0=(None, None)):
 
     Parameters
     ----------
-    shape : int | tuple(int)
-        If scalar, it is the  number of samples. If tuple it is (N, R),
+    shape : int | tuple(int, int)
+        If integer, it is the  number of samples N. If tuple it is (N, R),
         the number of samples and realizations, respectively.
     H : float
         Hurst exponent
@@ -30,12 +31,28 @@ def mrw(shape, H, lam, L=None, sigma=1, method='cme', z0=(None, None)):
         Integral scale
     sigma : float
         Variance of process
+    method : str
+        Method to use: `'cme'` selects circulant matrix embedding
+        (default, O(:math:`NlogN`) in memory), `'chol'` selects Cholesky
+        decomposition (O(:math:`N^2`) in memory).
+    z0 : tuple(ndarray of float, ndarray of float)
+        Optional tuple of white noise values, to fix the random component across
+        simulations. The shape should be :math:`(2N-2,R)` for `'cme'` and
+        :math:`(N,R)`.
+
+    .. note:: Arrays in `z0` can be generated using the following command:
+        .. code-block:: python
+            np.random.randn(2*N - 2, R) + 1j * np.random.randn(2*N - 2, R)
+        or .. code-block:: python
+            z = np.random.randn(N, R).
 
     Returns
     -------
     mrw : ndarray
         Synthesized mrw realizations. If `shape` is scalar,
         fbm is ofshape (N,). Otherwise, it is of shape (N, R).
+
+
 
     References
     ----------

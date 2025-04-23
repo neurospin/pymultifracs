@@ -29,7 +29,7 @@ Used to compute and store intermediary results. Not meant to be created outside 
     multiresquantity.WaveletDec
     multiresquantity.WaveletLeader
     multiresquantity.WaveletWSE
-    
+
 .. autosummary::
     :toctree: _autosummary
     :template: not_instantiated.rst
@@ -97,6 +97,7 @@ Utility functions
     :caption: Utility functions
 
     utils.build_q_log
+    Benchmark
 
 Outlier detection
 =================

@@ -144,7 +144,10 @@ def get_std(mrq, name):
 
     # # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
     # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
-    attribute = reshape(attribute, mrq.n_sig)
+    # TODO: improve the following section with xarray
+    if (attribute.shape[-2] != mrq.n_sig
+            or attribute.shape[-1] * attribute.shape[-2] != mrq.n_rep):
+        attribute = reshape(attribute, mrq.n_sig)
 
     unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
     std = np.nanstd(attribute, axis=-1, ddof=1)
@@ -159,7 +162,7 @@ def reshape(attribute, n_sig):
     """
     if n_sig == 1:
         return attribute
-    return attribute.reshape((attribute.shape[0], n_sig, -1))
+    return attribute.reshape((*attribute.shape[:-1], n_sig, -1))
 
 
 def get_confidence_interval(mrq, name):
