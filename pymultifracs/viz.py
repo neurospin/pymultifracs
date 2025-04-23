@@ -618,7 +618,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
     if slope is None:
         slope = []
 
-    ax = plt.gca() if ax is None else ax
+    if ax is None:
+        _, ax = plt.subplots()
 
     ax.set_xlabel('Frequency $f$ (Hz)')
     ax.set_ylabel('PSD')
@@ -641,9 +642,9 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
         freq, psd = freq[indx], psd[indx]
         # log_freq, psd = _log_psd(freq, psd, log_base) # Log frequency and psd
 
-        idx_pos = (freq > 0) & (psd > 0)
+        # idx_pos = (freq > 0) & (psd > 0)
 
-        ax.loglog(freq[idx_pos], psd[idx_pos], f, base=log_base, c=col, lw=lw, **plot_kwargs)
+        ax.loglog(freq, psd, f, base=log_base, c=col, lw=lw, **plot_kwargs)
 
         # if xticks is not None and i == len(freq_list) - 1:
         #     ax.set_xticks(log_freq)
