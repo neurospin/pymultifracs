@@ -945,7 +945,7 @@ class MFSpectrum(ScalingFunction):
         return self.hq.reshape(
             len(self.q), len(self.scaling_ranges), self.n_sig, -1)
 
-    def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
+    def plot_old(self, filename=None, ax=None, fmt='ko-', range_idx=0,
              signal_idx=0, shift_gamint=False, **plot_kwargs):
         """
         Plot the multifractal spectrum.
@@ -1015,6 +1015,93 @@ class MFSpectrum(ScalingFunction):
                title=self.formalism + ' - multifractal spectrum')
 
         # plt.suptitle()
+        plt.draw()
+
+        if filename is not None:
+            plt.savefig(filename)
+
+    def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
+            signal_idx=0, shift_gamint=False, xlim=None, ylim=None, **plot_kwargs):
+        """
+        Plot the multifractal spectrum.
+
+        Parameters
+        ----------
+        filename : str | None
+            If not None, saves the figure to ``filename``.
+        ax : Axes | None
+            Axes where to plot the spectrum. Defaults to None,
+            which creates a new figure.
+        fmt : str
+            Format string for the plot.
+        range_idx : int
+            If multiple scaling ranges were used in fitting, indicates the
+            index to use.
+        signal_idx : int
+            If using a multivariate signal, index of the signal to plot.
+        shift_gamint : bool
+            If fractional integration was used, shifts the spectrum on the
+            x-axis by :math:`-\\gamma`.
+        xlim : tuple[float, float] | None
+            Optional limits for the x-axis. If None, automatically determined.
+        ylim : tuple[float, float] | None
+            Optional limits for the y-axis. If None, automatically determined.
+        **plot_kwargs : dict
+            Optional arguments sent to the plotting function :func:`plt.plot`.
+        """
+
+        ax = plt.gca() if ax is None else ax
+
+        if self.bootstrapped_obj is not None:
+
+            CI_Dq = self.CIE_D_q()
+            CI_hq = self.CIE_h_q()
+
+            CI_Dq -= self.D_q()
+            CI_hq -= self.h_q()
+
+            CI_Dq = CI_Dq[:, range_idx, signal_idx]
+            CI_hq = CI_hq[:, range_idx, signal_idx]
+
+            CI_Dq[:, 1] *= -1
+            CI_hq[:, 1] *= -1
+
+            CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
+            CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
+
+            assert (CI_Dq < 0).sum() == 0
+            assert (CI_hq < 0).sum() == 0
+
+            CI_Dq = CI_Dq.transpose()
+            CI_hq = CI_hq.transpose()
+
+        else:
+            CI_Dq, CI_hq = None, None
+
+        shift = 0 if not shift_gamint else self.gamint
+
+        hq_plot = self.hq[:, range_idx, signal_idx] - shift
+        Dq_plot = self.Dq[:, range_idx, signal_idx]
+
+        ax.errorbar(hq_plot, Dq_plot, CI_Dq, CI_hq, fmt, **plot_kwargs)
+
+        # Auto-determine axis limits if not provided
+        if xlim is None:
+            margin_x = 0.05 * (hq_plot.max() - hq_plot.min())
+            xlim = (hq_plot.min() - margin_x, hq_plot.max() + margin_x)
+
+        if ylim is None:
+            margin_y = 0.05 * (Dq_plot.max() - Dq_plot.min())
+            ylim = (max(Dq_plot.min() - margin_y, 0), min(Dq_plot.max() + margin_y, 1.1))
+
+        ax.set(
+            xlabel=f'Regularity $h{self.regularity_suffix}$',
+            ylabel=rf'Fractal dimension $\mathcal{{L}}{self.variable_suffix}(h)$',
+            xlim=xlim,
+            ylim=ylim,
+            title=self.formalism + ' - multifractal spectrum'
+        )
+
         plt.draw()
 
         if filename is not None:
