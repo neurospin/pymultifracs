@@ -1,6 +1,7 @@
 """
 Authors: Roberto Fabio Leonarduzzi
 January, 2019
+Copyright all rights reserved
 
 Synthesis of fractional brownian motions through circulant matrix embedding.
 """
@@ -66,7 +67,7 @@ def fgn(shape, H, sigma=1, dt=None, method='cme', z0=None):
     # fbm = np.cumsum(x[:N, :], axis=0)
 
     if method == 'cme':
-        fGn = gaussian_cme(r, N, R)
+        fGn = gaussian_cme(r, N, R, z0)
     elif method == 'chol':
         fGn = gaussian_chol(r, N, R, z0)
     else:

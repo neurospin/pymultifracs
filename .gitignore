@@ -54,3 +54,5 @@ examples/*.html
 data/
 examples/*.mat
 *.pkl
+
+.coverage

@@ -12,27 +12,41 @@ from pymultifracs.simul import mrw
 def test_benchmark_unit():
 
     signal_param_grid = {
-        'H': np.array([.8]),
-        'lam': np.array([np.sqrt(.05)]),
-        'shape': np.array([2**16], dtype=int),
-        # 'n_rep': [1],
+        'mrw': {
+            'H': np.array([.8]),
+            'lam': np.array([np.sqrt(.05)]),
+            'shape': np.array([2**16], dtype=int),
+        }
     }
 
-    def basic_mfa(WT, robust):
+    def mrw_gen(H, lam, shape):
+        return mrw(H=H, shape=int(shape), L=int(shape), lam=lam)
 
-        WT = WT.integrate(1).get_leaders(np.inf)
+    signal_gen_grid = {
+        'mrw': mrw_gen
+    }
+
+    def basic_mfa(X, p_exp, robust=False):
+
+        WT = wavelet_analysis(
+            X, wt_name='db6').integrate(1).get_leaders(p_exp)
 
         lwt = mfa(
             WT, scaling_ranges=[(3, 7)], robust=robust, weighted=None, n_cumul=2)
 
-        return lwt.cumulants
+        return {
+            'c1': lwt.cumulants.c1[0, :, 0],
+            'c2': lwt.cumulants.c2[0, :, 0]
+        }
 
-    estimation_grid = {
-        'Leader': lambda x: basic_mfa(x, False),
+    estimation_param_grid = {
+        'leader': {
+            'p_exp': np.array([0.5, 1]),
+        },
     }
 
-    WT_params = {
-        'wt_name': 'db6'
+    estimation_grid = {
+        'leader': basic_mfa
     }
 
     def load_generate_signals(param_grid):
@@ -50,6 +64,7 @@ def test_benchmark_unit():
             #     raise ValueError('signal missing')
 
     bench = Benchmark(
-        signal_param_grid, load_generate_signals, estimation_grid, WT_params)
+        signal_gen_grid, signal_param_grid, estimation_grid,
+        estimation_param_grid)
 
     bench.compute_benchmark(n_jobs=1)

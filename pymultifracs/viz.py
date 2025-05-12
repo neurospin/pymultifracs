@@ -571,6 +571,9 @@ def plot_psd(signal, fs, wt_name='db2', log_base=2, ax=None, **welch_kwargs):
 
     # Plotting
 
+    freq_fourier = freq_fourier[1:]
+    psd_fourier = psd_fourier[1:]
+
     freq = [freq_fourier, freq_wavelet]
     psd = [psd_fourier, psd_wavelet]
     legend = ['Fourier', 'Wavelet']
@@ -615,7 +618,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
     if slope is None:
         slope = []
 
-    ax = plt.gca() if ax is None else ax
+    if ax is None:
+        _, ax = plt.subplots()
 
     ax.set_xlabel('Frequency $f$ (Hz)')
     ax.set_ylabel('PSD')
@@ -637,6 +641,8 @@ def log_plot(freq_list, psd_list, legend=None, fmt=None, color=None,
         indx = tuple([freq < lowpass_freq])
         freq, psd = freq[indx], psd[indx]
         # log_freq, psd = _log_psd(freq, psd, log_base) # Log frequency and psd
+
+        # idx_pos = (freq > 0) & (psd > 0)
 
         ax.loglog(freq, psd, f, base=log_base, c=col, lw=lw, **plot_kwargs)
 
@@ -736,7 +742,7 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     WT = wavelet.wavelet_analysis(
         signal, j2=j2, normalization=1, wt_name=wt_name)
 
-    psd = [np.nanmean(np.square(arr), axis=0) for arr in WT.values.values()]
+    psd = [np.nanmean(np.square(arr[:, 0]), axis=0) for arr in WT.values.values()]
     psd = np.array(psd)
 
     # Frequency
@@ -744,6 +750,6 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     # freq = (3/4 * fs) / (np.power(2, scale))
     freq = WT.scale2freq(np.array([*WT.values]), fs)
 
-    psd /= freq[:, None]  # amplitude to density
+    psd /= freq  # amplitude to density
 
     return PSD(freq=freq, psd=psd)

@@ -644,7 +644,7 @@ class BiCumulants(BiScalingFunction):
 
         h_support = np.linspace(*h_support, resolution)
 
-        sl_ = np.s_[:, signal_idx1, signal_idx2, idx_range]
+        sl_ = np.s_[idx_range, signal_idx1, signal_idx2, 0]
 
         c11 = self.c11[sl_]
         c10 = self.c10[sl_]
@@ -725,7 +725,8 @@ class BiCumulants(BiScalingFunction):
 
         # ax.contour(X, Y, L > 1, zdir='x', offset=h_x.min(), levels=0)
 
-        ax.set(xlabel='$h_1$', ylabel='$h_2$', zlabel='$\mathcal{L}(h_1, h_2)$')
+        ax.set(xlabel='$h_1$', ylabel='$h_2$',
+               zlabel=r'$\mathcal{L}(h_1, h_2)$')
 
         # ax.contour(X, Y, L, zdir='y', offset=h_y.max(), levels=[0])
 
