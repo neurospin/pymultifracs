@@ -9,6 +9,7 @@ import warnings
 from typing import Any
 
 import numpy as np
+import xarray as xr
 import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, mask_reject, \
@@ -279,20 +280,38 @@ class WaveletDec(MultiResolutionQuantityBase):
     def _add_values(self, coeffs, j):
         self.values[j] = coeffs
 
+    def get_dim_names(self, reshape=False):
+
+        dims = ['k_j(t)', 'channel']
+
+        # j_min = min(self.j)
+
+        # if self.values[j_min].ndim == 3:
+        #     dims.append('bootstrap')
+        # else:
+        #     dims.insert(1, 'p_exp')
+
+        if reshape and self.n_rep != self.n_sig:
+            dims.append('bootstrap')
+
+        return dims
+
     def get_values(self, j, idx_reject=None, reshape=False):
         """
         Get the values of the MRQ, applying any finite size effects corrections
         if necessary (Wavelet p-leaders).
         """
 
-        # Case where bootstrapping was done
-        if self.values[j].ndim == 3:
-            out = self.values[j]
-        else:
-            out = self.values[j][:, None, :]
+        # # Case where bootstrapping was done
+        # if self.values[j].ndim == 3:
+        #     out = self.values[j]
+        # else:
+        #     out = self.values[j][:, None, :]
+
+        out = self.values[j]
 
         # Bootstrapped mrq needs to realign into signal and repetitions
-        if reshape:  # and self.n_rep != self.n_sig
+        if reshape and self.n_rep != self.n_sig:
             out = out.reshape(self.values[j].shape[0], 1, self.n_sig, -1)
 
         if idx_reject is None:
@@ -591,7 +610,8 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     ZPJCorr[eta_negative[..., 0], :] = 1
 
     # ZPJCorr shape (n_ranges, n_rep, n_level)
-    return ZPJCorr
+    return xr.DataArray(ZPJCorr, dims=['scaling_range', 'channel', 'j'],
+                        coords={'j': np.arange(min_level, max_level+1)})
 
 
 @dataclass(kw_only=True)
@@ -709,26 +729,46 @@ class WaveletLeader(WaveletDec):
         """
         return self.get_leaders(self.p_exp, self.interval_size, gamint)
 
+    def get_dim_names(self, reshape=False):
+
+        names = super().get_dim_names(reshape)
+
+        if self.p_exp != np.inf:
+            names.insert(1, 'scaling_range')
+
+        return names
+
     def get_values(self, j, idx_reject=None, reshape=False):
 
         # Case where bootstrapping was done
-        if self.values[j].ndim == 3:
-            return super().get_values(j, idx_reject, reshape)
+        # if self.values[j].ndim == 3:
+        #     return super().get_values(j, idx_reject, reshape)
+
+        # if self.p_exp == np.inf:
+        #     return super().get_values(j, idx_reject, reshape)
+
+        out = super().get_values(j, idx_reject, reshape)
 
         if self.p_exp == np.inf:
-            return super().get_values(j, idx_reject, reshape)
+            return out
 
         if self.ZPJCorr is None:
             self._correct_pleaders()
 
-        ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
+        # by default, ['k_j(t)', 'channel']
+        # For p-leaders, ['k_j(t)', 'scaling_range', 'channel']
+        out_dims = self.get_dim_names(reshape)
+
+        # ['scaling_range', 'channel', 'j'] -> ['k(t)', 'scaling_range', 'channel']
+        ZPJCorr = self.ZPJCorr.sel(j=j).values[None, ...]
 
         # ZPJCorr = self._correct_pleaders(j, j)[..., 0]
 
-        if reshape:
-            ZPJCorr = ZPJCorr[..., None]
+        if 'bootstrap' in super().get_dim_names(reshape):
+            # Dimension: channel, bootstrap, scaling_range
+            ZPJCorr = ZPJCorr[..., None, :]
 
-        return ZPJCorr * super().get_values(j, idx_reject, reshape)
+        return ZPJCorr * out[:, None]
 
     def get_leaders(self, p_exp, interval_size=3, gamint=None):
 

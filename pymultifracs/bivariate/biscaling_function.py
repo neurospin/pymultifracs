@@ -119,6 +119,36 @@ class BiScalingFunction(AbstractScalingFunction):
 
         return j1, j2, j_min, j_max
 
+    def _prepare_nrep(self, mrq1, mrq2):
+
+        match self.mode:
+            case 'all2all':
+                n_rep = (mrq1.n_sig, mrq2.n_sig)
+            case 'pairwise':
+                n_rep = (mrq1.n_sig, 1)
+
+        flag_bootstrap1 = 'bootstrap' in mrq1.get_dim_names()
+        flag_bootstrap2 = 'bootstrap' in mrq2.get_dim_names()
+
+        if (
+                (flag_bootstrap1 and not flag_bootstrap2)
+                or (flag_bootstrap2 and not flag_bootstrap1)):
+
+            raise ValueError(
+                'One of the Mrqs has been bootstrapped but not the other.')
+
+        if flag_bootstrap1 and flag_bootstrap2:
+
+            if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
+                    != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
+                raise ValueError(
+                    'Mrq 1 and 2 have different number of bootstrapping '
+                    f'repetitions: {ratio1} and {ratio2}, respectively.')
+
+            n_rep.append(ratio1)
+
+        return n_rep
+
     def _compute_fit(self, mrq1, mrq2, margin=None, value_name=None):
         """
         Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
@@ -210,18 +240,9 @@ class BiStructureFunction(BiScalingFunction):
 
     def _compute(self, mrq1, mrq2, idx_reject):
 
-        if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
-                != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
-            raise ValueError(
-                'Mrq 1 and 2 have different number of bootstrapping '
-                f'repetitions: {ratio1} and {ratio2}, respectively.')
+        n_rep = self._prepare_nrep(mrq1, mrq2)
 
-        match self.mode:
-            case 'all2all':
-                n_rep = (mrq1.n_sig, mrq2.n_sig, ratio1)
-            case 'pairwise':
-                n_rep = (mrq1.n_sig, 1, ratio1)
-
+        # dims q1 q2 j scaling_range channel_left channel_right bootstrap
         self.values = np.zeros(
             (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges),
              *n_rep))
@@ -321,7 +342,7 @@ class BiStructureFunction(BiScalingFunction):
             for ind_q2, q2 in enumerate(self.q2):
 
                 y = self.S_qq(q1, q2)[
-                    idx, scaling_range, signal_idx1, signal_idx2, 0]
+                    idx, scaling_range, signal_idx1, signal_idx2]
 
                 if self.bootstrapped_obj is not None and plot_CI:
 
@@ -349,7 +370,7 @@ class BiStructureFunction(BiScalingFunction):
                 x0, x1 = self.scaling_ranges[scaling_range]
 
                 idx_a = np.s_[ind_q1, ind_q2, scaling_range]
-                idx_b = np.s_[signal_idx1, signal_idx2, 0]
+                idx_b = np.s_[signal_idx1, signal_idx2]
 
                 slope = self.slope[idx_a].reshape(self.values.shape[4:])[idx_b]
                 intercept = self.intercept[idx_a].reshape(
@@ -439,25 +460,15 @@ class BiCumulants(BiScalingFunction):
 
     def _compute(self, mrq1, mrq2, idx_reject):
 
-        if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
-                != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
-            raise ValueError(
-                'Mrq 1 and 2 have different number of bootstrapping '
-                f'repetitions: {ratio1} and {ratio2}, respectively.')
-
-        match self.mode:
-            case 'all2all':
-                n_rep = (mrq1.n_sig, mrq2.n_sig, ratio1)
-            case 'pairwise':
-                n_rep = (mrq1.n_sig, 1, ratio1)
+        n_rep = self._prepare_nrep(mrq1, mrq2)
 
         self.margin1_values = np.zeros(
             (self.n_cumul, 1, len(self.j), len(self.scaling_ranges),
-             mrq1.n_sig, ratio1)
+             n_rep[0], *n_rep[2:])
         )
         self.margin2_values = np.zeros(
             (self.n_cumul, 1, len(self.j), len(self.scaling_ranges),
-             mrq2.n_sig, ratio1)
+             n_rep[1], *n_rep[2:])
         )
         self.values = np.zeros((
             len(self.m), 1, len(self.j),
@@ -513,13 +524,13 @@ class BiCumulants(BiScalingFunction):
                     margin2_moments[ind_m, 0, ind_j] - aux
 
             # Compute bivariate cumulants
-            pow1 = {k: v[..., None, :] for k, v in pow1.items()}
+            pow1 = {k: v[..., None] for k, v in pow1.items()}
 
             match self.mode:
                 case 'all2all':
-                    pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
-                case 'pairwise':
                     pow2 = {k: v[..., None, :] for k, v in pow2.items()}
+                case 'pairwise':
+                    pow2 = {k: v[..., None] for k, v in pow2.items()}
 
             for ind_m, (m1, m2) in enumerate(self.m):
 
@@ -562,10 +573,10 @@ class BiCumulants(BiScalingFunction):
                 return np.ones(self.values.shape[2:])
 
             case ['C', m1, '0'] if m1.isdigit():
-                return self.margin1_values[int(m1)-1, 0, :, :, :, None]
+                return self.margin1_values[int(m1)-1, 0]
 
             case ['C', '0', m2] if m2.isdigit():
-                return self.margin2_values[int(m2)-1, 0, :, :, :, :, None]
+                return self.margin2_values[int(m2)-1, 0]
 
             case ['C', m1, m2] if m1.isdigit() and m2.isdigit():
 
@@ -644,7 +655,7 @@ class BiCumulants(BiScalingFunction):
 
         h_support = np.linspace(*h_support, resolution)
 
-        sl_ = np.s_[idx_range, signal_idx1, signal_idx2, 0]
+        sl_ = np.s_[idx_range, signal_idx1, signal_idx2]
 
         c11 = self.c11[sl_]
         c10 = self.c10[sl_]

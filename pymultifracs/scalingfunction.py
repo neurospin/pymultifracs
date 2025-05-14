@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, InitVar
 import inspect
 
 import numpy as np
+import xarray as xr
 from scipy import special
 
 import matplotlib.pyplot as plt
@@ -692,6 +693,7 @@ class Cumulants(ScalingFunction):
             T_X_j[mask_nan] = 0
 
             N_useful = (~mask_nan).sum(axis=0)
+            idx_unreliable = N_useful < 3
 
             for ind_m, m in enumerate(self.m):
 
@@ -699,10 +701,10 @@ class Cumulants(ScalingFunction):
                 np.divide(
                     moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
 
-                idx_unreliable = N_useful < 3
+                # idx_unreliable = N_useful < 3
 
-                for i in range(idx_unreliable.shape[0]):
-                    moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
+                # for i in range(idx_unreliable.shape[0]):
+                #     moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
 
                 if m == 1:
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j]
@@ -715,6 +717,11 @@ class Cumulants(ScalingFunction):
                                 * moments[ind_m-ind_n-1, ind_j])
 
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+
+                if idx_unreliable.any():
+                    for i in range(idx_unreliable.shape[0]):
+                        self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
+                            np.nan
 
     def __getattr__(self, name):
 
@@ -885,6 +892,11 @@ class MFSpectrum(ScalingFunction):
 
             # nj = mrq.nj[j]
             mrq_values_j = np.abs(mrq.get_values(j, idx_reject))
+            dim_names = mrq.get_dim_names()
+
+            if 'scaling_range' not in dim_names:
+                dim_names.insert(1, 'scaling_range')
+                mrq_values_j = mrq_values_j[:, None]
 
             # if self.formalism == 'wavelet p-leader':
             #     mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
