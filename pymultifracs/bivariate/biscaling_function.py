@@ -252,12 +252,12 @@ class BiStructureFunction(BiScalingFunction):
 
             pow1 = {
                 q1: fast_power(np.abs(
-                    mrq1.get_values(j, idx_reject, True)), q1)[..., None, :]
+                    mrq1.get_values(j, idx_reject)), q1)[..., None, :]
                 for q1 in self.q1 if q1 != 0
             }
             pow2 = {
                 q2: fast_power(np.abs(
-                    mrq2.get_values(j, idx_reject, True)), q2)
+                    mrq2.get_values(j, idx_reject)), q2)
                 for q2 in self.q2 if q2 != 0
             }
 
@@ -288,13 +288,15 @@ class BiStructureFunction(BiScalingFunction):
                         np.nanmean(pow1[q1] * pow2[q2], axis=0))
 
             # Computing coherence
-            val1 = mrq1.get_values(j, reshape=True)[..., None, :]
+            val1 = mrq1.get_values(j, idx_reject=idx_reject)[..., None, :]
 
             match self.mode:
                 case 'all2all':
-                    val2 = mrq2.get_values(j, reshape=True)[..., None, :, :]
+                    val2 = mrq2.get_values(
+                        j, idx_reject=idx_reject)[..., None, :, :]
                 case 'pairwise':
-                    val2 = mrq2.get_values(j, reshape=True)[..., None, :]
+                    val2 = mrq2.get_values(
+                        j, idx_reject=idx_reject)[..., None, :]
 
             self.coherence[ind_j] = (
                 np.nanmean(val1 * val2, axis=0)
@@ -482,12 +484,12 @@ class BiCumulants(BiScalingFunction):
 
             pow1 = {
                 m: fast_power(np.log(np.abs(
-                    mrq1.get_values(j, idx_reject, True))), m)
+                    mrq1.get_values(j, idx_reject))), m)
                 for m in self.margin_m
             }
             pow2 = {
                 m: fast_power(np.log(np.abs(
-                    mrq2.get_values(j, idx_reject, True))), m)
+                    mrq2.get_values(j, idx_reject))), m)
                 for m in self.margin_m
             }
 

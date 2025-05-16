@@ -331,6 +331,20 @@ def scale_position(time, scale_min, scale_max, wt_leaders=None):
 
     return out_idx, out_leader
 
+def expand_align(*arrays):
+
+    dims = set()
+
+    for a in arrays:
+        dims |= set(a.dims)
+
+    dims = tuple(dims)
+
+    for a in arrays:
+        a = a.expand_dims([d for d in dims if d not in a.dims])
+        a = a.transpose(dims)
+
+    return arrays
 
 def mask_reject(values, idx_reject, j, interval_size):
     """

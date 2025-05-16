@@ -2,6 +2,7 @@ import warnings
 from math import ceil
 
 import numpy as np
+import xarray as xr
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -951,9 +952,10 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         idx_reject = get_edge_reject(leaders)
     else:
         idx_reject = {
-            j: np.zeros_like(CDF[j], dtype=bool) for j in CDF
-            # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
+            j: xr.DataArray(np.zeros_like(CDF[j], dtype=bool), dims=leaders.get_dim_names())
             for j in CDF
+            # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
+            # for j in CDF
         }
 
     agg = compute_aggregate(CDF, j1, j2)
@@ -1153,7 +1155,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
         left_reject = idx_reject[j][:right_reject.shape[0] * 2:2]
 
         combined = (left_reject | right_reject)[:idx_reject[j+1].shape[0]]
-        idx_reject[j+1][combined] = True
+        idx_reject[j+1].values[combined] = True
         print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):

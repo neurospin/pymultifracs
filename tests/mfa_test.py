@@ -54,7 +54,7 @@ def test_mfa_mrw(mrw_file):
             continue
 
         j2 = int(np.log2(X.shape[0]) - 3)
-        
+
         WT = wavelet_analysis(X, j2=j2)
         WTpL = WT.get_leaders(p_exp=2)
 
