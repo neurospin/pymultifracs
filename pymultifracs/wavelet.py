@@ -272,7 +272,7 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
         return wt_coefs
 
     wt_leaders = multiresquantity.WaveletLeader(
-        gamint=wt_coefs.gamint, n_sig=wt_coefs.n_sig, p_exp=p_exp,
+        gamint=wt_coefs.gamint, n_channel=wt_coefs.n_channel, p_exp=p_exp,
         origin_mrq=wt_coefs, interval_size=size, wt_name=wt_coefs.wt_name)
 
     max_level = wt_coefs.j2_eff()
@@ -462,7 +462,7 @@ def integrate_wavelet(wt_coefs, gamint):
 
     wt_int = multiresquantity.WaveletDec(
         gamint=wt_coefs.gamint + gamint, wt_name=wt_coefs.wt_name,
-        n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs)
+        n_channel=wt_coefs.n_channel, origin_mrq=wt_coefs)
 
     for scale in wt_coefs.values:
 
@@ -537,7 +537,7 @@ def wavelet_analysis(signal, wt_name='db3', j2=None, normalization=1):
 
     # Initialize structures
     wt_coefs = multiresquantity.WaveletDec(
-        gamint=0, wt_name=wt_name, n_sig=signal.shape[1])
+        gamint=0, wt_name=wt_name, n_channel=signal.shape[1])
 
     for scale in range(1, max_level + 1):
 
@@ -573,7 +573,7 @@ def compute_wse(wt_coefs, theta=0.5, omega=1):
     """
 
     wse_coef = multiresquantity.WaveletWSE(
-        n_sig=wt_coefs.n_sig, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
+        n_channel=wt_coefs.n_channel, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
         gamint=wt_coefs.gamint, theta=theta)
 
     for scale, dwt in wt_coefs.values.items():

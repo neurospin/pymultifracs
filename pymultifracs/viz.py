@@ -244,7 +244,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 
         x0, x1 = cm.scaling_ranges[range_idx]
         slope_log2_e = cm.log_cumulants[ind_m, range_idx].reshape(
-            cm.n_sig, -1)[signal_idx, 0]
+            cm.n_channel, -1)[signal_idx, 0]
 
         if shift_gamint and ind_m == 0:
             slope_log2_e -= cm.gamint
@@ -253,7 +253,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         # slope = cm.slope[ind_m, scaling_range, signal_idx]
 
         intercept = cm.intercept[ind_m, range_idx].reshape(
-            cm.n_sig, -1)[signal_idx, 0]
+            cm.n_channel, -1)[signal_idx, 0]
 
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset

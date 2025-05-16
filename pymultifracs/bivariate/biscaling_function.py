@@ -36,7 +36,7 @@ class BiScalingFunction(AbstractScalingFunction):
     mode: str = 'all2all'
     gamint1: float = field(init=False)
     gamint2: float = field(init=False)
-    n_sig: tuple[int] = field(init=False)
+    n_channel: tuple[int] = field(init=False)
     nj_margin: dict[str, np.ndarray] = field(init=False)
 
     def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
@@ -52,14 +52,14 @@ class BiScalingFunction(AbstractScalingFunction):
 
         match self.mode:
             case 'all2all':
-                self.n_sig = (mrq1.n_sig, mrq2.n_sig)
+                self.n_channel = (mrq1.n_channel, mrq2.n_channel)
             case 'pairwise':
-                if mrq1.n_sig != mrq2.n_sig:
+                if mrq1.n_channel != mrq2.n_channel:
                     raise ValueError(
                         'Pairwise mode needs equal number of signals on each '
-                        f'multi-resolution quantity, currently {mrq1.n_sig=} '
-                        f'and {mrq2.n_sig=}')
-                self.n_sig = (mrq1.n_sig, 1)
+                        f'multi-resolution quantity, currently {mrq1.n_channel=} '
+                        f'and {mrq2.n_channel=}')
+                self.n_channel = (mrq1.n_channel, 1)
 
         if max(mrq1.values) < max(mrq2.values):
             self.j = np.array(list(mrq1.values))
@@ -86,7 +86,7 @@ class BiScalingFunction(AbstractScalingFunction):
         return self.nj_margin[margin, j_min-min(self.j):j_max-min(self.j)+1]
 
     def _check_enough_rep_bootstrap(self):
-        if (ratio := self.n_rep // self.n_sig) < 2:
+        if (ratio := self.n_rep // self.n_channel) < 2:
             raise ValueError(
                 f'n_rep = {ratio} per original signal too small to build '
                 'confidence intervals'
@@ -123,12 +123,12 @@ class BiScalingFunction(AbstractScalingFunction):
 
         match self.mode:
             case 'all2all':
-                n_rep = (mrq1.n_sig, mrq2.n_sig)
+                n_rep = (mrq1.n_channel, mrq2.n_channel)
             case 'pairwise':
-                n_rep = (mrq1.n_sig, 1)
+                n_rep = (mrq1.n_channel, 1)
 
-        flag_bootstrap1 = 'bootstrap' in mrq1.get_dim_names()
-        flag_bootstrap2 = 'bootstrap' in mrq2.get_dim_names()
+        flag_bootstrap1 = 'bootstrap' in mrq1.dims
+        flag_bootstrap2 = 'bootstrap' in mrq2.dims
 
         if (
                 (flag_bootstrap1 and not flag_bootstrap2)
@@ -139,8 +139,8 @@ class BiScalingFunction(AbstractScalingFunction):
 
         if flag_bootstrap1 and flag_bootstrap2:
 
-            if ((ratio1 := mrq1.n_rep // mrq1.n_sig)
-                    != (ratio2 := mrq2.n_rep // mrq2.n_sig)):
+            if ((ratio1 := mrq1.n_rep // mrq1.n_channel)
+                    != (ratio2 := mrq2.n_rep // mrq2.n_channel)):
                 raise ValueError(
                     'Mrq 1 and 2 have different number of bootstrapping '
                     f'repetitions: {ratio1} and {ratio2}, respectively.')

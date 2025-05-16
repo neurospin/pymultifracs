@@ -31,7 +31,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
         std = np.std(
             mrq.bootstrapped_obj._sup_coeffs(
                 n_ranges, j_max, j_min, scaling_ranges, idx_reject
-                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_sig, -1),
+                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_channel, -1),
             axis=-1)[None, :]
 
     else:
@@ -78,7 +78,7 @@ def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
         weighted=weighted, idx_reject=idx_reject,
         bootstrapped_obj=bootstrapped_obj)
 
-    # shape N_ranges, N_signals
+    # shape N_ranges, n_channelnals
     return wavelet_structure.zeta[0]
 
 

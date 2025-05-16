@@ -217,7 +217,7 @@ def get_location_scale(cm, fix_c2_slope=False):
     C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
     C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
 
-    # Shape N_scales, N_scaling_ranges, N_signals
+    # Shape N_scales, N_scaling_ranges, n_channelnals
 
     return j_array, C1_array, C2_array
 
@@ -568,7 +568,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), N, *CDF[j1].shape[1:]))
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 #     # N_coef is determined by the upsampled number of coefficients
 
@@ -624,7 +624,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 #             acc += 1
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 
 #     return agg
@@ -639,7 +639,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     # N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), j2-j1+1, *CDF[j1].shape[1:]))
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 
 #     end = 0
@@ -952,7 +952,7 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         idx_reject = get_edge_reject(leaders)
     else:
         idx_reject = {
-            j: xr.DataArray(np.zeros_like(CDF[j], dtype=bool), dims=leaders.get_dim_names())
+            j: xr.DataArray(np.zeros_like(CDF[j], dtype=bool), dims=leaders.dims)
             for j in CDF
             # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
             # for j in CDF

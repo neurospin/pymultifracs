@@ -76,7 +76,7 @@ def compute_R(moment, slope, intercept, weights, j_min_max, j):
 
     x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
 
-    # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, R)
+    # Shape (n_moments, n_scales, n_scaling_ranges, n_channel, R)
     moment = moment[:, j_min_idx:j_max_idx]
     slope = slope[:, None]
     intercept = intercept[:, None]

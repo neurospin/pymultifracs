@@ -12,6 +12,7 @@ from collections import namedtuple
 import warnings
 
 import numpy as np
+import xarray as xr
 import pywt
 
 
@@ -35,6 +36,18 @@ cumulants : :class:`.BiCumulants`
 """
 
 
+class Dim(Enum):
+    """
+    Standard dimension names
+    """
+    scaling_range = 'scaling_range'
+    channel = 'channel'
+    k_j = 'k_j(t)'
+    j = 'j'
+    bootstrap = 'bootstrap'
+    q = 'q'
+
+
 class Formalism(Enum):
     """
     Possible multifractal formalisms.
@@ -54,12 +67,15 @@ class AbstractDataclass:
 
     def _check_enough_rep_bootstrap(self):
 
-        if (ratio := self.n_rep // self.n_sig) < 2:
-            raise ValueError(
-                f'n_rep = {ratio} per original signal too small to build '
-                'confidence intervals'
-                )
+        # bootstrap_index = self.dims.index('bootstrap')
 
+        # if self.values[min(self.values)].shape[bootstrap_index] < 2:
+
+        if self.n_bootstrap < 2:
+            raise ValueError(
+                f'n_bootstrap = {self.n_bootstrap} per original signal too '
+                'small to build confidence intervals'
+                )
 
     def _get_bootstrapped_obj(self):
 
@@ -331,20 +347,37 @@ def scale_position(time, scale_min, scale_max, wt_leaders=None):
 
     return out_idx, out_leader
 
-def expand_align(*arrays):
+def _expand_align(*arrays, reference_order=None):
+    """
+    Expand xarrays to the covering list of dimensions, and then align their order
+    to enable broadcasting.
+    """
 
-    dims = set()
+    out = []
 
-    for a in arrays:
-        dims |= set(a.dims)
+    if reference_order is not None:
+        dims = [*reference_order]
+    else:
+        dims = []
+
+    for arr in arrays:
+        for dim in arr.dims:
+            if dim not in dims:
+                dims.append(dim)
 
     dims = tuple(dims)
 
     for a in arrays:
-        a = a.expand_dims([d for d in dims if d not in a.dims])
-        a = a.transpose(dims)
+        temp = a.expand_dims(
+            [d for d in dims if d not in a.dims],
+            create_index_for_new_dim=False)
+        temp = temp.transpose(*dims, ...)
+        out.append(temp)
 
-    return arrays
+    if len(out) == 1:
+        return out[0]
+
+    return out
 
 def mask_reject(values, idx_reject, j, interval_size):
     """
@@ -355,7 +388,9 @@ def mask_reject(values, idx_reject, j, interval_size):
         return values
 
     mask = np.ones_like(idx_reject[j], dtype=float)
-    mask[idx_reject[j]] = np.nan
+    mask[idx_reject[j].values] = np.nan
+
+    mask = xr.DataArray(mask, dims=idx_reject[j].dims)
 
     out = values * mask
 

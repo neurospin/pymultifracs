@@ -29,13 +29,13 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
         std[std == 0] = std[std != 0].min()
         std = 1/std
 
-        # std shape (n_moments, n_scales, n_scaling_ranges, n_sig) ->
+        # std shape (n_moments, n_scales, n_scaling_ranges, n_channel) ->
         # (n_moments, n_scales, n_scaling_ranges, n_rep)
         if std.ndim == 2:
             # TODO check this
             raise ValueError('')
             w = np.tile(std[:, :, None, None], (1, 1, n_ranges, 1)) ** 2
-        # std shape (n_moments, n_scales, n_scaling_ranges, n_sig)
+        # std shape (n_moments, n_scales, n_scaling_ranges, n_channel)
         else:
             w = std ** 2
 

@@ -39,7 +39,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     mode : str, optional
         Mode of bivariate analysis. Either:
             - 'all2all': each possible pair of signals between ``mrq1`` and
-                ``mrq2`` is analyzed, generating ``mrq1.n_sig x mrq2.n_sig``
+                ``mrq2`` is analyzed, generating ``mrq1.n_channel x mrq2.n_channel``
                 pairs
             - 'pairwise': the signals in ``mrq1`` and ``mrq2`` are paired
                 together based on their order of apparition, ``mrq1`` and
@@ -105,7 +105,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     #                                q1, q2, bootstrap_weighted, R=1,
     #                                estimates=estimates[i])
     #             for i, m1 in enumerate(mrq1)]
-    
+
     j1 = min([sr[0] for sr in scaling_ranges])
 
     if R > 1:
@@ -148,7 +148,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
 
     if min_j > j1:
         raise ValueError('Minimum j should be lower than the smallest fitting scale')
-    
+
     parameters = {
         'q1': q1,
         'q2': q2,

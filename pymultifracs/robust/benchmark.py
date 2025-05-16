@@ -184,7 +184,7 @@ class Benchmark:
 
         # print(estimation_param_grid)
 
-        # N_signals = sum(df.shape[0] for df in signal_param_grid.values())
+        # n_channelnals = sum(df.shape[0] for df in signal_param_grid.values())
 
         # def signal_iterator():
         #     for fun in signal_param_grid:

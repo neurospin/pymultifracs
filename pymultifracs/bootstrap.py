@@ -33,7 +33,7 @@ def estimate_confidence_interval_from_bootstrap(
                           interval in percent (i.e. between 0 and 100)
     """
 
-    # bootstrap estimates shape (n_j, n_sig, n_rep)
+    # bootstrap estimates shape (n_j, n_channel, n_rep)
     percent = 100.0 - confidence_level
 
     # bootstrap_estimates: shape (..., n_CI)
@@ -131,7 +131,7 @@ def get_std(mrq, name):
         def wrapper(*args, **kwargs):
 
             var = attribute(*args, **kwargs)
-            var = var.reshape(*var.shape[:-1], mrq.n_sig, -1)
+            var = var.reshape(*var.shape[:-1], mrq.n_channel, -1)
             unreliable = (~np.isnan(var)).sum(axis=-1) < 3
             std = np.nanstd(var, ddof=1, axis=-1)
             std[unreliable] = np.nan
@@ -142,12 +142,12 @@ def get_std(mrq, name):
 
     # n_rep = attribute.shape[-1]
 
-    # # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
-    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
+    # # shape (..., n_rep) -> (..., n_channel, n_rep_per_sig)
+    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_channel, -1)
     # TODO: improve the following section with xarray
-    if (attribute.shape[-2] != mrq.n_sig
+    if (attribute.shape[-2] != mrq.n_channel
             or attribute.shape[-1] * attribute.shape[-2] != mrq.n_rep):
-        attribute = reshape(attribute, mrq.n_sig)
+        attribute = reshape(attribute, mrq.n_channel)
 
     unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
     std = np.nanstd(attribute, axis=-1, ddof=1)
@@ -156,13 +156,13 @@ def get_std(mrq, name):
     return std
 
 
-def reshape(attribute, n_sig):
+def reshape(attribute, n_channel):
     """
     Automatically reshapes to expected shape.
     """
-    if n_sig == 1:
+    if n_channel == 1:
         return attribute
-    return attribute.reshape((*attribute.shape[:-1], n_sig, -1))
+    return attribute.reshape((*attribute.shape[:-1], n_channel, -1))
 
 
 def get_confidence_interval(mrq, name):
@@ -309,7 +309,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         'nj': nj,
         'values': values,
         'wt_name': wt_name,
-        'n_sig': mrq.n_rep
+        # 'n_channel': mrq.n_channel * R,
     })
 
     return new_mrq
@@ -405,7 +405,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
         nj_double = {rep: {} for rep in indices_double}
 
     values = {}
-    nj = {}
+    # nj = {}
 
     for scale, indices_scale in indices.items():
 
@@ -467,9 +467,9 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
         values[scale] = out[:, ~compact_idx].transpose(
             *[*range(out.ndim)[1:], 0])
 
-        values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
+        # values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
 
-        nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
+        # nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq._from_dict({
         'values': values,
