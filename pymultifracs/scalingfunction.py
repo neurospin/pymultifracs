@@ -314,7 +314,7 @@ class StructureFunction(ScalingFunction):
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
         self.dims = (
-            Dim.q.value, Dim.j.value, Dim.scaling_range.value, *mrq.dims[1:]
+            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:]
         )
 
         self._compute(mrq, idx_reject)
@@ -330,7 +330,7 @@ class StructureFunction(ScalingFunction):
             c_j = mrq.get_values(j, idx_reject)
 
             mask_nan = np.isnan(c_j) | np.isinf(c_j)
-            N_useful = (~mask_nan).sum(dim=Dim.k_j.value)
+            N_useful = (~mask_nan).sum(dim=Dim.k_j)
             idx_unreliable = N_useful < 3
 
             c_j = _expand_align(c_j, reference_order=self.dims[1:])
@@ -339,18 +339,18 @@ class StructureFunction(ScalingFunction):
 
                 self.values[ind_q, ind_j] = np.log2(
                     np.nanmean(fast_power(np.abs(c_j.values), q),
-                               axis=c_j.dims.index(Dim.k_j.value)))
+                               axis=c_j.dims.index(Dim.k_j)))
 
                 # if idx_unreliable.any():
 
                     # self.values[ind_q, ind_j] = np.nan
-                    # for i in range(idx_unreliable.sizes[Dim.channel.value]):
+                    # for i in range(idx_unreliable.sizes[Dim.channel]):
 
                     # np.nan
 
             if idx_unreliable.any():
                 # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
-                self.values[..., idx_unreliable] = np.nan
+                self.values[:, ind_j, ..., idx_unreliable] = np.nan
 
         self.values[np.isinf(self.values)] = np.nan
 
@@ -692,7 +692,9 @@ class Cumulants(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(mrq.get_values(j, None)).values
+            T_X_j = np.abs(mrq.get_values(j, None))
+            dims = T_X_j.dims
+            T_X_j = T_X_j.values
 
             np.log(T_X_j, out=T_X_j)
 
@@ -705,12 +707,14 @@ class Cumulants(ScalingFunction):
 
             T_X_j[mask_nan] = 0
 
-            N_useful = (~mask_nan).sum(axis=0)
+            N_useful = (~mask_nan).sum(axis=dims.index(Dim.k_j))
             idx_unreliable = N_useful < 3
 
             for ind_m, m in enumerate(self.m):
 
-                moments[ind_m, ind_j] = np.sum(fast_power(T_X_j, m), axis=0)
+                moments[ind_m, ind_j] = np.sum(
+                    fast_power(T_X_j, m),
+                    axis=dims.index(Dim.k_j))
                 np.divide(
                     moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
 
@@ -731,10 +735,11 @@ class Cumulants(ScalingFunction):
 
                     self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
 
-                if idx_unreliable.any():
-                    for i in range(idx_unreliable.shape[0]):
-                        self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
-                            np.nan
+            if idx_unreliable.any():
+                self.values[:, ind_j, idx_unreliable] = np.nan
+                    # for i in range(idx_unreliable.shape[0]):
+                    #     self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
+                    #         np.nan
 
     def __getattr__(self, name):
 
@@ -879,12 +884,15 @@ class MFSpectrum(ScalingFunction):
 
         super().__post_init__(idx_reject, mrq, min_j)
 
-        self.U = np.zeros(
-            (len(self.q), len(self.j), len(self.scaling_ranges), *mrq.values[self.j.min()].shape[1:]))
-        self.V = np.zeros_like(self.U)
-
         self.dims = (
-            Dim.q.value, Dim.j.value, Dim.scaling_range.value, *mrq.dims[1:])
+            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:])
+
+        self.U = xr.DataArray(
+            np.zeros((len(self.q), len(self.j), len(self.scaling_ranges),
+                      *mrq.values[self.j.min()].shape[1:])),
+            dims=self.dims)
+        self.V = xr.zeros_like(self.U)
+
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.spectrum
@@ -926,35 +934,43 @@ class MFSpectrum(ScalingFunction):
             # np.nan ** 0 = 1.0, adressed here
             temp[:, mask_nan] = np.nan
 
-            Z = np.nansum(temp, axis=1)[:, None, :]
+            dims = (Dim.q, *mrq_values_j.dims)
+
+            Z = np.expand_dims(np.nansum(temp, axis=dims.index(Dim.k_j)),
+                               axis=dims.index(Dim.k_j))
             Z[Z == 0] = np.nan
+
             R_j = temp / Z
 
-            R_j = xr.DataArray(R_j, dims=(Dim.q.value, *mrq_values_j.dims))
+            # R_j = xr.DataArray(R_j, dims=(Dim.q, *mrq_values_j.dims))
 
-            reference = [d for d in self.dims if d != Dim.j.value]
-            mrq_values_j, R_j = _expand_align(
-                mrq_values_j, R_j, reference_order=reference)
+            # reference = [d for d in self.dims if d != Dim.j]
+            # mrq_values_j, R_j = _expand_align(
+            #     mrq_values_j, R_j, reference_order=reference)
 
             # nj = ((~mask_nan).sum(axis=0))[None, :]
-            N_useful = ((~mask_nan).sum(axis=0))[None, :]
+            N_useful = xr.DataArray(
+                (~mask_nan).sum(axis=mrq_values_j.dims.index(Dim.k_j)),
+                dims=[d for d in mrq_values_j.dims if d != Dim.k_j]
+            )
 
-            self.V[:, ind_j] = fixednansum(
-                R_j.values * np.log2(mrq_values_j.values),
-                axis=mrq_values_j.dims.index(Dim.k_j.value))
-            self.U[:, ind_j] = np.log2(N_useful) + fixednansum(
-                (R_j.values * np.log2(R_j.values)),
-                axis=R_j.dims.index(Dim.k_j.value))
+            new_dims = [d for d in dims if d != Dim.k_j]
+
+            self.V[:, ind_j] = xr.DataArray(fixednansum(
+                R_j * np.log2(temp),
+                axis=dims.index(Dim.k_j)), dims=new_dims)
+            self.U[:, ind_j] = np.log2(N_useful) + xr.DataArray(fixednansum(
+                (R_j * np.log2(R_j)),
+                axis=dims.index(Dim.k_j)), dims=new_dims)
 
             idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
-                for i in range(idx_unreliable.shape[1]):
-                    self.V[:, ind_j, :, idx_unreliable[0, i]] = np.nan
-                    self.U[:, ind_j, :, idx_unreliable[0, i]] = np.nan
+                self.V.values[:, ind_j, idx_unreliable] = np.nan
+                self.U.values[:, ind_j, idx_unreliable] = np.nan
 
-        self.U[np.isinf(self.U)] = np.nan
-        self.V[np.isinf(self.V)] = np.nan
+        self.U.values[np.isinf(self.U.values)] = np.nan
+        self.V.values[np.isinf(self.V.values)] = np.nan
 
         # x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
         #     self.scaling_ranges, self.j

@@ -36,16 +36,24 @@ cumulants : :class:`.BiCumulants`
 """
 
 
-class Dim(Enum):
+@dataclass
+class Dim:
     """
     Standard dimension names
     """
-    scaling_range = 'scaling_range'
-    channel = 'channel'
-    k_j = 'k_j(t)'
-    j = 'j'
-    bootstrap = 'bootstrap'
-    q = 'q'
+    scaling_range: str = 'scaling_range'
+    channel: str = 'channel'
+    k_j: str = 'k_j(t)'
+    j: str = 'j'
+    bootstrap: str = 'bootstrap'
+    q: str = 'q'
+
+
+# class Dim(Enum):
+#     """
+#     Standard dimension names
+#     """
+#     scaling_range = 'scaling_range'
 
 
 class Formalism(Enum):

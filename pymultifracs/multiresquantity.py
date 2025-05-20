@@ -25,7 +25,7 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     n_channel: int
     bootstrapped_obj: Any | None = None
     origin_mrq: Any | None = None
-    dims: tuple[str] = (Dim.k_j.value, Dim.channel.value)
+    dims: tuple[str] = (Dim.k_j, Dim.channel)
 
     # def get_nj(self):
     #     """
@@ -579,7 +579,7 @@ class WaveletDec(MultiResolutionQuantityBase):
 
                 # Convert to Enum entry if needed
                 if hasattr(Dim, dimension):
-                    dimension = getattr(Dim, dimension).value
+                    dimension = getattr(Dim, dimension)
 
                 dimension_idx = self.dims.index(dimension)
 
@@ -628,8 +628,8 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     ZPJCorr[eta_negative[..., 0], :] = 1
 
     # ZPJCorr shape (n_ranges, n_rep, n_level)
-    return xr.DataArray(ZPJCorr, dims=(Dim.scaling_range.value, *wt_leaders.dims[1:], Dim.j.value),
-                        coords={Dim.j.value: np.arange(min_level, max_level+1)})
+    return xr.DataArray(ZPJCorr, dims=(Dim.scaling_range, *wt_leaders.dims[1:], Dim.j),
+                        coords={Dim.j: np.arange(min_level, max_level+1)})
 
 
 @dataclass(kw_only=True)
