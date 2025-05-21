@@ -37,7 +37,7 @@ cumulants : :class:`.BiCumulants`
 
 
 @dataclass
-class Dim:
+class DimensionNames:
     """
     Standard dimension names
     """
@@ -48,6 +48,30 @@ class Dim:
     bootstrap: str = 'bootstrap'
     q: str = 'q'
 
+    def __getattr__(self, name):
+
+        print(name)
+
+        match name:
+
+            case str() as s if s[-1].isdigit() and s[0].isalpha():
+
+                attribute = s.rstrip('0123456789')
+
+                if (not hasattr(self, attribute)
+                        or not s[len(attribute):].isdigit()):
+                    raise ValueError(
+                        f'No attribute {attribute} or {s[len(attribute):]} '
+                        f'are not digits.')
+
+                out = getattr(self, attribute) + s[len(attribute):]
+                setattr(self, name, out)
+                return out
+
+            case _:
+                return self.__getattribute__(name)
+
+Dim = DimensionNames()
 
 # class Dim(Enum):
 #     """

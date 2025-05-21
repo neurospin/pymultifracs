@@ -6,6 +6,7 @@ Authors: Merlin Dumeur <merlin@dumeur.net>
 from dataclasses import dataclass, field, InitVar
 
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy import special
@@ -18,7 +19,7 @@ from ..regression import prepare_regression, prepare_weights
 # from matplotlib import cm
 # from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
-from ..utils import fast_power, isclose
+from ..utils import fast_power, isclose, Dim
 from ..viz import plot_bicm
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
@@ -242,10 +243,13 @@ class BiStructureFunction(BiScalingFunction):
 
         n_rep = self._prepare_nrep(mrq1, mrq2)
 
+        dims = (
+            Dim.q1, Dim.q2, Dim.j, Dim.scaling_range, *mrq1.dims[1:]
+        )
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
-        self.values = np.zeros(
+        self.values = xr.DataArray(np.zeros(
             (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges),
-             *n_rep))
+             *mrq1.values[self.j.min()].shape[1:])), dims=dims)
         self.coherence = np.zeros(self.values.shape[2:])
 
         for ind_j, j in enumerate(self.j):
@@ -255,6 +259,7 @@ class BiStructureFunction(BiScalingFunction):
                     mrq1.get_values(j, idx_reject)), q1)[..., None, :]
                 for q1 in self.q1 if q1 != 0
             }
+
             pow2 = {
                 q2: fast_power(np.abs(
                     mrq2.get_values(j, idx_reject)), q2)
