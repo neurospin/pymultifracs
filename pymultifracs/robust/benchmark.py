@@ -10,7 +10,6 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 
-from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 
 from .. import wavelet_analysis, mfa
@@ -51,7 +50,7 @@ def get_fname(name, param, folder='.'):
 
     fname = Path(folder)
 
-    for param in [*param.values()]:
+    for param in [*dict(param).values()]:
 
         if isinstance(param, float):
             fname /= f'{param:.2f}'
@@ -131,12 +130,17 @@ class Benchmark:
 
     def _generate_load_signal(self, name, params, save_load=False):
 
+        restricted_params = {
+            k: v for k, v in params.items()
+            if k in self.signal_param_grid[name]
+        }
+
         fname = get_fname(name, params, self.folder)
 
         if save_load and fname.exists():
             return np.load(fname)
 
-        out = self.signal_gen_grid[name](**params)
+        out = self.signal_gen_grid[name](**dict(params))
 
         if save_load:
             np.save(fname, out)
@@ -195,19 +199,24 @@ class Benchmark:
 
             res = []
 
-            for (method, _), est_params in estimation_param_grid.iterrows():
+            for param_tuple in estimation_param_grid.itertuples():
+
+                method, _ = param_tuple.Index
+
+                est_params = param_tuple._asdict()
+                est_params.pop('Index')
 
                 est_fun = self.estimation_grid[method]
 
                 # only feed the parameters expected by the estimation function
                 param_restriction = {
-                    k: v for k, v in est_params.to_dict().items()
+                    k: v for k, v in est_params.items()
                     if k in self.estimation_param_grid[method]
                 }
 
                 df = pd.DataFrame.from_dict(
                     est_fun(signal, **param_restriction))
-                df = df.assign(**est_params.to_dict(), method=method)
+                df = df.assign(**est_params, method=method)
                 df.index.name = 'k'
 
                 res.append(df)
@@ -221,24 +230,64 @@ class Benchmark:
 
             return res
 
-        # Wrapping signal generation to not feed the wrong parameters
-        def signal_gen_wrap(model, signal_params):
+        # if save_load_signals:
+        #     signal_gen_wrap = lambda x, y: self._generate_load_signal(x, y, True)
 
-            signal_params = signal_params.to_dict()
+        # else:
+        # # Wrapping signal generation to not feed the wrong parameters
+        # def signal_gen_wrap(model, signal_params):
+
+        #     signal_params = signal_params.to_dict()
+
+        #     restricted_params = {
+        #         k: v for k, v in signal_params.items()
+        #         if k in self.signal_param_grid[model]
+        #     }
+
+        #     return self.signal_gen_grid[model](**restricted_params)
+
+        def signal_gen_wrap(name, signal_params):
 
             restricted_params = {
                 k: v for k, v in signal_params.items()
-                if k in self.signal_param_grid[model]
+                if k in self.signal_param_grid[name]
             }
 
-            return self.signal_gen_grid[model](**restricted_params)
+            fname = get_fname(name, signal_params, self.folder)
+
+            if save_load_signals and fname.exists():
+                return np.load(fname)
+
+            out = self.signal_gen_grid[name](**signal_params)
+
+            if save_load_signals:
+                np.save(fname, out)
+
+            return out
+
+        def iterate_tuples(grid):
+
+            for tup in grid.itertuples():
+
+                index, _ = tup.Index
+
+                data = tup._asdict()
+                data.pop('Index')
+
+                yield index, data
+
+        iter = iterate_tuples(signal_param_grid)
+
+        try:
+            from tqdm.auto import tqdm
+            iter = tqdm(iter, total=signal_param_grid.shape[0])
+        except ModuleNotFoundError:
+            pass
 
         results = Parallel(n_jobs=n_jobs)(
             delayed(estimate_mf)(
-                signal_gen_wrap(index, data), index, data.to_dict())
-            for (index, _), data in tqdm(
-                signal_param_grid.iterrows(),
-                total=signal_param_grid.shape[0])
+                signal_gen_wrap(index, data), index, data)
+            for index, data in iter
         )
 
         self.results = pd.concat(results).sort_index()

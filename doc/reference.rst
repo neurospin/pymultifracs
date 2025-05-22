@@ -15,6 +15,7 @@ Multifractal Analysis
 
     wavelet_analysis
     mfa
+    Benchmark
 
 Dataclasses
 ```````````
@@ -97,7 +98,6 @@ Utility functions
     :caption: Utility functions
 
     utils.build_q_log
-    Benchmark
 
 Outlier detection
 =================
