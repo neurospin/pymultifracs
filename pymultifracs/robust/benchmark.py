@@ -10,7 +10,6 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 
-from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 
 from .. import wavelet_analysis, mfa
@@ -277,12 +276,18 @@ class Benchmark:
 
                 yield index, data
 
+        iter = iterate_tuples(signal_param_grid)
+
+        try:
+            from tqdm.auto import tqdm
+            iter = tqdm(iter, total=signal_param_grid.shape[0])
+        except ModuleNotFoundError:
+            pass
+
         results = Parallel(n_jobs=n_jobs)(
             delayed(estimate_mf)(
                 signal_gen_wrap(index, data), index, data)
-            for index, data in tqdm(
-                iterate_tuples(signal_param_grid),
-                total=signal_param_grid.shape[0])
+            for index, data in iter
         )
 
         self.results = pd.concat(results).sort_index()

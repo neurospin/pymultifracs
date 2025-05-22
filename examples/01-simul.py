@@ -12,10 +12,10 @@ Analysis of simulated MRWs
 # Let us first generate a few Multifractal Random Walks with parameters :math:`H = 0.8` and :math:`\lambda=\sqrt{0.05}`
 
 # %% [python]
-# pylint: disable=C0413
-# flake8: disabel=E402
 
 # sphinx_gallery_start_ignore
+# pylint: disable=C0413
+# flake8: disable=E402
 import seaborn as sns
 import matplotlib as mpl
 mpl.rcParams['figure.dpi'] = 600

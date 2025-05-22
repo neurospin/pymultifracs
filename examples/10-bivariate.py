@@ -4,19 +4,17 @@
 ==========================
 Analysis of bivariate data
 ==========================
+
+The ``pymultifracs`` package can perform bivariate multifractal analysis,
+and produces bivariate cumulants and structure functions. The purpose of
+bivariate MFA is to determine the relationship between the regularity
+fluctuations of a pair of time series.
+
+We will be using pre-generated data to serve as an example of bivariate
+multi-fractal time series. Let us first load the data; those example time
+series are also found in the ``tests/data/`` folder of the repository on
+github.
 """
-
-# #############################################################################
-
-# The ``pymultifracs`` package can perform bivariate multifractal analysis,
-# and produces bivariate cumulants and structure functions. The purpose of
-# bivariate MFA is to determine the relationship between the regularity
-# fluctuations of a pair of time series.
-#
-# We will be using pre-generated data to serve as an example of bivariate
-# multi-fractal time series. Let us first load the data; those example time
-# series are also found in the ``tests/data/`` folder of the repository on
-# github.
 
 import pooch
 from scipy.io import loadmat
