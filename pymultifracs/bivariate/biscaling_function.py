@@ -241,72 +241,132 @@ class BiStructureFunction(BiScalingFunction):
 
     def _compute(self, mrq1, mrq2, idx_reject):
 
-        n_rep = self._prepare_nrep(mrq1, mrq2)
-
-        dims = (
-            Dim.q1, Dim.q2, Dim.j, Dim.scaling_range, *mrq1.dims[1:]
+        # 1 - Define the shape of the values and coherence arrays
+        shape = (
+            len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges),
         )
+        dims = (Dim.q1, Dim.q2, Dim.j, Dim.scaling_range)
+
+        mrq_sizes = mrq1.get_values(self.j.max()).sizes
+
+        match self.mode:
+
+            case 'all2all':
+
+                mrq_dims = [d for d in mrq_sizes
+                            if d not in [Dim.channel, Dim.k_j, *dims]]
+                mrq_shapes = [s for d, s in mrq_sizes.items()
+                              if d not in [Dim.channel, Dim.k_j, *dims]]
+
+                dims = (*dims, *mrq_dims, Dim.channel1, Dim.channel2)
+                shape = (
+                    *shape, *mrq_shapes,
+                    mrq_sizes['channel'], mrq_sizes['channel']
+                )
+
+            case 'pairwise':
+
+                mrq_dims = [d for d in mrq_sizes if d not in [Dim.k_j, *dims]]
+                mrq_shapes = [s for d, s in mrq_sizes.items()
+                              if d not in [Dim.k_j, *dims]]
+
+                dims = (*dims, *mrq_dims)
+                shape = (*shape, *mrq_shapes)
+
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
-        self.values = xr.DataArray(np.zeros(
-            (len(self.q1), len(self.q2), len(self.j), len(self.scaling_ranges),
-             *mrq1.values[self.j.min()].shape[1:])), dims=dims)
-        self.coherence = np.zeros(self.values.shape[2:])
+        self.values = xr.DataArray(np.zeros(shape), dims=dims)
+        self.coherence = xr.DataArray(np.zeros(shape[2:]), dims=dims[2:])
 
         for ind_j, j in enumerate(self.j):
 
+            # 2 - Compute the S_{q1, q2}(j)
+
+            values_mrq1 = mrq1.get_values(j, idx_reject).transpose(
+                ..., 'channel')
+            dims_mrq1 = values_mrq1.dims
+            values_mrq1 = np.abs(values_mrq1.values)
+
+            values_mrq2 = mrq2.get_values(j, idx_reject).transpose(
+                ..., 'channel')
+            dims_mrq2 = values_mrq2.dims
+            values_mrq2 = np.abs(values_mrq2.values)
+
             pow1 = {
-                q1: fast_power(np.abs(
-                    mrq1.get_values(j, idx_reject)), q1)[..., None, :]
+                q1: fast_power(values_mrq1, q1)
                 for q1 in self.q1 if q1 != 0
             }
 
             pow2 = {
-                q2: fast_power(np.abs(
-                    mrq2.get_values(j, idx_reject)), q2)
+                q2: fast_power(values_mrq2, q2)
                 for q2 in self.q2 if q2 != 0
             }
 
             match self.mode:
                 case 'all2all':
-                    pow2 = {k: v[..., None, :, :] for k, v in pow2.items()}
-                case 'pairwise':
+                    pow1 = {k: v[..., None] for k, v in pow1.items()}
                     pow2 = {k: v[..., None, :] for k, v in pow2.items()}
+                    dims_mrq1 = (*dims_mrq1[:-1], Dim.channel1, Dim.channel2)
+                    dims_mrq2 = (*dims_mrq2[:-1], Dim.channel1, Dim.channel2)
+
+                case 'pairwise':
+                    pass
+                    # pow1 = {k: v[..., None] for k, v in pow2.items()}
+                    # pow2 = {k: v[..., None] for k, v in pow2.items()}
 
             for ind_q1, q1 in enumerate(self.q1):
                 for ind_q2, q2 in enumerate(self.q2):
 
-                    if q1 == q2 == 0:
-                        self.values[ind_q1, ind_q2, ind_j] = 0
-                        continue
+                    match (q1, q2):
 
-                    if q1 == 0:
-                        self.values[ind_q1, ind_q2, ind_j] = np.log2(
-                            np.nanmean(pow2[q2], axis=0))
-                        continue
+                        case (0, 0):
+                            self.values[ind_q1, ind_q2, ind_j] = 1
 
-                    if q2 == 0:
-                        self.values[ind_q1, ind_q2, ind_j] = np.log2(
-                            np.nanmean(pow1[q1], axis=0))
-                        continue
+                        case (q1, 0):
+                            self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
+                                np.log2(np.nanmean(pow1[q1],
+                                                   axis=dims_mrq1.index(Dim.k_j))),
+                                dims=[d for d in dims_mrq1 if d != Dim.k_j])
 
-                    self.values[ind_q1, ind_q2, ind_j] = np.log2(
-                        np.nanmean(pow1[q1] * pow2[q2], axis=0))
+                        case (0, q2):
+                            self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
+                                np.log2(np.nanmean(pow2[q2],
+                                                   axis=dims_mrq2.index(Dim.k_j))),
+                                dims=[d for d in dims_mrq2 if d != Dim.k_j])
 
-            # Computing coherence
-            val1 = mrq1.get_values(j, idx_reject=idx_reject)[..., None, :]
+                        case (q1, q2):
+                            self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
+                                np.log2(np.nanmean(pow1[q1] * pow2[q2],
+                                                   axis=dims_mrq1.index(Dim.k_j))),
+                                dims=[d for d in dims_mrq2 if d != Dim.k_j])
+
+            # 3 - Compute the coherence
+
+            values_mrq1 = mrq1.get_values(j, idx_reject).transpose(
+                ..., 'channel')
+            dims_mrq1 = values_mrq1.dims
+            values_mrq1 = values_mrq1.values
+
+            values_mrq2 = mrq2.get_values(j, idx_reject).transpose(
+                ..., 'channel')
+            dims_mrq2 = values_mrq2.dims
+            values_mrq2 = values_mrq2.values
 
             match self.mode:
                 case 'all2all':
-                    val2 = mrq2.get_values(
-                        j, idx_reject=idx_reject)[..., None, :, :]
+                    values_mrq1 = values_mrq1[..., None]
+                    values_mrq2 = values_mrq2[..., None, :]
+                    dims_mrq1 = (*dims_mrq1[:-1], Dim.channel1, Dim.channel2)
+                    dims_mrq2 = (*dims_mrq2[:-1], Dim.channel1, Dim.channel2)
                 case 'pairwise':
-                    val2 = mrq2.get_values(
-                        j, idx_reject=idx_reject)[..., None, :]
+                    pass
 
-            self.coherence[ind_j] = (
-                np.nanmean(val1 * val2, axis=0)
-                / np.sqrt(np.nanmean(fast_power(val1, 2) * fast_power(val2, 2),
-                                     axis=0)))
+            self.coherence[ind_j] = xr.DataArray(
+                np.nanmean(values_mrq1 * values_mrq2,
+                           axis=dims_mrq1.index(Dim.k_j))
+                / np.sqrt(
+                    np.nanmean(fast_power(values_mrq1, 2) * fast_power(values_mrq2, 2),
+                               axis=dims_mrq1.index(Dim.k_j))),
+                dims=[d for d in dims_mrq1 if d != Dim.k_j])
 
     def S_qq(self, q1, q2):
         """
