@@ -604,15 +604,16 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     Return p-leader correction factor for finite resolution
     """
 
-    JJ = np.arange(min_level, max_level + 1)
+    j_array = np.arange(min_level, max_level + 1)
+    JJ = xr.DataArray(j_array, coords={'j': j_array})
     J1LF = 1
     JJ0 = JJ - J1LF + 1
 
     # eta_p shape (n_ranges, n_rep)
     # JJ0 shape (n_level,)
 
-    JJ0 = JJ0[None, None, :]
-    eta_p = wt_leaders.eta_p[:, :, None]
+    # JJ0 = JJ0[None, None, :]
+    eta_p = wt_leaders.eta_p
 
     zqhqcorr = np.log2((1 - np.power(2., -JJ0 * eta_p))
                        / (1 - np.power(2., -eta_p)))
@@ -624,12 +625,9 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     #     wt_leaders.values[j] = \
     #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
 
-    eta_negative = eta_p <= 0
-    ZPJCorr[eta_negative[..., 0], :] = 1
+    ZPJCorr.where(eta_p <= 0, 1)
 
-    # ZPJCorr shape (n_ranges, n_rep, n_level)
-    return xr.DataArray(ZPJCorr, dims=(Dim.scaling_range, *wt_leaders.dims[1:], Dim.j),
-                        coords={Dim.j: np.arange(min_level, max_level+1)})
+    return ZPJCorr
 
 
 @dataclass(kw_only=True)

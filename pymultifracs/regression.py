@@ -6,6 +6,9 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 from math import floor
 
 import numpy as np
+import xarray as xr
+
+from .utils import Dim
 
 
 def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
@@ -40,23 +43,23 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
             w = std ** 2
 
     else:  # weighted is None
-        w = np.ones((1, int(j_max - j_min + 1), n_ranges, 1))
+        w = xr.ones_like(y)
 
     for i, (j1, j2) in enumerate(scaling_ranges):
+        w.isel(scaling_range=i).where((w.j > j2) | (w.j < j1), np.nan)
 
-        w[:, int(j2-j_min+1):, i, :] = np.nan
-        w[:, :int(j1-j_min), i, :] = np.nan
+    w.where(np.isnan(y), np.nan)
 
-    if np.isnan(y).any():
-        mask = np.ones_like(y)
-        mask[np.isnan(y)] = np.nan
-        w = mask * w
+    # if np.isnan(y).any():
+    #     mask = np.ones_like(y)
+    #     mask[np.isnan(y)] = np.nan
+    #     w = mask * w
 
     # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
     return w
 
 
-def prepare_regression(scaling_ranges, j):
+def prepare_regression(scaling_ranges, j, dims):
     """
     Prepare range of scales and x support for regression.
     """
@@ -65,8 +68,11 @@ def prepare_regression(scaling_ranges, j):
     j_min = min(sr[0] for sr in scaling_ranges)
     j_max = max(sr[1] for sr in scaling_ranges)
 
-    # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    x = np.arange(j_min, j_max + 1)[None, :, None, None]
+    # same shape as scaling function
+    x = xr.DataArray(
+        np.arange(j_min, j_max + 1), coords={'j': np.arange(j_min, j_max + 1)})
+    # x = x.expand_dims([d for d in dims if d != Dim.j])
+    # x = x.transpose(*dims)
 
     return x, n_ranges, j_min, j_max, j_min - j.min(), j_max - j.min() + 1
 
@@ -91,28 +97,38 @@ def linear_regression(x, y, nj, return_variance=False):
     """
 
     # bj = np.array(nj, dtype=np.float)
-    assert isinstance(nj, np.ndarray)
-    assert nj.shape[1] == x.shape[1]
+    assert isinstance(nj, xr.DataArray)
+    # assert nj.shape[1] == x.shape[1]
 
-    # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    V_0 = np.nansum(nj, axis=1)[:, None, :, :]
-    V_1 = np.nansum(nj * x, axis=1)[:, None, :, :]
-    V_2 = np.nansum(nj * (x**2), axis=1)[:, None, :, :]
+    # slope, intercept = np.polyfit(x, y, 1, )
+
+    # # shape (n_moments, n_scales, n_scaling_ranges, n_rep)
+
+    V_0 = nj.sum(dim='j', skipna=True, min_count=3)
+    V_1 = (nj * x).sum(dim='j', skipna=True, min_count=3)
+    V_2 = (nj * x ** 2).sum(dim='j', skipna=True, min_count=3)
+
+    # V_0 = np.nansum(nj.values, axis=axis_j)
+    # V_1 = np.nansum((nj * x).values, axis=axis_j)
+    # V_2 = np.nansum((nj * (x**2)), axis=axis_j)
 
     weights_slope = nj * (V_0*x - V_1)/(V_0*V_2 - V_1*V_1)
     weights_intercept = nj * (V_2 - V_1*x)/(V_0*V_2 - V_1*V_1)
 
-    a = np.nansum(weights_slope*y, axis=1)
-    b = np.nansum(weights_intercept*y, axis=1)
+    a = (weights_slope * y).sum(dim='j', skipna=True, min_count=3)
+    b = (weights_intercept * y).sum(dim='j', skipna=True, min_count=3)
 
-    wt = np.zeros_like(nj)
-    wt[nj != 0] = 1 / nj[nj != 0]
-    var_a = np.nansum(wt*weights_slope*weights_slope, axis=1)
+    # a = np.nansum(weights_slope*y, axis=1)
+    # b = np.nansum(weights_intercept*y, axis=1)
 
     if not return_variance:
         return a, b
-    else:
-        return a, b, var_a
+
+    wt = xr.zeros_like(nj)
+    wt.where(nj != 0, 1 / nj.values[nj != 0])
+    var_a = (wt*weights_slope*weights_slope).sum(dim='j', skipna=True)
+
+    return a, b, var_a
 
 
 def compute_R2(moment, slope, intercept, weights, j_min_max, j):

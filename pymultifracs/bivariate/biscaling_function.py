@@ -160,22 +160,24 @@ class BiScalingFunction(AbstractScalingFunction):
         else:
             values = self.values
 
-        n1, n2 = values.shape[:2]
+        # n1, n2 = values.shape[:2]
 
         # self.slope = np.zeros(
         #     (n1, n2, len(self.scaling_ranges), np.prod(values.shape[4:])))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
-            self.scaling_ranges, self.j)
+            self.scaling_ranges, self.j, values.dims)
 
-        y = values.reshape(
-            n1 * n2, len(self.j), len(self.scaling_ranges),
-            np.prod(values.shape[4:]))[:, j_min_idx:j_max_idx]
+        # y = values.reshape(
+            # n1 * n2, len(self.j), len(self.scaling_ranges),
+            # np.prod(values.shape[4:]))[:, j_min_idx:j_max_idx]
+
+        y = values.sel(j=slice(j_min, j_max))
 
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
-                std = self.std_values()[:, j_min_idx:j_max_idx]
+                std = self.std_values().sel(j=slice(j_min,j_max))
 
             else:
 
@@ -185,11 +187,11 @@ class BiScalingFunction(AbstractScalingFunction):
                         f'{self.bootstrapped_obj.j.min()} inferior to minimum'
                         f'scale {j_min} used in estimation')
 
-                std_slice = np.s_[
-                    int(j_min - self.bootstrapped_obj.j.min()):
-                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
+                # std_slice = np.s_[
+                #     int(j_min - self.bootstrapped_obj.j.min()):
+                #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
 
-                std = self.bootstrapped_obj.std_values()[:, std_slice]
+                std = self.bootstrapped_obj.std_values().sel(j=slice(j_min, j_max))
 
         else:
             std = None
@@ -204,8 +206,8 @@ class BiScalingFunction(AbstractScalingFunction):
 
         slope, intercept = linear_regression(x, y, weights)
 
-        slope = slope.reshape(n1, n2, n_ranges, *values.shape[4:])
-        intercept = intercept.reshape(n1, n2, n_ranges, *values.shape[4:])
+        # slope = slope.reshape(n1, n2, n_ranges, *values.shape[4:])
+        # intercept = intercept.reshape(n1, n2, n_ranges, *values.shape[4:])
 
         return slope, intercept, weights
 
@@ -367,6 +369,19 @@ class BiStructureFunction(BiScalingFunction):
                     np.nanmean(fast_power(values_mrq1, 2) * fast_power(values_mrq2, 2),
                                axis=dims_mrq1.index(Dim.k_j))),
                 dims=[d for d in dims_mrq1 if d != Dim.k_j])
+
+        mapping = {
+            'j': self.j
+        }
+
+        self.coherence.coords.update(mapping)
+
+        mapping |= {
+            'q1': self.q1,
+            'q2': self.q2,
+        }
+
+        self.values.coords.update(mapping)
 
     def S_qq(self, q1, q2):
         """

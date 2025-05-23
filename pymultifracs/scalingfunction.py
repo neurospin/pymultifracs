@@ -205,21 +205,21 @@ class ScalingFunction(AbstractScalingFunction):
         else:
             values = self.values
 
-        slope = np.zeros(
-            (values.shape[0], len(self.scaling_ranges),
-             values.shape[-1]))
+        # slope = np.zeros(
+        #     (values.shape[0], len(self.scaling_ranges),
+        #      values.shape[-1]))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
-            self.scaling_ranges, self.j)
+            self.scaling_ranges, self.j, values.dims)
 
-        self.intercept = np.zeros_like(slope)
+        # self.intercept = np.zeros_like(slope)
 
-        y = values[:, j_min_idx:j_max_idx, :, :]
+        y = values.sel(j=slice(j_min, j_max))
 
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
-                std = self.std_values()[:, j_min_idx:j_max_idx]
+                std = self.std_values().sel(j=slice(j_min, j_max))
 
             else:
 
@@ -229,11 +229,11 @@ class ScalingFunction(AbstractScalingFunction):
                         f"{self.bootstrapped_obj.j.min()} inferior to minimum "
                         f"scale {j_min} used in estimation")
 
-                std_slice = np.s_[
-                    int(j_min - self.bootstrapped_obj.j.min()):
-                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
+                # std_slice = np.s_[
+                #     int(j_min - self.bootstrapped_obj.j.min()):
+                #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
 
-                std = self.bootstrapped_obj.std_values()[:, std_slice]
+                std = self.bootstrapped_obj.std_values().sel(j=slice(j_min, j_max))
 
         else:
             std = None
@@ -322,8 +322,27 @@ class StructureFunction(ScalingFunction):
 
     def _compute(self, mrq, idx_reject):
 
-        self.values = np.zeros(
-            (len(self.q), len(self.j), len(self.scaling_ranges), *mrq.values[self.j.min()].shape[1:]))
+        shape = (
+            len(self.q), len(self.j), len(self.scaling_ranges),
+        )
+        dims = (Dim.q, Dim.j, Dim.scaling_range)
+
+        mrq_sizes = mrq.get_values(self.j.max()).sizes
+
+        mrq_dims = [d for d in mrq_sizes if d not in [Dim.k_j, *dims]]
+        mrq_shapes = [s for d, s in mrq_sizes.items()
+                      if d not in [Dim.k_j, *dims]]
+
+        dims = (*dims, *mrq_dims)
+        shape = (*shape, *mrq_shapes)
+
+        coords = {
+            'q': self.q,
+            'j': self.j
+        }
+
+        # dims q1 q2 j scaling_range channel_left channel_right bootstrap
+        self.values = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
 
         for ind_j, j in enumerate(self.j):
 
@@ -333,13 +352,14 @@ class StructureFunction(ScalingFunction):
             N_useful = (~mask_nan).sum(dim=Dim.k_j)
             idx_unreliable = N_useful < 3
 
-            c_j = _expand_align(c_j, reference_order=self.dims[1:])
+            # c_j = _expand_align(c_j, reference_order=self.dims[1:])
 
             for ind_q, q in enumerate(self.q):
 
-                self.values[ind_q, ind_j] = np.log2(
-                    np.nanmean(fast_power(np.abs(c_j.values), q),
-                               axis=c_j.dims.index(Dim.k_j)))
+                self.values[ind_q, ind_j] = xr.DataArray(
+                    np.log2(np.nanmean(fast_power(np.abs(c_j.values), q),
+                               axis=c_j.dims.index(Dim.k_j))),
+                    dims=[d for d in c_j.dims if d != Dim.k_j])
 
                 # if idx_unreliable.any():
 
@@ -350,9 +370,9 @@ class StructureFunction(ScalingFunction):
 
             if idx_unreliable.any():
                 # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
-                self.values[:, ind_j, ..., idx_unreliable] = np.nan
+                self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
 
-        self.values[np.isinf(self.values)] = np.nan
+        self.values.where(np.isinf(self.values), np.nan)
 
         # print(self.values)
 
