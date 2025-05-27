@@ -527,7 +527,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         if hmin // .5 > 0:
             gamint = 0
         else:
-            gamint = -.5 * (hmin.min() // .5)
+            gamint = -.5 * (float(hmin.min()) // .5)
 
             if gamint + hmin < 0.25:
                 gamint += .5
