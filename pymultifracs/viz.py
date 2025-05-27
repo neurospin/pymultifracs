@@ -57,16 +57,14 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
     idx = np.s_[j_min:j_max]
 
     x = cm.j[idx]
-    y = getattr(cm, f'C{m1}{m2}')[idx, scaling_range]
+    y = getattr(cm, f'C{m1}{m2}')
 
-    if m1 == 0 and m2 == 0:
-        y = y[..., signal_idx1, signal_idx2]
-    elif m1 == 0:
-        y = y[:, signal_idx2]
-    elif m2 == 0:
-        y = y[:, signal_idx1]
+    if m1 == 0 and m2 > 0:
+        y = y.sel(channel2=signal_idx2)
+    elif m2 == 0 and m1 > 0:
+        y = y.sel(channel1=signal_idx1)
     else:
-        y = y[..., signal_idx1, signal_idx2]
+        y = y.sel(channel1=signal_idx1, channel2=signal_idx2)
 
     if cm.bootstrapped_obj is not None and plot_CI:
 

@@ -138,19 +138,19 @@ def compute_R2(moment, slope, intercept, weights, j_min_max, j):
 
     weights = 1 / weights
 
-    x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
+    x, _, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        j_min_max, j, dims=moment.dims)
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    moment = moment[:, j_min_idx:j_max_idx, :]
-    slope = slope[:, None, :]
-    intercept = intercept[:, None, :]
+    moment = moment.sel(j=slice(j_min, j_max))
 
     # x = np.arange(j_min, j_max + 1)[None, :, None, None]
 
-    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).sum(axis=1)
+    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).sum(
+        skipna=True, dim=Dim.j)
 
-    avg = (moment * weights).mean(axis=1)[:, None, :]
-    tot = ((moment * weights - avg) ** 2).sum(axis=1)
+    avg = (moment * weights).mean(dim=Dim.j, skipna=True)
+    tot = ((moment * weights - avg) ** 2).sum(dim=Dim.j, skipna=True)
 
     return 1 - res / tot
 
@@ -159,15 +159,17 @@ def compute_RMSE(moment, slope, intercept, weights, j_min_max, j):
 
     weights = 1 / weights
 
-    x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
+    x, _, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        j_min_max, j, dims=moment.dims)
 
     # Shape (n_moments, n_scales, n_scaling_ranges, n_rep)
-    moment = moment[:, j_min_idx:j_max_idx, :]
-    slope = slope[:, None, :]
-    intercept = intercept[:, None, :]
+    moment = moment.sel(j=slice(j_min,j_max))
+    slope = slope
+    intercept = intercept
 
     # x = np.arange(j_min, j_max + 1)[None, :, None, None]
 
-    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).mean(axis=1)
+    res = (weights ** 2 * (moment - x * slope - intercept) ** 2).mean(
+        dim=Dim.j, skipna=True)
 
     return np.sqrt(res)

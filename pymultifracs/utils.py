@@ -47,10 +47,9 @@ class DimensionNames:
     j: str = 'j'
     bootstrap: str = 'bootstrap'
     q: str = 'q'
+    m: str = 'm'
 
     def __getattr__(self, name):
-
-        print(name)
 
         match name:
 

@@ -6,7 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _():
-    from pymultifracs import wavelet_analysis
+    from pymultifracs import wavelet_analysis, mfa
     from pymultifracs.bivariate import bimfa
     from pymultifracs.simul import mrw
     import numpy as np
@@ -14,7 +14,7 @@ def _():
     import matplotlib.pyplot as plt
     import xarray as xr
     import pooch
-    return bimfa, loadmat, np, plt, pooch, wavelet_analysis
+    return bimfa, loadmat, mfa, np, plt, pooch, wavelet_analysis
 
 
 @app.cell
@@ -34,13 +34,19 @@ def _(X, bimfa, np, wavelet_analysis):
     lwt = bimfa(
         WTpL, WTpL, [(3, 9)], weighted=None, n_cumul=2,
         q1=np.array([0, 1, 2]), q2=np.array([0, 1, 2]), R=1)
-    return (lwt,)
+    return WTpL, lwt
 
 
 @app.cell
 def _(lwt, plt):
     lwt.cumulants.plot()
     plt.show()
+    return
+
+
+@app.cell
+def _(WTpL, mfa):
+    mfa(WTpL, [(3, 9)]).cumulants.plot()
     return
 
 

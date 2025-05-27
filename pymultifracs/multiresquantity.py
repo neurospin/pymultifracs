@@ -83,19 +83,30 @@ class MultiResolutionQuantityBase(AbstractDataclass):
 
     def _sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
-        sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, *self.values[j_min].shape[1:]))
+        dims = [Dim.j, Dim.scaling_range]
+        shape = [j_max-j_min+1, n_ranges]
+        coords = {Dim.j: np.arange(j_min, j_max+1)}
 
-        for i, (j1, j2) in enumerate(scaling_ranges):
-            for j in range(j1, j2 + 1):
+        for d, s in zip(self.dims, self.values[j_max].shape):
 
-                # c_j = np.abs(self.values[j])[:, None, :]
+            if d == Dim.k_j:
+                continue
 
-                c_j = np.abs(self.get_values(j, idx_reject))
+            if d not in dims:
 
-                # c_j = mask_reject(c_j, idx_reject, j, 1)
+                dims.append(d)
+                shape.append(s)
 
-                sup_c_j = np.nanmax(c_j, axis=0)
-                sup_coeffs[j-j_min, i] = sup_c_j
+        sup_coeffs = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
+
+        # for i, (j1, j2) in enumerate(scaling_ranges):
+        for j in range(j_min, j_max + 1):
+
+            vals = self.get_values(j, idx_reject)
+
+            sup_coeffs.loc[{Dim.j: j}] = xr.DataArray(
+                np.nanmax(np.abs(vals.values), axis=vals.dims.index(Dim.k_j)),
+                dims=[d for d in vals.dims if d != Dim.k_j])
 
         return sup_coeffs
 

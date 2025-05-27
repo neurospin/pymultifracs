@@ -57,7 +57,7 @@ def test_bivariate():
         p = param[key]
 
         assert abs(
-            p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20[0, 0, 1])) < 0.02, key
+            p['mft'][0, 0] - np.sqrt(-lwt.cumulants.c20.sel(channel1=0, channel2=1, scaling_range=0))) < 0.02, key
         assert abs(
             p['mft'][0, 1] - np.sqrt(-lwt.cumulants.c02[0, 0, 1])) < 0.02
         assert abs(p['mft'][0, 2] - lwt.cumulants.rho_mf[0, 0, 1]) < 0.11
