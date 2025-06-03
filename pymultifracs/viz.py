@@ -16,6 +16,7 @@ from scipy.signal import welch
 
 # from .wavelet import estimate_eta_p, wavelet_analysis
 from . import wavelet, multiresquantity, estimation
+from .utils import Dim
 
 
 def _cp_string_format(cp, CI=False):
@@ -355,7 +356,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     #         for s in range(j1, j2+1) if s in mrq.values
     #     ]
 
-    values = [mrq.get_values(scale)[:, 0, signal_idx]
+    values = [mrq.get_values(scale).isel(channel=signal_idx)
               for scale in range(j1, j2+1)]
 
     # if leader and not np.isinf(mrq.p_exp):
@@ -381,9 +382,9 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     #         ]
 
     if vmax is None:
-        vmax = max([np.nanmax(val) for val in values])
+        vmax = max([np.nanmax(val.values) for val in values])
     if vmin is None:
-        vmin = min([np.nanmin(abs(val)) for val in values])
+        vmin = min([np.nanmin(abs(val.values)) for val in values])
 
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
@@ -400,20 +401,21 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         if scale not in mrq.values:
             continue
 
-        temp = mrq.get_values(scale)[:, 0, signal_idx]
+        temp = mrq.get_values(scale).isel(channel=signal_idx).transpose(
+            Dim.k_j, ...)
         # temp = values[i]
 
-        X = ((np.arange(temp.shape[0] + 1)
+        X = ((np.arange(temp.sizes[Dim.k_j] + 1)
               ) * (2 ** (scale - j1)))
         # X += scale - 1
         # if leader and scale > 1:
         #     X += 2 ** (scale - j1 - 1)
         X = np.tile(X[:, None], (1, 2))
 
-        C = np.copy(temp[:, None])
-
         if not leader:
-            C = np.abs(C)
+            C = np.abs(temp)
+        else:
+            C = np.copy(temp)
 
         # Correcting potential p_leaders
         # if leader and not np.isinf(mrq.p_exp):

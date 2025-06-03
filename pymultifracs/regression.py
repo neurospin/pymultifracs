@@ -29,8 +29,11 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
 
     elif weighted == 'bootstrap':
 
-        std[std == 0] = std[std != 0].min()
-        std = 1/std
+        if mask := np.isclose(std.values, 0).any():
+            # std.where(np.isclose(std.values, 0), std.where(std > 0).min())
+            std.values[mask] = std.where(std > 0).min()
+
+        std = 1 / std
 
         # std shape (n_moments, n_scales, n_scaling_ranges, n_channel) ->
         # (n_moments, n_scales, n_scaling_ranges, n_rep)
@@ -48,7 +51,8 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
     for i, (j1, j2) in enumerate(scaling_ranges):
         w.isel(scaling_range=i).where((w.j > j2) | (w.j < j1), np.nan)
 
-    w.where(np.isnan(y), np.nan)
+    # w.where(np.isnan(y), np.nan)
+    w.values[np.isnan(y)] = np.nan
 
     # if np.isnan(y).any():
     #     mask = np.ones_like(y)
@@ -125,7 +129,8 @@ def linear_regression(x, y, nj, return_variance=False):
         return a, b
 
     wt = xr.zeros_like(nj)
-    wt.where(nj != 0, 1 / nj.values[nj != 0])
+    # wt.where(nj != 0, 1 / nj.values[nj != 0])
+    wt.values[nj != 0] = 1 / nj.values[nj != 0]
     var_a = (wt*weights_slope*weights_slope).sum(dim='j', skipna=True)
 
     return a, b, var_a

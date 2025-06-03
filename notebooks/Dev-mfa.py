@@ -9,8 +9,8 @@ def _():
     from pymultifracs import wavelet_analysis, mfa
     from pymultifracs.simul import mrw
     import numpy as np
-    import matplotlib.pyplot as plt
-    return mfa, mrw, np, plt, wavelet_analysis
+    import matplotlib.pyplot as pl
+    return mfa, mrw, np, wavelet_analysis
 
 
 @app.cell
@@ -29,9 +29,27 @@ def _(X, wavelet_analysis):
 
 
 @app.cell
+def _(WTpL):
+    WTpL.j2_eff()
+    return
+
+
+@app.cell
 def _(WTpL, mfa):
-    pwt = mfa(WTpL, [(3, 10)])
+    pwt = mfa(WTpL, [(3, 13)])
     return (pwt,)
+
+
+@app.cell
+def _(WTpL):
+    WTpL.values[13]
+    return
+
+
+@app.cell
+def _(pwt):
+    pwt.cumulants.values.sel(j=13)
+    return
 
 
 @app.cell

@@ -137,19 +137,19 @@ class ScalingFunction(AbstractScalingFunction):
         Computes :math:`R` for bootstrap-based automated range selection.
         """
 
-        values = self.values.reshape(
-            *self.values.shape[:3], self.n_channel, -1)
-        slope = self.slope.reshape(*self.slope.shape[:2], self.n_channel, -1)
-        intercept = self.intercept.reshape(
-            *self.intercept.shape[:2], self.n_channel, -1)
+        # values = self.values.reshape(
+        #     *self.values.shape[:3], self.n_channel, -1)
+        # slope = self.slope.reshape(*self.slope.shape[:2], self.n_channel, -1)
+        # intercept = self.intercept.reshape(
+        #     *self.intercept.shape[:2], self.n_channel, -1)
 
-        if self.weights.shape[-1] > 1:
-            weights = self.weights.reshape(
-                *self.weights.shape[:3], self.n_channel, -1)
-        else:
-            weights = self.weights[..., None]
+        # if self.weights.shape[-1] > 1:
+        #     weights = self.weights.reshape(
+        #         *self.weights.shape[:3], self.n_channel, -1)
+        # else:
+        #     weights = self.weights[..., None]
 
-        return compute_R(values, slope, intercept, weights,
+        return compute_R(self.values, self.slope, self.intercept, self.weights,
                          [self._get_j_min_max()], self.j)
 
     def compute_Lambda(self):
@@ -372,42 +372,34 @@ class StructureFunction(ScalingFunction):
                 # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
                 self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
 
-        self.values.where(np.isinf(self.values), np.nan)
+        # self.values.where(np.isinf(self.values), np.nan)
+        self.values.values[np.isinf(self.values)] = np.nan
 
         # print(self.values)
 
     def _get_H(self):
-        return self.slope[self.q == 2][0] / 2
+        return self.slope.sel(q=2) / 2
 
     def S_q(self, q):
         """
         Returns :math:`S_q(j)` for given ``q``.
         """
-
-        out = self.values[isclose(q, self.q)][0]
-        out = out.reshape(
-            out.shape[0], len(self.scaling_ranges), self.n_channel, -1)
-
-        return out
+        return self.values.sel(q=q, method='nearest', tolerance=.1)
 
     def s_q(self, q):
         """
         Returns :math:`s_q` for given ``q``.
         """
-
-        out = self.slope[isclose(q, self.q)][0]
-        out = out.reshape(out.shape[0], self.n_channel, -1)
-
-        return out
+        return self.slope.sel(q=q, method='nearest', tolerance=.1)
 
     def __getattr__(self, name):
 
         if name == 'H':
             return self._get_H()
 
-        if name == 'S2':
-            out = self.values[self.q == 2]
-            return out.reshape(out.shape[0], self.n_channel, -1)
+        # if name == 'S2':
+        #     out = self.values[self.q == 2]
+        #     return out.reshape(out.shape[0], self.n_channel, -1)
 
         if name == 'zeta':
             return self.slope
@@ -489,17 +481,18 @@ class StructureFunction(ScalingFunction):
             if q == 0.0 and ignore_q0:
                 continue
 
-            y = self.S_q(q)[idx, scaling_range, signal_idx, 0]
+            y = self.S_q(q).sel(j=slice(j1, j2)).isel(
+                scaling_range=scaling_range, channel=signal_idx)
 
             if self.bootstrapped_obj is not None and plot_CI:
 
-                _, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
+                j_min_CI, j_max_CI, *_ = self.bootstrapped_obj.get_jrange(
                     j1, j2)
 
-                CI = self.CIE_S_q(q)[
-                    j_min_CI:j_max_CI, scaling_range, signal_idx]
+                CI = self.CIE_S_q(q).sel(j=slice(j_min_CI, j_max_CI)).isel(
+                    scaling_range=scaling_range, channel=signal_idx)
 
-                CI -= y[:, None]
+                CI -= y#[:, None]
                 CI[:, 1] *= -1
                 assert (CI < 0).sum() == 0
                 CI = CI.transpose()
@@ -780,7 +773,8 @@ class Cumulants(ScalingFunction):
                     #     self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
                     #         np.nan
 
-        self.values.where(np.isinf(self.values), np.nan)
+        # self.values.where(np.isinf(self.values), np.nan)
+        self.values.values[np.isinf(self.values)] = np.nan
 
     def __getattr__(self, name):
 
@@ -1003,8 +997,11 @@ class MFSpectrum(ScalingFunction):
                 self.V.values[:, ind_j, ..., idx_unreliable] = np.nan
                 self.U.values[:, ind_j, ..., idx_unreliable] = np.nan
 
-        self.U.where(np.isinf(self.U.values), np.nan)
-        self.V.where(np.isinf(self.V.values), np.nan)
+        # self.U.where(np.isinf(self.U.values), np.nan)
+        # self.V.where(np.isinf(self.V.values), np.nan)
+
+        self.U.values[np.isinf(self.U)] = np.nan
+        self.V.values[np.isinf(self.V)] = np.nan
 
         # x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
         #     self.scaling_ranges, self.j

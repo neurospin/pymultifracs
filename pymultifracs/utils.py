@@ -102,9 +102,24 @@ class AbstractDataclass:
 
         # if self.values[min(self.values)].shape[bootstrap_index] < 2:
 
-        if self.n_bootstrap < 2:
+        if isinstance(self.values, xr.DataArray):
+
+            if Dim.bootstrap not in self.values.sizes:
+                n_bootstrap = 0
+            else:
+                n_bootstrap = self.values.sizes[Dim.bootstrap]
+
+        else:
+
+            if Dim.bootstrap not in self.dims:
+                n_bootstrap = 0
+            else:
+                n_bootstrap = self.values[max(self.values)].shape[
+                    self.dims.index(Dim.bootstrap)]
+
+        if n_bootstrap < 2:
             raise ValueError(
-                f'n_bootstrap = {self.n_bootstrap} per original signal too '
+                f'n_bootstrap = {n_bootstrap} per original signal too '
                 'small to build confidence intervals'
                 )
 

@@ -201,7 +201,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         self.bootstrapped_obj = circular_leader_bootstrap(
             self, min_scale, max_scale, block_length, R)
 
-        self.dims = (*self.dims, 'bootstrap')
+        # self.dims = (*self.dims, 'bootstrap')
 
         # j = np.array([*self.values])
         #
@@ -636,7 +636,9 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     #     wt_leaders.values[j] = \
     #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
 
-    ZPJCorr.where(eta_p <= 0, 1)
+    # ZPJCorr.where(eta_p <= 0, 1)
+    ZPJCorr = xr.where(eta_p <= 0, 1, ZPJCorr)
+    # ZPJCorr.values[eta_p <= 0] = 1
 
     return ZPJCorr
 
@@ -693,7 +695,7 @@ class WaveletLeader(WaveletDec):
             self.__class__.bootstrap_multiple(
                 R, min_scale, [self, self.origin_mrq])
 
-        self.dims = (*self.dims, Dim.bootstrap)
+        # self.bootstrapped_obj.dims = (*self.dims, Dim.bootstrap)
 
         return self.bootstrapped_obj
 
