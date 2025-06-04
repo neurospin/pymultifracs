@@ -167,8 +167,9 @@ class WaveletDec(MultiResolutionQuantityBase):
         if j2 is None:
             j2 = max(self.values)
 
-        return np.array([(~np.isnan(self.get_values(j, idx_reject))).sum(axis=0)
-                           for j in range(j1, j2+1)])
+        return xr.concat(
+            [(~np.isnan(self.get_values(j, idx_reject))).sum(dim=Dim.k_j)
+             for j in range(j1, j2+1)], dim=Dim.j)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
         r"""

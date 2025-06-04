@@ -440,9 +440,9 @@ def mask_reject(values, idx_reject, j, interval_size):
 
     out = values * mask
 
-    mask_fewcoeff = (~np.isnan(out)).sum(axis=0) < 3
+    mask_fewcoeff = (~np.isnan(out)).sum(dim=Dim.k_j) < 3
 
-    out[:, mask_fewcoeff] = np.nan
+    out = out.where(~mask_fewcoeff, np.nan)
 
     # delta = (interval_size - 1) // 2
 

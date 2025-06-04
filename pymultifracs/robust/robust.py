@@ -98,7 +98,7 @@ from ..utils import fast_power, get_edge_reject, Dim
 #     return output
 
 
-def compute_robust_cumulants(X, m_array, alpha=1):
+def compute_robust_cumulants(X, dims, m_array, alpha=1):
 
     from statsmodels.robust.scale import qn_scale
     from statsmodels.robust.norms import estimate_location, TukeyBiweight
@@ -106,13 +106,35 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 
     # shape X (n_j, n_ranges, n_rep)
 
-    n_j, n_range, n_rep = X.shape
-    moments = np.zeros((len(m_array), n_range, n_rep))
-    values = np.zeros_like(moments)
+    # n_j, n_range, n_rep = X.shape
 
-    idx_unreliable = (~np.isnan(X)).sum(axis=0) < 3
+    dim = (Dim.m, Dim.scaling_range)
+    shape = (len(m_array), X.shape[dims.index(Dim.scaling_range)])
+
+    mrq_dims, mrq_shapes = [], []
+
+    for d in dims:
+
+        if d in [Dim.k_j, *dims]:
+            continue
+
+        mrq_dims.append(d)
+        mrq_shapes.append(X.shape[dims.index(d)])
+
+    moments = xr.DataArray(
+        np.zeros((*shape, *mrq_shapes)), dims=((*dim, *mrq_dims)))
+    values = xr.zeros_like(moments)
+
+    idx_unreliable = (~np.isnan(X)).sum(axis=dims.index(Dim.k_j)) < 3
 
     # compute robust moments
+
+    # list all dimensions of X except k_j
+    # iterate using ndindex, and slicing the X array outside of nans as is done here
+
+    # define a wrapper for qn that discards nans along the axis and prepares the data
+    # apply_along_axis that way.
+
     for range, rep in np.ndindex(n_range, n_rep):
 
         if idx_unreliable[range, rep]:
@@ -229,11 +251,17 @@ def get_location_scale(cm, fix_c2_slope=False):
 
 def get_location_scale_shape(cm, fix_c2_slope=False):
 
-    slope_c1 = cm.slope[0][None, :]
-    intercept_c1 = cm.intercept[0][None, :]
+    # slope_c1 = cm.slope[0][None, :]
+    # intercept_c1 = cm.intercept[0][None, :]
 
-    slope_c2 = cm.slope[1][None, :]
-    intercept_c2 = cm.intercept[1][None, :]
+    slope_c1 = cm.slope.sel(m=1)
+    intercept_c1 = cm.intercept.sel(m=1)
+
+    slope_c2 = cm.slope.sel(m=2)
+    intercept_c2 = cm.intercept.sel(m=2)
+
+    # slope_c2 = cm.slope[1][None, :]
+    # intercept_c2 = cm.intercept[1][None, :]
 
     if fix_c2_slope and slope_c2 > 0:
         slope_c2[:] = 0
@@ -242,14 +270,20 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
             intercept_c2[:, k] = cm.C2[
                 np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
 
-    slope_c4 = cm.slope[3][None, :]
-    intercept_c4 = cm.intercept[3][None, :]
+    # slope_c4 = cm.slope[3][None, :]
+    # intercept_c4 = cm.intercept[3][None, :]
 
-    j_array = np.arange(1, cm.j.max() + 1)
+    slope_c4 = cm.slope.sel(m=4)
+    intercept_c4 = cm.intercept.sel(m=4)
 
-    C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
-    C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
-    C4_array = slope_c4 * j_array[:, None, None] + intercept_c4
+    j_array = xr.DataArray(
+        np.arange(1, cm.j.max() + 1),
+        coords={Dim.j: np.arange(1, cm.j.max() + 1)}
+    )
+
+    C1_array = slope_c1 * j_array + intercept_c1
+    C2_array = slope_c2 * j_array + intercept_c2
+    C4_array = slope_c4 * j_array + intercept_c4
 
     # m2 = C2_to_m2(C2_array)
     # m4_array = C4_to_m4(C4_array, m2)
@@ -259,8 +293,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
     # m4[m2 < 0] = 0
     # m4[m4 < 0] = 0
 
-    alpha = np.zeros_like(C2_array)
-    beta = np.zeros_like(C4_array)
+    alpha = xr.zeros_like(C2_array)
+    beta = xr.zeros_like(C4_array)
 
     for i, (C2, C4) in enumerate(zip(C2_array, C4_array)):
 
@@ -295,10 +329,10 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
             C2 * special.gamma(1/beta[i]) / special.gamma(3 / beta[i]))
 
     idx_zero = (alpha < 0) | (np.isnan(alpha))
-    alpha[idx_zero] = 0
+    alpha.values[idx_zero] = 0
 
     idx_zero = beta < .1
-    beta[idx_zero] = .1
+    beta.values[idx_zero] = .1
 
     return j_array, C1_array, alpha, beta
 
@@ -883,7 +917,8 @@ def compute_aggregate(CDF, j1, j2):
         np.zeros((max_index, j2-j1+1,
                   *(s for d, s in CDF[j1].sizes.items() if d != Dim.k_j))),
         dims=(Dim.k_j, Dim.j, *(d for d in CDF[j2].dims if d != Dim.k_j)),
-        coords=CDF[j2].coords
+        # coords=CDF[j2].coords
+        coords={Dim.j: np.arange(j1, j2+1)},
     )
 
     agg[{Dim.j: 0}] = CDF[j1].isel({Dim.k_j: np.s_[:max_index]})
@@ -979,11 +1014,12 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
     # max_index = CDF[j2].shape[0] * 2 ** (j2 - j1)
 
-    for idx_range, idx_signal in np.ndindex(CDF[j1].shape[1:]):
+    for idx_range, idx_signal in np.ndindex(
+            CDF[j1].sizes[Dim.scaling_range], CDF[j1].sizes[Dim.channel]):
 
         mask_nan_global = np.isnan(
             agg.isel(channel=idx_signal,
-                     scaling_range=idx_range)).any(dim=Dim.k_j).values
+                     scaling_range=idx_range)).any(dim=Dim.j).values
 
         pk = agg.isel(channel=idx_signal, scaling_range=idx_range)
         w = xr.DataArray(
@@ -1038,10 +1074,12 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
         N_bins = ceil(1.5 * agg[~mask_nan_global].shape[0] ** (1/3))
 
-        for j in range(agg.shape[1]):
+        for j in agg.j:
+
+            j = int(j)
 
             # skip this scale because it does not contain relevant information
-            if j+j1 in skip_scales[(idx_range, idx_signal)]:
+            if j in skip_scales[(idx_range, idx_signal)]:
                 continue
 
             stat = []
@@ -1106,14 +1144,13 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                 # sl = accessible_indices[result[idx] // (2 ** (j)):result[idx+1] // (2 ** (j))+1]
                 # mask[sl] = True
 
-                idx_reject[j1+j].iloc[
-                    {Dim.k_j: np.s_[result_j[idx] // (2 ** (j)):
-                                    result_j[idx+1] // (2 ** (j))+1],
+                idx_reject[j][
+                    {Dim.k_j: np.s_[result_j[idx] // (2 ** (j-j1)):
+                                    result_j[idx+1] // (2 ** (j-j1))+1],
                      Dim.scaling_range: idx_range,
                      Dim.channel: idx_signal}] = True
 
-
-                for jj in range(j):
+                for jj in range(j-j1):
                     idx_reject[j1+jj][
                         result_j[idx] // (2 ** (jj)):
                         result_j[idx+1] // (2 ** (jj))+1,

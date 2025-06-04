@@ -9,8 +9,8 @@ def _():
     from pymultifracs import wavelet_analysis, mfa
     from pymultifracs.simul import mrw
     import numpy as np
-    import matplotlib.pyplot as pl
-    return mfa, mrw, np, wavelet_analysis
+    import matplotlib.pyplot as plt
+    return mfa, mrw, np, plt, wavelet_analysis
 
 
 @app.cell
@@ -26,12 +26,6 @@ def _(mrw, np):
 def _(X, wavelet_analysis):
     WTpL = wavelet_analysis(X).get_leaders(2)
     return (WTpL,)
-
-
-@app.cell
-def _(WTpL):
-    WTpL.j2_eff()
-    return
 
 
 @app.cell

@@ -695,24 +695,34 @@ class Cumulants(ScalingFunction):
 
         for ind_j, j in enumerate(self.j):
 
-            T_X_j = np.abs(mrq.get_values(j)).values
+            T_X_j = np.abs(mrq.get_values(j))
+            dims = T_X_j.dims
+            T_X_j = T_X_j.values
             # T_X_j = T_X_j[:, None, :]
 
             # if self.formalism == 'wavelet p-leader':
             #     T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
-            log_T_X_j = np.log(T_X_j)
+            np.log(T_X_j, out=T_X_j)
 
             # dropping infinite coefsx
-            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+            # T_X_j[np.isinf(T_X_j)] = np.nan
 
-            log_T_X_j = mask_reject(
-                log_T_X_j, idx_reject, j, mrq.interval_size)
+            mask_nan = np.isnan(T_X_j)
+            mask_nan |= np.isinf(T_X_j)
+
+            if idx_reject is not None and j in idx_reject:
+                mask_nan |= idx_reject[j]
+
+            T_X_j[mask_nan] = np.nan
+
+            # log_T_X_j = mask_reject(
+            #     log_T_X_j, idx_reject, j, mrq.interval_size)
 
             values = robust.compute_robust_cumulants(
-                log_T_X_j, self.m, **self.robust_kwargs)
+                T_X_j, dims, self.m, **self.robust_kwargs)
 
-            self.values[:, ind_j] = values
+            self.values.loc[{Dim.j: j}] = values
 
     def _compute(self, mrq, idx_reject):
 
