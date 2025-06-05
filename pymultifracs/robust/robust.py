@@ -108,22 +108,23 @@ def compute_robust_cumulants(X, dims, m_array, alpha=1):
 
     # n_j, n_range, n_rep = X.shape
 
-    dim = (Dim.m, Dim.scaling_range)
-    shape = (len(m_array), X.shape[dims.index(Dim.scaling_range)])
+    dim = (Dim.m,)
+    shape = (len(m_array),)
 
     mrq_dims, mrq_shapes = [], []
 
     for d in dims:
 
-        if d in [Dim.k_j, *dims]:
+        if d in [Dim.k_j, *dim]:
             continue
 
         mrq_dims.append(d)
         mrq_shapes.append(X.shape[dims.index(d)])
 
-    moments = xr.DataArray(
-        np.zeros((*shape, *mrq_shapes)), dims=((*dim, *mrq_dims)))
-    values = xr.zeros_like(moments)
+    centered_moment = xr.DataArray(
+        np.zeros((*shape, *mrq_shapes)), dims=((*dim, *mrq_dims)),
+        coords={Dim.m: m_array})
+    values = xr.zeros_like(centered_moment)
 
     idx_unreliable = (~np.isnan(X)).sum(axis=dims.index(Dim.k_j)) < 3
 
@@ -135,78 +136,95 @@ def compute_robust_cumulants(X, dims, m_array, alpha=1):
     # define a wrapper for qn that discards nans along the axis and prepares the data
     # apply_along_axis that way.
 
-    for range, rep in np.ndindex(n_range, n_rep):
+    if X.shape[dims.index(Dim.k_j)] > 10000:
+        values = np.nan
+        return values
 
-        if idx_unreliable[range, rep]:
-            values[:, range, rep] = np.nan
-            continue
+    def est_wrapper(X):
 
-        X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]),
-                   range, rep]
-
-        if X_norm.shape[0] > 10000:
-            values[:, range, rep] = np.nan
-            continue
+        X_norm = X[~np.isinf(X) & ~np.isnan(X)]
 
         q_est = qn_scale(X_norm)
-
-        if np.isclose(q_est, 0):
-            values[m_array == 1, range, rep] = np.median(X_norm, axis=0)
-            continue
 
         try:
             m_est = estimate_location(X_norm, q_est, norm=TukeyBiweight(),
                                       maxiter=1000)
         except ValueError:
-
             if X_norm.shape[0] < 20:
-                values[:, range, rep] = np.nan
-                continue
+                m_est = np.nan
+            else:
+                m_est = np.median(X_norm)
 
-            m_est = np.median(X_norm)
+        return np.stack([m_est, q_est ** 2], axis=-1)
 
-        X_norm -= m_est
-        X_norm /= q_est
+    values[{Dim.m: np.s_[:3]}] = xr.DataArray(
+        np.apply_along_axis(est_wrapper, axis=dims.index(Dim.k_j), arr=X),
+        dims=(*(d for d in dims if d != Dim.k_j), Dim.m))
+
+    # for range, rep in np.ndindex(n_range, n_rep):
+
+        # if idx_unreliable[range, rep]:
+        #     values[:, range, rep] = np.nan
+        #     continue
+
+        # X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]),
+        #            range, rep]
+
+        # if X_norm.shape[0] > 10000:
+        #     values[:, range, rep] = np.nan
+        #     continue
+
 
         # X_norm -= X_norm.mean()
         # X_norm /= X_norm.std()
 
         # print(X_norm.mean(), X_norm.std())
 
-        for ind_m, m in enumerate(m_array):
+    if max(m_array) <= 2:
+        return values
 
-            decaying_factor = (alpha
-                               * np.exp(-.5 * (alpha ** 2 - 1) * X_norm ** 2))
+    X -= values.sel(m=1)
+    X /= np.sqrt(values.sel(m=2))
 
-            moments[ind_m, range, rep] = np.mean(
-                fast_power(alpha * X_norm, m) * decaying_factor, axis=0)
+    decaying_factor = (
+        alpha
+        * np.exp(-.5 * (alpha ** 2 - 1)
+                * np.linalg.norm(X, 2, axis=dims.index(Dim.k_j))
+                )
+    )
 
-            if m == 1:
-                values[ind_m, range, rep] = m_est
-            elif m == 2:
-                values[ind_m, range, rep] = q_est ** 2
+    for m in m_array:
+
+        if m == 1:
+            centered_moment[{Dim.m: m}] = X.mean()
+
+        elif m == 2:
+            centered_moment[{Dim.m: m}] = X.var()
+
+        else:
+            centered_moment[{Dim.m: m}] = (
+                fast_power(alpha * X, m) * decaying_factor).mean(
+                axis=dims.index(Dim.k_j))
+
+    for m in m_array:
+
+        if m <= 2:
+            continue
+
+        for ind_n, n in enumerate(np.arange(1, m)):
+
+            aux = xr.zeros_like(centered_moment.sel(m=m))
+
+            temp_moment = centered_moment.sel(m=n)
+
+            if n <= 2:
+                temp_value = centered_moment.sel(m=n)
             else:
-                aux = 0
+                temp_value = values.sel(m=n)
 
-                for ind_n, n in enumerate(np.arange(1, m)):
+            aux += (special.binom(m-1, n-1) * temp_value * temp_moment)
 
-                    if m_array[ind_m - ind_n - 1] > 2:
-                        temp_moment = moments[ind_m - ind_n - 1, range, rep]
-                    elif m_array[ind_m - ind_n - 1] == 2:
-                        temp_moment = X_norm.var()
-                    elif m_array[ind_m - ind_n - 1] == 1:
-                        temp_moment = X_norm.mean()
-
-                    if m_array[ind_n] > 2:
-                        temp_value = values[ind_n, range, rep]
-                    elif m_array[ind_n] == 2:
-                        temp_value = X_norm.var()
-                    elif m_array[ind_n] == 1:
-                        temp_value = X_norm.mean()
-
-                    aux += (special.binom(m-1, n-1) * temp_value * temp_moment)
-
-                values[ind_m, :, rep] = moments[ind_m, range, rep] - aux
+        values[{Dim.m: m}] = centered_moment.sel(m=m) - aux
 
     return values
 

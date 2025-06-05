@@ -461,9 +461,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                     temp_indices[idx_double]
 
                 out_double = np.zeros(
-                    (replications,
-                     mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
-                    dtype=float) + np.nan
+                    (replications, *min_shape), dtype=float) + np.nan
                 out_double[idx_final >= 0] = data[idx_final[idx_final >= 0]]
 
                 compact_idx = np.all(np.isnan(out_double), axis=0)
@@ -477,7 +475,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         out = np.zeros((replications, *min_shape), dtype=float) + np.nan
 
-        out.values[indices_scale >= 0] = data[idx]
+        out[indices_scale >= 0] = data[idx]
         # out = np.where((indices_scale >= 0).expand_dims(), data[idx], out)
 
         compact_idx = np.all(
