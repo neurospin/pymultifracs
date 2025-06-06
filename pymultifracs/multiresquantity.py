@@ -326,7 +326,8 @@ class WaveletDec(MultiResolutionQuantityBase):
         # else:
         #     out = self.values[j][:, None, :]
 
-        out = xr.DataArray(self.values[j], dims=self.dims)
+        out = xr.DataArray(
+            self.values[j], dims=self.dims, coords={Dim.j: j})
 
         # Bootstrapped mrq needs to realign into signal and repetitions
         # if self.n_rep != self.n_channel:

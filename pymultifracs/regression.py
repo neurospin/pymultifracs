@@ -25,7 +25,7 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
         #     # (1, 1, n_ranges, 1)
         # )
 
-        w = sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[None, :]
+        w = sf_nj_fun(floor(j_min), floor(j_max)).astype(float)#.copy(deep=True)
 
     elif weighted == 'bootstrap':
 
@@ -48,11 +48,15 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
     else:  # weighted is None
         w = xr.ones_like(y)
 
+    if Dim.scaling_range not in w.dims:
+        w = w.expand_dims({Dim.scaling_range: len(scaling_ranges)}).copy()
+
     for i, (j1, j2) in enumerate(scaling_ranges):
-        w.isel(scaling_range=i).where((w.j > j2) | (w.j < j1), np.nan)
+        w[{Dim.scaling_range: i, Dim.j: (w.j > j2) | (w.j < j1)}] = np.nan
 
     # w.where(np.isnan(y), np.nan)
-    w.values[np.isnan(y)] = np.nan
+    # w.values[np.isnan(y)] = np.nan
+    w = w.where(~np.isnan(y), np.nan)
 
     # if np.isnan(y).any():
     #     mask = np.ones_like(y)

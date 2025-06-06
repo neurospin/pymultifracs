@@ -89,3 +89,20 @@ def test_goodness_fit(mrw_file):
 
     pwt.cumulants.compute_R2()
     pwt.cumulants.compute_RMSE()
+
+
+@pytest.mark.mfa
+def test_mfa_unit(mrw_file):
+
+    with open(mrw_file[0], 'rb') as f:
+        X = np.load(f)
+
+    WT = wavelet_analysis(X)
+    WTpL = WT.get_leaders(p_exp=2)
+
+    scaling_ranges = [(3, WTpL.j2_eff())]
+
+    WTpL = WTpL.auto_integrate(scaling_ranges)
+    WT = WT.auto_integrate(scaling_ranges)
+
+    pwt = mfa(WTpL, scaling_ranges, n_cumul=2, weighted='Nj')
