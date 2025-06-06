@@ -155,7 +155,13 @@ class ScalingFunction(AbstractScalingFunction):
     def compute_Lambda(self):
         """
         Computes :math:`\\Lambda` for bootstrap-based automated range
-        selection.
+        selection. [1]_
+
+        References
+        ----------
+
+        .. [1] https://doi.org/10.1016/j.sigpro.2014.06.002
+
         """
 
         R = self.compute_R()
@@ -163,12 +169,23 @@ class ScalingFunction(AbstractScalingFunction):
 
         return compute_Lambda(R, R_b)
 
-    def find_best_range(self):
+    def find_best_range(self, per_moment=False):
         """
         Find the best range among those computed, given bootstrap was already
         performed
+
+        Parameters
+        ----------
+        per_moment : bool
+            If True, returns the best range for each moment. Otherwise, by
+            default returns the overall best range for all moments.
+
+        References
+        ----------
+
+        .. [1] https://doi.org/10.1016/j.sigpro.2014.06.002
         """
-        return find_max_lambda(self.compute_Lambda())
+        return find_max_lambda(self.compute_Lambda(), per_moment)
 
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
         """

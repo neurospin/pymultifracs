@@ -73,3 +73,19 @@ def test_mfa_mrw(mrw_file):
         assert abs(dwt.structure.H.mean(dim=Dim.channel) - WT.gamint - config_list[i]['H']) < 0.11
         assert abs(lwt.cumulants.c2.mean(dim=Dim.channel)
                    + (config_list[i]['lam'] ** 2)) < 0.025
+
+
+@pytest.mark.mfa
+def test_goodness_fit(mrw_file):
+
+    with open(mrw_file[0], 'rb') as f:
+        X = np.load(f)
+
+    WTpL = wavelet_analysis(X).integrate(1).get_leaders(p_exp=2)
+
+    scaling_ranges = [(3, WTpL.j2_eff())]
+
+    pwt = mfa(WTpL, scaling_ranges, n_cumul=2)
+
+    pwt.cumulants.compute_R2()
+    pwt.cumulants.compute_RMSE()

@@ -64,13 +64,21 @@ from .utils import Dim
 
 
 def compute_Lambda(R, R_b):
+    return 1 - ((R_b < R).sum(dim=Dim.bootstrap) / R_b.sizes[Dim.bootstrap])
 
-    return 1 - ((R_b < R).sum(axis=-1) / R_b.shape[-1])
 
+def find_max_lambda(L, per_moment=False):
+    # L.mean(dim=Dim.j) == np.amax(L.mean(dim=Dim.j))
 
-def find_max_lambda(L):
+    if per_moment:
+        return L.argmax(dim=Dim.scaling_range)
 
-    return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
+    if Dim.q in L.dims:
+        moment_dim = Dim.q
+    else:
+        moment_dim = Dim.m
+
+    return L.sum(dim=moment_dim).argmax(dim=Dim.scaling_range)
 
 
 def compute_R(moment, slope, intercept, weights, j_min_max, j):
