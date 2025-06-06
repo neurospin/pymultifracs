@@ -216,19 +216,27 @@ class Benchmark:
 
                 df = est_fun(signal, **param_restriction)
                 df = df.assign(**est_params, method=method)
-                df = df.reset_index()
-                df.index.name = 'k'
+                df = df.set_index(['method', *est_params], append=True)
 
                 res.append(df)
 
             res = pd.concat(res)
 
             res = res.assign(model=model, **signal_params)
-            res = res.reset_index().set_index(
-                ['model', *signal_params, 'method',
-                 *estimation_param_grid.columns, 'k'])
+            res = res.set_index(['model', *signal_params], append=True)
+            # res = res.reset_index().set_index(
+            #     ['model', *signal_params, 'method',
+            #      *estimation_param_grid.columns, 'k'])
 
-            return res
+            order = ['model', *signal_params, 'method',
+                     *estimation_param_grid.columns.values]
+
+            # adding supplementary levels
+            for n in res.index.names:
+                if n not in order:
+                    order.append(n)
+
+            return res.reorder_levels(order)
 
         # if save_load_signals:
         #     signal_gen_wrap = lambda x, y: self._generate_load_signal(x, y, True)

@@ -59,20 +59,20 @@ def pleader_est(X, p_exp):
     WT = wavelet_analysis(X).get_leaders(p_exp=p_exp)
     pwt = mfa(WT, [(3, 7)], estimates='c', weighted='Nj')
 
-    return {
-        'c1': pwt.cumulants.c1[0, :, 0],
-        'c2': pwt.cumulants.c2[0, :, 0],
-    }
+    out = pwt.cumulants.log_cumulants.isel(scaling_range=0).to_dataframe('cm').unstack('m')
+    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x[1]}')
+
+    return out
 
 def coef_est(X):
 
     WT = wavelet_analysis(X)
     dwt = mfa(WT, [(3, 7)], estimates='c')
 
-    return {
-        'c1': dwt.cumulants.c1[0, :, 0],
-        'c2': dwt.cumulants.c2[0, :, 0],
-    }
+    out = dwt.cumulants.log_cumulants.isel(scaling_range=0).to_dataframe('cm').unstack('m')
+    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x[1]}')
+
+    return out
 
 
 # %%
@@ -103,12 +103,12 @@ bench.compute_benchmark()
 # of signal model and signal parameters, and analysis method and method
 # parameters.
 
-bench.results.loc[:, :, 'pleader'].head(10)
+bench.results.query('method=="pleader"').head(10)
 
 # %%
 # We can then derive statistics from that dataframe.
 
-bench.results.loc['fbm', .7, 'pleader'].groupby('p_exp').mean()
+bench.results.xs(('fbm', 'pleader', .7), level=('model', 'method', 'H')).groupby('p_exp').mean()
 
 # %%
 # Seaborn can effectively use the results dataframe to show group statistics.
@@ -117,4 +117,4 @@ bench.results.loc['fbm', .7, 'pleader'].groupby('p_exp').mean()
 
 import seaborn as sns
 
-sns.boxplot(data=bench.results.loc['mrw', :, 'pleader'], x='p_exp', y='c2')
+sns.boxplot(data=bench.results.xs(('mrw','pleader'), level=('model', 'method')), x='p_exp', y='c2')
