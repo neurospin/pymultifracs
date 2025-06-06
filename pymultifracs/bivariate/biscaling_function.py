@@ -836,25 +836,28 @@ class BiCumulants(BiScalingFunction):
 
         sl_ = np.s_[idx_range, signal_idx1, signal_idx2]
 
-        c11 = self.c11[sl_]
-        c10 = self.c10[sl_]
-        c01 = self.c01[sl_]
-        c20 = self.c20[sl_]
-        c02 = self.c02[sl_]
+        idx_dict = {
+            Dim.scaling_range: idx_range,
+            Dim.channel1: signal_idx1,
+            Dim.channel2: signal_idx2
+        }
+
+        c11 = self.c11.loc[idx_dict].values
+        c10 = self.c10.loc[idx_dict].values
+        c01 = self.c01.loc[idx_dict].values
+        c20 = self.c20.loc[idx_dict].values
+        c02 = self.c02.loc[idx_dict].values
 
         b = (c20 * c02) - (c11 ** 2)
 
         L = np.ones((resolution, resolution))
 
-        for i, h in enumerate(h_support):
-            L[i, :] += (c02 * b / 2 * (((h - c10) / b) ** 2)).values
-            L[:, i] += (c20 * b / 2 * (((h - c01) / b) ** 2)).values
+        # for i, h in enumerate(h_support):
+        L += (c02 * b / 2 * (((h_support[:, None] - c10) / b) ** 2))
+        L += (c20 * b / 2 * (((h_support[None, :] - c01) / b) ** 2))
 
-        for i, h1 in enumerate(h_support):
-            for j, h2 in enumerate(h_support):
-                L[i, j] -= (c11 * b
-                            * ((h1 - c10) / b)
-                            * ((h2 - c01) / b))
+        hx, hy = np.meshgrid(h_support, h_support, indexing='ij')
+        L -= (c11 * b * ((hx - c10) / b) * ((hy - c01) / b))
 
         return h_support, L
 
