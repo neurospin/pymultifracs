@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, InitVar
 import inspect
 
 import numpy as np
+import xarray as xr
 from scipy import special
 
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2, compute_RMSE
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
-    AbstractDataclass, Formalism
+    AbstractDataclass, Formalism, Dim, _expand_align
 from . import multiresquantity, viz
 
 
@@ -30,7 +31,7 @@ class AbstractScalingFunction(AbstractDataclass):
     scaling_ranges: list[tuple[int]]
     idx_reject: InitVar[dict[int, np.ndarray] | None] = None
     weighted: str | None = None
-    n_sig: int = field(init=False)
+    n_channel: int = field(init=False)
     j: np.ndarray = field(init=False)
     formalism: Formalism = field(init=False)
     nj: dict[int, np.ndarray] = field(init=False, repr=False)
@@ -84,8 +85,8 @@ class AbstractScalingFunction(AbstractDataclass):
 
     def __getattr__(self, name):
 
-        if name == 'n_rep':
-            return self.intercept.shape[-1]
+        # if name == 'n_rep':
+        #     return self.intercept.shape[-1]
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
@@ -107,7 +108,7 @@ class ScalingFunction(AbstractScalingFunction):
     def __post_init__(self, idx_reject, mrq, min_j):  # pylint: disable=W0613
 
         self.gamint = mrq.gamint
-        self.n_sig = mrq.n_sig
+        self.n_channel = mrq.n_channel
         self.formalism = mrq.get_formalism()
         self.variable_suffix, self.regularity_suffix = mrq._get_suffix()
         self.j = np.array(list(mrq.values))
@@ -136,25 +137,31 @@ class ScalingFunction(AbstractScalingFunction):
         Computes :math:`R` for bootstrap-based automated range selection.
         """
 
-        values = self.values.reshape(
-            *self.values.shape[:3], self.n_sig, -1)
-        slope = self.slope.reshape(*self.slope.shape[:2], self.n_sig, -1)
-        intercept = self.intercept.reshape(
-            *self.intercept.shape[:2], self.n_sig, -1)
+        # values = self.values.reshape(
+        #     *self.values.shape[:3], self.n_channel, -1)
+        # slope = self.slope.reshape(*self.slope.shape[:2], self.n_channel, -1)
+        # intercept = self.intercept.reshape(
+        #     *self.intercept.shape[:2], self.n_channel, -1)
 
-        if self.weights.shape[-1] > 1:
-            weights = self.weights.reshape(
-                *self.weights.shape[:3], self.n_sig, -1)
-        else:
-            weights = self.weights[..., None]
+        # if self.weights.shape[-1] > 1:
+        #     weights = self.weights.reshape(
+        #         *self.weights.shape[:3], self.n_channel, -1)
+        # else:
+        #     weights = self.weights[..., None]
 
-        return compute_R(values, slope, intercept, weights,
+        return compute_R(self.values, self.slope, self.intercept, self.weights,
                          [self._get_j_min_max()], self.j)
 
     def compute_Lambda(self):
         """
         Computes :math:`\\Lambda` for bootstrap-based automated range
-        selection.
+        selection. [1]_
+
+        References
+        ----------
+
+        .. [1] https://doi.org/10.1016/j.sigpro.2014.06.002
+
         """
 
         R = self.compute_R()
@@ -162,12 +169,23 @@ class ScalingFunction(AbstractScalingFunction):
 
         return compute_Lambda(R, R_b)
 
-    def find_best_range(self):
+    def find_best_range(self, per_moment=False):
         """
         Find the best range among those computed, given bootstrap was already
         performed
+
+        Parameters
+        ----------
+        per_moment : bool
+            If True, returns the best range for each moment. Otherwise, by
+            default returns the overall best range for all moments.
+
+        References
+        ----------
+
+        .. [1] https://doi.org/10.1016/j.sigpro.2014.06.002
         """
-        return find_max_lambda(self.compute_Lambda())
+        return find_max_lambda(self.compute_Lambda(), per_moment)
 
     def get_jrange(self, j1=None, j2=None, bootstrap=False):
         """
@@ -204,21 +222,21 @@ class ScalingFunction(AbstractScalingFunction):
         else:
             values = self.values
 
-        slope = np.zeros(
-            (values.shape[0], len(self.scaling_ranges),
-             values.shape[-1]))
+        # slope = np.zeros(
+        #     (values.shape[0], len(self.scaling_ranges),
+        #      values.shape[-1]))
 
         x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
-            self.scaling_ranges, self.j)
+            self.scaling_ranges, self.j, values.dims)
 
-        self.intercept = np.zeros_like(slope)
+        # self.intercept = np.zeros_like(slope)
 
-        y = values[:, j_min_idx:j_max_idx, :, :]
+        y = values.sel(j=slice(j_min, j_max))
 
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
-                std = self.std_values()[:, j_min_idx:j_max_idx]
+                std = self.std_values().sel(j=slice(j_min, j_max))
 
             else:
 
@@ -228,11 +246,11 @@ class ScalingFunction(AbstractScalingFunction):
                         f"{self.bootstrapped_obj.j.min()} inferior to minimum "
                         f"scale {j_min} used in estimation")
 
-                std_slice = np.s_[
-                    int(j_min - self.bootstrapped_obj.j.min()):
-                    int(j_max - self.bootstrapped_obj.j.min() + 1)]
+                # std_slice = np.s_[
+                #     int(j_min - self.bootstrapped_obj.j.min()):
+                #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
 
-                std = self.bootstrapped_obj.std_values()[:, std_slice]
+                std = self.bootstrapped_obj.std_values().sel(j=slice(j_min, j_max))
 
         else:
             std = None
@@ -274,7 +292,7 @@ class StructureFunction(ScalingFunction):
     formalism : str
         Formalism used. Can be any of 'wavelet coefs', 'wavelet leaders',
         or 'wavelet p-leaders'.
-    n_sig : int
+    n_channel : int
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays in case there are
         multiple repetitions associated to a single signal.
@@ -312,68 +330,93 @@ class StructureFunction(ScalingFunction):
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
+        self.dims = (
+            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:]
+        )
+
         self._compute(mrq, idx_reject)
         self._compute_fit()
 
     def _compute(self, mrq, idx_reject):
 
-        self.values = np.zeros(
-            (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
+        shape = (
+            len(self.q), len(self.j), len(self.scaling_ranges),
+        )
+        dims = (Dim.q, Dim.j, Dim.scaling_range)
+
+        mrq_sizes = mrq.get_values(self.j.max()).sizes
+
+        mrq_dims = [d for d in mrq_sizes if d not in [Dim.k_j, *dims]]
+        mrq_shapes = [s for d, s in mrq_sizes.items()
+                      if d not in [Dim.k_j, *dims]]
+
+        dims = (*dims, *mrq_dims)
+        shape = (*shape, *mrq_shapes)
+
+        coords = {
+            'q': self.q,
+            'j': self.j
+        }
+
+        # dims q1 q2 j scaling_range channel_left channel_right bootstrap
+        self.values = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
 
         for ind_j, j in enumerate(self.j):
 
             c_j = mrq.get_values(j, idx_reject)
 
             mask_nan = np.isnan(c_j) | np.isinf(c_j)
-            N_useful = (~mask_nan).sum(axis=0)
+            N_useful = (~mask_nan.values).sum(axis=c_j.dims.index(Dim.k_j))
             idx_unreliable = N_useful < 3
+
+            # c_j = _expand_align(c_j, reference_order=self.dims[1:])
 
             for ind_q, q in enumerate(self.q):
 
-                self.values[ind_q, ind_j] = np.log2(
-                    np.nanmean(fast_power(np.abs(c_j), q), axis=0))
+                self.values[ind_q, ind_j] = xr.DataArray(
+                    np.log2(np.nanmean(fast_power(np.abs(c_j.values), q),
+                                       axis=c_j.dims.index(Dim.k_j))),
+                    dims=[d for d in c_j.dims if d != Dim.k_j])
 
-                if idx_unreliable.any():
-                    for i in range(idx_unreliable.shape[0]):
-                        self.values[ind_q, ind_j, :, idx_unreliable[i]] = \
-                            np.nan
+                # if idx_unreliable.any():
 
-        self.values[np.isinf(self.values)] = np.nan
+                    # self.values[ind_q, ind_j] = np.nan
+                    # for i in range(idx_unreliable.sizes[Dim.channel]):
+
+                    # np.nan
+
+            if idx_unreliable.any():
+                # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
+                self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
+
+        # self.values.where(np.isinf(self.values), np.nan)
+        self.values.values[np.isinf(self.values)] = np.nan
 
         # print(self.values)
 
     def _get_H(self):
-        return self.slope[self.q == 2][0] / 2
+        return self.slope.sel(q=2) / 2
 
     def S_q(self, q):
         """
         Returns :math:`S_q(j)` for given ``q``.
         """
-
-        out = self.values[isclose(q, self.q)][0]
-        out = out.reshape(
-            out.shape[0], len(self.scaling_ranges), self.n_sig, -1)
-
-        return out
+        return self.values.sel(q=q, method='nearest', tolerance=.1)
 
     def s_q(self, q):
         """
         Returns :math:`s_q` for given ``q``.
         """
-
-        out = self.slope[isclose(q, self.q)][0]
-        out = out.reshape(out.shape[0], self.n_sig, -1)
-
-        return out
+        return self.slope.sel(q=q, method='nearest', tolerance=.1)
 
     def __getattr__(self, name):
 
         if name == 'H':
             return self._get_H()
 
-        if name == 'S2':
-            out = self.values[self.q == 2]
-            return out.reshape(out.shape[0], self.n_sig, -1)
+        # if name == 'S2':
+        #     out = self.values[self.q == 2]
+        #     return out.reshape(out.shape[0], self.n_channel, -1)
 
         if name == 'zeta':
             return self.slope
@@ -455,17 +498,18 @@ class StructureFunction(ScalingFunction):
             if q == 0.0 and ignore_q0:
                 continue
 
-            y = self.S_q(q)[idx, scaling_range, signal_idx, 0]
+            y = self.S_q(q).sel(j=slice(j1, j2)).isel(
+                scaling_range=scaling_range, channel=signal_idx)
 
             if self.bootstrapped_obj is not None and plot_CI:
 
-                _, _, j_min_CI, j_max_CI = self.bootstrapped_obj.get_jrange(
+                j_min_CI, j_max_CI, *_ = self.bootstrapped_obj.get_jrange(
                     j1, j2)
 
-                CI = self.CIE_S_q(q)[
-                    j_min_CI:j_max_CI, scaling_range, signal_idx]
+                CI = self.CIE_S_q(q).sel(j=slice(j_min_CI, j_max_CI)).isel(
+                    scaling_range=scaling_range, channel=signal_idx)
 
-                CI -= y[:, None]
+                CI -= y#[:, None]
                 CI[:, 1] *= -1
                 assert (CI < 0).sum() == 0
                 CI = CI.transpose()
@@ -572,7 +616,7 @@ class Cumulants(ScalingFunction):
     formalism : str
         Formalism used. Can be any of: 'wavelet coefs', 'wavelet leaders',
         'wavelet p-leaders', or 'weak scaling exponent'.
-    n_sig : int
+    n_channel : int
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays (n_rep) in case there are
         multiple repetitions associated to a single signal, for instance in
@@ -622,8 +666,23 @@ class Cumulants(ScalingFunction):
 
         self.m = np.arange(1, self.n_cumul+1)
 
-        self.values = np.zeros(
-            (len(self.m), len(self.j), len(self.scaling_ranges), mrq.n_rep))
+        dims = (Dim.m, Dim.j, Dim.scaling_range)
+        shape = (len(self.m), len(self.j), len(self.scaling_ranges))
+
+        mrq_dims, mrq_shapes = [], []
+
+        for d, s, in mrq.get_values(self.j.max()).sizes.items():
+
+            if d in [Dim.k_j, *dims]:
+                continue
+
+            mrq_dims.append(d)
+            mrq_shapes.append(s)
+
+        self.values = xr.DataArray(
+            np.zeros((*shape, *mrq_shapes)),
+            dims=(*dims, *mrq_dims),
+            coords={Dim.j: self.j, Dim.m: self.m})
 
         if robust:
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
@@ -654,31 +713,43 @@ class Cumulants(ScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.get_values(j))
+            dims = T_X_j.dims
+            T_X_j = T_X_j.values
             # T_X_j = T_X_j[:, None, :]
 
             # if self.formalism == 'wavelet p-leader':
             #     T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
-            log_T_X_j = np.log(T_X_j)
+            np.log(T_X_j, out=T_X_j)
 
             # dropping infinite coefsx
-            log_T_X_j[np.isinf(log_T_X_j)] = np.nan
+            # T_X_j[np.isinf(T_X_j)] = np.nan
 
-            log_T_X_j = mask_reject(
-                log_T_X_j, idx_reject, j, mrq.interval_size)
+            mask_nan = np.isnan(T_X_j)
+            mask_nan |= np.isinf(T_X_j)
+
+            if idx_reject is not None and j in idx_reject:
+                mask_nan |= idx_reject[j]
+
+            T_X_j[mask_nan] = np.nan
+
+            # log_T_X_j = mask_reject(
+            #     log_T_X_j, idx_reject, j, mrq.interval_size)
 
             values = robust.compute_robust_cumulants(
-                log_T_X_j, self.m, **self.robust_kwargs)
+                T_X_j, dims, self.m, **self.robust_kwargs)
 
-            self.values[:, ind_j] = values
+            self.values.loc[{Dim.j: j}] = values
 
     def _compute(self, mrq, idx_reject):
 
-        moments = np.zeros_like(self.values)
+        moments = xr.zeros_like(self.values)
 
         for ind_j, j in enumerate(self.j):
 
             T_X_j = np.abs(mrq.get_values(j, None))
+            dims = T_X_j.dims
+            T_X_j = T_X_j.values
 
             np.log(T_X_j, out=T_X_j)
 
@@ -691,46 +762,54 @@ class Cumulants(ScalingFunction):
 
             T_X_j[mask_nan] = 0
 
-            N_useful = (~mask_nan).sum(axis=0)
+            N_useful = (~mask_nan).sum(axis=dims.index(Dim.k_j))
+            idx_unreliable = N_useful < 3
 
-            for ind_m, m in enumerate(self.m):
+            for m in self.m:
 
-                moments[ind_m, ind_j] = np.sum(fast_power(T_X_j, m), axis=0)
-                np.divide(
-                    moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
+                loc_dict = {Dim.m: m, Dim.j: j}
 
-                idx_unreliable = N_useful < 3
+                moments.loc[loc_dict] = xr.DataArray(
+                    np.sum(fast_power(T_X_j, m),
+                           axis=dims.index(Dim.k_j)) / N_useful,
+                    dims=[d for d in dims if d != Dim.k_j]
+                )
+                # np.divide(
+                #     moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
 
-                for i in range(idx_unreliable.shape[0]):
-                    moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
+                # idx_unreliable = N_useful < 3
+
+                # for i in range(idx_unreliable.shape[0]):
+                #     moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
 
                 if m == 1:
-                    self.values[ind_m, ind_j] = moments[ind_m, ind_j]
+                    self.values.loc[loc_dict] = moments.sel(m=m, j=j)
                 else:
                     aux = 0
 
-                    for ind_n, n in enumerate(np.arange(1, m)):
+                    for n in np.arange(1, m):
                         aux += (special.binom(m-1, n-1)
-                                * self.values[ind_n, ind_j]
-                                * moments[ind_m-ind_n-1, ind_j])
+                                * self.values.sel(m=n, j=j)
+                                * moments.sel(m=m-n, j=j))
 
-                    self.values[ind_m, ind_j] = moments[ind_m, ind_j] - aux
+                    self.values.loc[loc_dict] = moments.sel(m=m, j=j) - aux
+
+            if idx_unreliable.any():
+                self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
+                    # for i in range(idx_unreliable.shape[0]):
+                    #     self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
+                    #         np.nan
+
+        # self.values.where(np.isinf(self.values), np.nan)
+        self.values.values[np.isinf(self.values)] = np.nan
 
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
-
-            out = self.log_cumulants[self.m == int(name[1])][0]
-            out = out.reshape(out.shape[0], self.n_sig, -1)
-
-            return out
+            return self.log_cumulants.sel(m=int(name[1]))
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
-
-            out = self.values[self.m == int(name[1])][0]
-            out = out.reshape(out.shape[0], out.shape[1], self.n_sig, -1)
-
-            return out
+            return self.values.sel(m=int(name[1]))
 
         if name == 'M':
             return -self.c2
@@ -859,9 +938,14 @@ class MFSpectrum(ScalingFunction):
 
         super().__post_init__(idx_reject, mrq, min_j)
 
-        self.U = np.zeros(
-            (len(self.q), len(self.j), len(self.scaling_ranges), mrq.n_rep))
-        self.V = np.zeros_like(self.U)
+        self.dims = (
+            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:])
+
+        self.U = xr.DataArray(
+            np.zeros((len(self.q), len(self.j), len(self.scaling_ranges),
+                      *mrq.values[self.j.min()].shape[1:])),
+            dims=self.dims, coords={Dim.j: self.j, Dim.q: self.q})
+        self.V = xr.zeros_like(self.U)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.spectrum
@@ -884,7 +968,13 @@ class MFSpectrum(ScalingFunction):
         for ind_j, j in enumerate(self.j):
 
             # nj = mrq.nj[j]
-            mrq_values_j = np.abs(mrq.get_values(j, idx_reject))
+            mrq_values_j = mrq.get_values(j, idx_reject)
+            dims = mrq_values_j.dims
+            mrq_values_j = np.abs(mrq_values_j.values)
+
+            # if 'scaling_range' not in dim_names:
+            #     dim_names.insert(1, 'scaling_range')
+            #     mrq_values_j = mrq_values_j[:, None]
 
             # if self.formalism == 'wavelet p-leader':
             #     mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
@@ -894,30 +984,51 @@ class MFSpectrum(ScalingFunction):
 
             # idx_nan = np.isnan(mrq_values_j)
             mask_nan = np.isnan(mrq_values_j) | np.isinf(mrq_values_j)
-            temp = np.stack([fast_power(mrq_values_j, q) for q in self.q],
-                            axis=0)
+            temp = np.stack(
+                [fast_power(mrq_values_j, q) for q in self.q], axis=0)
             # np.nan ** 0 = 1.0, adressed here
             temp[:, mask_nan] = np.nan
 
-            Z = np.nansum(temp, axis=1)[:, None, :]
+            dims = (Dim.q, *dims)
+
+            Z = np.expand_dims(np.nansum(temp, axis=dims.index(Dim.k_j)),
+                               axis=dims.index(Dim.k_j))
             Z[Z == 0] = np.nan
+
             R_j = temp / Z
 
+            # R_j = xr.DataArray(R_j, dims=(Dim.q, *mrq_values_j.dims))
+
+            # reference = [d for d in self.dims if d != Dim.j]
+            # mrq_values_j, R_j = _expand_align(
+            #     mrq_values_j, R_j, reference_order=reference)
+
             # nj = ((~mask_nan).sum(axis=0))[None, :]
-            N_useful = ((~mask_nan).sum(axis=0))[None, :]
-            self.V[:, ind_j] = fixednansum(R_j * np.log2(mrq_values_j), axis=1)
-            self.U[:, ind_j] = np.log2(N_useful) + fixednansum(
-                (R_j * np.log2(R_j)), axis=1)
+            N_useful = xr.DataArray(
+                (~mask_nan).sum(axis=dims[1:].index(Dim.k_j)),
+                dims=[d for d in dims[1:] if d != Dim.k_j]
+            )
+
+            new_dims = [d for d in dims if d != Dim.k_j]
+
+            self.V.loc[{Dim.j: j}] = xr.DataArray(fixednansum(
+                R_j * np.log2(temp),
+                axis=dims.index(Dim.k_j)), dims=new_dims)
+            self.U.loc[{Dim.j: j}] = np.log2(N_useful) + xr.DataArray(fixednansum(
+                (R_j * np.log2(R_j)),
+                axis=dims.index(Dim.k_j)), dims=new_dims)
 
             idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
-                for i in range(idx_unreliable.shape[1]):
-                    self.V[:, ind_j, :, idx_unreliable[0, i]] = np.nan
-                    self.U[:, ind_j, :, idx_unreliable[0, i]] = np.nan
+                self.V.values[:, ind_j, ..., idx_unreliable] = np.nan
+                self.U.values[:, ind_j, ..., idx_unreliable] = np.nan
 
-        self.U[np.isinf(self.U)] = np.nan
-        self.V[np.isinf(self.V)] = np.nan
+        # self.U.where(np.isinf(self.U.values), np.nan)
+        # self.V.where(np.isinf(self.V.values), np.nan)
+
+        self.U.values[np.isinf(self.U)] = np.nan
+        self.V.values[np.isinf(self.V)] = np.nan
 
         # x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
         #     self.scaling_ranges, self.j
@@ -927,29 +1038,25 @@ class MFSpectrum(ScalingFunction):
         """
         Returns :math:`V_q(j)` for given ``q``.
         """
-        out = self.V[isclose(q, self.q)][0]
-        return out.reshape(out.shape[0], self.n_sig, -1)
+        return self.V.sel(q=q, method='nearest', tolerance=.1)
 
     def U_q(self, q):
         """
         Returns :math:`U_q(j)` for given ``q``.
         """
-        out = self.U[np.isclose(q, self.q)][0]
-        return out.reshape(out.shape[0], self.n_sig, -1)
+        return self.U.sel(q=q, method='nearest', tolerance=.1)
 
     def D_q(self):
         """
         Returns :math:`\\mathcal{L}(q)`.
         """
-        return self.Dq.reshape(
-            len(self.q), len(self.scaling_ranges), self.n_sig, -1)
+        return self.Dq#.sel(q=q, method='nearest', tolerance=.1)
 
     def h_q(self):
         """
         Returns :math:`h(q)`.
         """
-        return self.hq.reshape(
-            len(self.q), len(self.scaling_ranges), self.n_sig, -1)
+        return self.hq#.sel(q=q, method='nearest', tolerance=.1)
 
     def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
              signal_idx=0, shift_gamint=False, **plot_kwargs):

@@ -30,8 +30,20 @@ def _(X, wavelet_analysis):
 
 @app.cell
 def _(WTpL, mfa):
-    pwt = mfa(WTpL, [(3, 10)])
+    pwt = mfa(WTpL, [(3, 13)])
     return (pwt,)
+
+
+@app.cell
+def _(WTpL):
+    WTpL.values[13]
+    return
+
+
+@app.cell
+def _(pwt):
+    pwt.cumulants.values.sel(j=13)
+    return
 
 
 @app.cell

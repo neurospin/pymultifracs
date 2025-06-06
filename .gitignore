@@ -47,6 +47,7 @@ pymultifracs/todo.txt
 # example_data/
 .pytest_cache/
 notebooks/Dev*.ipynb
+notebooks/Dev*.py
 coverage.xml
 notebooks/figures
 
@@ -55,4 +56,4 @@ data/
 examples/*.mat
 *.pkl
 
-.coverage
+.coverage*

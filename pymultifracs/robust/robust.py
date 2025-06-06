@@ -2,6 +2,7 @@ import warnings
 from math import ceil
 
 import numpy as np
+import xarray as xr
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ from scipy.optimize import bisect
 # import hdbscan
 # import umap
 
-from ..utils import fast_power, get_edge_reject
+from ..utils import fast_power, get_edge_reject, Dim
 
 
 # def _qn(a, c):
@@ -97,7 +98,7 @@ from ..utils import fast_power, get_edge_reject
 #     return output
 
 
-def compute_robust_cumulants(X, m_array, alpha=1):
+def compute_robust_cumulants(X, dims, m_array, alpha=1):
 
     from statsmodels.robust.scale import qn_scale
     from statsmodels.robust.norms import estimate_location, TukeyBiweight
@@ -105,85 +106,125 @@ def compute_robust_cumulants(X, m_array, alpha=1):
 
     # shape X (n_j, n_ranges, n_rep)
 
-    n_j, n_range, n_rep = X.shape
-    moments = np.zeros((len(m_array), n_range, n_rep))
-    values = np.zeros_like(moments)
+    # n_j, n_range, n_rep = X.shape
 
-    idx_unreliable = (~np.isnan(X)).sum(axis=0) < 3
+    dim = (Dim.m,)
+    shape = (len(m_array),)
+
+    mrq_dims, mrq_shapes = [], []
+
+    for d in dims:
+
+        if d in [Dim.k_j, *dim]:
+            continue
+
+        mrq_dims.append(d)
+        mrq_shapes.append(X.shape[dims.index(d)])
+
+    centered_moment = xr.DataArray(
+        np.zeros((*shape, *mrq_shapes)), dims=((*dim, *mrq_dims)),
+        coords={Dim.m: m_array})
+    values = xr.zeros_like(centered_moment)
+
+    idx_unreliable = (~np.isnan(X)).sum(axis=dims.index(Dim.k_j)) < 3
 
     # compute robust moments
-    for range, rep in np.ndindex(n_range, n_rep):
 
-        if idx_unreliable[range, rep]:
-            values[:, range, rep] = np.nan
-            continue
+    # list all dimensions of X except k_j
+    # iterate using ndindex, and slicing the X array outside of nans as is done here
 
-        X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]),
-                   range, rep]
+    # define a wrapper for qn that discards nans along the axis and prepares the data
+    # apply_along_axis that way.
 
-        if X_norm.shape[0] > 10000:
-            values[:, range, rep] = np.nan
-            continue
+    if X.shape[dims.index(Dim.k_j)] > 10000:
+        values = np.nan
+        return values
+
+    def est_wrapper(X):
+
+        X_norm = X[~np.isinf(X) & ~np.isnan(X)]
 
         q_est = qn_scale(X_norm)
-
-        if np.isclose(q_est, 0):
-            values[m_array == 1, range, rep] = np.median(X_norm, axis=0)
-            continue
 
         try:
             m_est = estimate_location(X_norm, q_est, norm=TukeyBiweight(),
                                       maxiter=1000)
         except ValueError:
-
             if X_norm.shape[0] < 20:
-                values[:, range, rep] = np.nan
-                continue
+                m_est = np.nan
+            else:
+                m_est = np.median(X_norm)
 
-            m_est = np.median(X_norm)
+        return np.stack([m_est, q_est ** 2], axis=-1)
 
-        X_norm -= m_est
-        X_norm /= q_est
+    values[{Dim.m: np.s_[:3]}] = xr.DataArray(
+        np.apply_along_axis(est_wrapper, axis=dims.index(Dim.k_j), arr=X),
+        dims=(*(d for d in dims if d != Dim.k_j), Dim.m))
+
+    # for range, rep in np.ndindex(n_range, n_rep):
+
+        # if idx_unreliable[range, rep]:
+        #     values[:, range, rep] = np.nan
+        #     continue
+
+        # X_norm = X[~np.isinf(X[:, range, rep]) & ~np.isnan(X[:, range, rep]),
+        #            range, rep]
+
+        # if X_norm.shape[0] > 10000:
+        #     values[:, range, rep] = np.nan
+        #     continue
+
 
         # X_norm -= X_norm.mean()
         # X_norm /= X_norm.std()
 
         # print(X_norm.mean(), X_norm.std())
 
-        for ind_m, m in enumerate(m_array):
+    if max(m_array) <= 2:
+        return values
 
-            decaying_factor = (alpha
-                               * np.exp(-.5 * (alpha ** 2 - 1) * X_norm ** 2))
+    X -= values.sel(m=1)
+    X /= np.sqrt(values.sel(m=2))
 
-            moments[ind_m, range, rep] = np.mean(
-                fast_power(alpha * X_norm, m) * decaying_factor, axis=0)
+    decaying_factor = (
+        alpha
+        * np.exp(-.5 * (alpha ** 2 - 1)
+                * np.linalg.norm(X, 2, axis=dims.index(Dim.k_j))
+                )
+    )
 
-            if m == 1:
-                values[ind_m, range, rep] = m_est
-            elif m == 2:
-                values[ind_m, range, rep] = q_est ** 2
+    for m in m_array:
+
+        if m == 1:
+            centered_moment[{Dim.m: m}] = X.mean()
+
+        elif m == 2:
+            centered_moment[{Dim.m: m}] = X.var()
+
+        else:
+            centered_moment[{Dim.m: m}] = (
+                fast_power(alpha * X, m) * decaying_factor).mean(
+                axis=dims.index(Dim.k_j))
+
+    for m in m_array:
+
+        if m <= 2:
+            continue
+
+        for ind_n, n in enumerate(np.arange(1, m)):
+
+            aux = xr.zeros_like(centered_moment.sel(m=m))
+
+            temp_moment = centered_moment.sel(m=n)
+
+            if n <= 2:
+                temp_value = centered_moment.sel(m=n)
             else:
-                aux = 0
+                temp_value = values.sel(m=n)
 
-                for ind_n, n in enumerate(np.arange(1, m)):
+            aux += (special.binom(m-1, n-1) * temp_value * temp_moment)
 
-                    if m_array[ind_m - ind_n - 1] > 2:
-                        temp_moment = moments[ind_m - ind_n - 1, range, rep]
-                    elif m_array[ind_m - ind_n - 1] == 2:
-                        temp_moment = X_norm.var()
-                    elif m_array[ind_m - ind_n - 1] == 1:
-                        temp_moment = X_norm.mean()
-
-                    if m_array[ind_n] > 2:
-                        temp_value = values[ind_n, range, rep]
-                    elif m_array[ind_n] == 2:
-                        temp_value = X_norm.var()
-                    elif m_array[ind_n] == 1:
-                        temp_value = X_norm.mean()
-
-                    aux += (special.binom(m-1, n-1) * temp_value * temp_moment)
-
-                values[ind_m, :, rep] = moments[ind_m, range, rep] - aux
+        values[{Dim.m: m}] = centered_moment.sel(m=m) - aux
 
     return values
 
@@ -198,36 +239,47 @@ def C2_to_m2(C2):
 
 def get_location_scale(cm, fix_c2_slope=False):
 
-    slope_c1 = cm.slope[0][None, :]
-    intercept_c1 = cm.intercept[0][None, :]
+    slope_c1 = cm.slope.sel(m=1)
+    intercept_c1 = cm.intercept.sel(m=1)
 
-    slope_c2 = cm.slope[1][None, :]
-    intercept_c2 = cm.intercept[1][None, :]
+    slope_c2 = cm.slope.sel(m=2)
+    intercept_c2 = cm.intercept.sel(m=2)
 
     if fix_c2_slope and slope_c2 > 0:
-        slope_c2[:] = 0
+        slope_c2.where (slope_c2 > 0, 0)
         for k, scaling_range in enumerate(cm.scaling_ranges):
-            j_min = cm.j.min()
-            intercept_c2[:, k] = cm.C2[
-                np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
+            intercept_c2.iloc[{Dim.scaling_range}] = cm.C2.sel(
+                j=slice(scaling_range[0], scaling_range[1])).mean(dim=Dim.j)
+            # j_min = cm.j.min()
+            # intercept_c2[:, k] = cm.C2[
+            #     np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
 
-    j_array = np.arange(cm.j.min(), cm.j.max() + 1)
+    j_array = xr.DataArray(
+        np.arange(cm.j.min(), cm.j.max() + 1),
+        coords={'j': np.arange(cm.j.min(), cm.j.max() + 1)}
+    )
 
-    C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
-    C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
+    C1_array = slope_c1 * j_array + intercept_c1
+    C2_array = slope_c2 * j_array + intercept_c2
 
-    # Shape N_scales, N_scaling_ranges, N_signals
+    # Shape N_scales, N_scaling_ranges, n_channelnals
 
     return j_array, C1_array, C2_array
 
 
 def get_location_scale_shape(cm, fix_c2_slope=False):
 
-    slope_c1 = cm.slope[0][None, :]
-    intercept_c1 = cm.intercept[0][None, :]
+    # slope_c1 = cm.slope[0][None, :]
+    # intercept_c1 = cm.intercept[0][None, :]
 
-    slope_c2 = cm.slope[1][None, :]
-    intercept_c2 = cm.intercept[1][None, :]
+    slope_c1 = cm.slope.sel(m=1)
+    intercept_c1 = cm.intercept.sel(m=1)
+
+    slope_c2 = cm.slope.sel(m=2)
+    intercept_c2 = cm.intercept.sel(m=2)
+
+    # slope_c2 = cm.slope[1][None, :]
+    # intercept_c2 = cm.intercept[1][None, :]
 
     if fix_c2_slope and slope_c2 > 0:
         slope_c2[:] = 0
@@ -236,14 +288,20 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
             intercept_c2[:, k] = cm.C2[
                 np.s_[scaling_range[0]-j_min:scaling_range[1]-j_min]].mean()
 
-    slope_c4 = cm.slope[3][None, :]
-    intercept_c4 = cm.intercept[3][None, :]
+    # slope_c4 = cm.slope[3][None, :]
+    # intercept_c4 = cm.intercept[3][None, :]
 
-    j_array = np.arange(1, cm.j.max() + 1)
+    slope_c4 = cm.slope.sel(m=4)
+    intercept_c4 = cm.intercept.sel(m=4)
 
-    C1_array = slope_c1 * j_array[:, None, None] + intercept_c1
-    C2_array = slope_c2 * j_array[:, None, None] + intercept_c2
-    C4_array = slope_c4 * j_array[:, None, None] + intercept_c4
+    j_array = xr.DataArray(
+        np.arange(1, cm.j.max() + 1),
+        coords={Dim.j: np.arange(1, cm.j.max() + 1)}
+    )
+
+    C1_array = slope_c1 * j_array + intercept_c1
+    C2_array = slope_c2 * j_array + intercept_c2
+    C4_array = slope_c4 * j_array + intercept_c4
 
     # m2 = C2_to_m2(C2_array)
     # m4_array = C4_to_m4(C4_array, m2)
@@ -253,8 +311,8 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
     # m4[m2 < 0] = 0
     # m4[m4 < 0] = 0
 
-    alpha = np.zeros_like(C2_array)
-    beta = np.zeros_like(C4_array)
+    alpha = xr.zeros_like(C2_array)
+    beta = xr.zeros_like(C4_array)
 
     for i, (C2, C4) in enumerate(zip(C2_array, C4_array)):
 
@@ -289,10 +347,10 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
             C2 * special.gamma(1/beta[i]) / special.gamma(3 / beta[i]))
 
     idx_zero = (alpha < 0) | (np.isnan(alpha))
-    alpha[idx_zero] = 0
+    alpha.values[idx_zero] = 0
 
     idx_zero = beta < .1
-    beta[idx_zero] = .1
+    beta.values[idx_zero] = .1
 
     return j_array, C1_array, alpha, beta
 
@@ -567,7 +625,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), N, *CDF[j1].shape[1:]))
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 #     # N_coef is determined by the upsampled number of coefficients
 
@@ -623,7 +681,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 
 #             acc += 1
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 
 #     return agg
@@ -638,7 +696,7 @@ def get_location_scale_shape(cm, fix_c2_slope=False):
 #     # N = int((j2 - (j1) + 1) * (2 + j2 - (j1)) / 2)
 #     agg = np.zeros((Agg[j2].shape[0] * 2 ** (j2 - j1), j2-j1+1, *CDF[j1].shape[1:]))
 
-#     # agg shape N_coef, N_aggregates, N_ranges, N_signals
+#     # agg shape N_coef, N_aggregates, N_ranges, n_channelnals
 #     # N_coef is determined by the upsampled number of coefficients
 
 #     end = 0
@@ -872,25 +930,36 @@ def normal_cdf(x, mu, sigma, p):
 
 def compute_aggregate(CDF, j1, j2):
 
-    max_index = CDF[j2].shape[0] * 2 ** (j2 - j1)
-    agg = np.zeros((max_index, j2-j1+1, *CDF[j1].shape[1:]))
+    max_index = CDF[j2].sizes[Dim.k_j] * 2 ** (j2 - j1)
+    agg = xr.DataArray(
+        np.zeros((max_index, j2-j1+1,
+                  *(s for d, s in CDF[j1].sizes.items() if d != Dim.k_j))),
+        dims=(Dim.k_j, Dim.j, *(d for d in CDF[j2].dims if d != Dim.k_j)),
+        # coords=CDF[j2].coords
+        coords={Dim.j: np.arange(j1, j2+1)},
+    )
 
-    agg[:, 0] = CDF[j1][:max_index]
+    agg[{Dim.j: 0}] = CDF[j1].isel({Dim.k_j: np.s_[:max_index]})
 
     i = 0
     for n in range(1, j2-j1+1):
 
-        xp = np.arange(CDF[j1+n].shape[0]) + .5
+        xp = np.arange(CDF[j1+n].sizes[Dim.k_j]) + .5
         step = 2 ** -n
         x = np.linspace(
-            0+step/2, CDF[j1+n].shape[0]-step/2,
-            num=CDF[j1+n].shape[0] * 2 ** n)
+            0+step/2, CDF[j1+n].sizes[Dim.k_j]-step/2,
+            num=CDF[j1+n].sizes[Dim.k_j] * 2 ** n)
 
-        for idx_signal, idx_range in np.ndindex(CDF[j1].shape[1:]):
+        for idx_signal, idx_range in np.ndindex(
+               *[CDF[j1].sizes[s]
+                 for s in [Dim.channel, Dim.scaling_range]]):
 
             # x = np.sort(np.r_[*[xp - 2 ** -n + i * 2 ** (-n+1) for k in range(2 ** n)]]
-            agg[:, n, idx_signal, idx_range] = np.interp(
-                x, xp, CDF[j1+n][:, idx_signal, idx_range])[:max_index]
+            idx_dict = {Dim.channel: idx_signal, Dim.scaling_range: idx_range}
+            agg[{Dim.j: n, **idx_dict}] = np.interp(
+                x, xp,
+                CDF[j1+n].isel({**idx_dict, Dim.k_j: np.s_[:max_index]})
+                )
 
     return agg
 
@@ -916,8 +985,8 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         CDF = {
             j: gen_cdf(
                 np.log(leaders.get_values(j)),
-                C1_array[j_array == j],  #- ZPJCorr[j_array==j],
-                scale[j_array == j], shape[j_array == j])
+                C1_array.sel(j=j),  #- ZPJCorr[j_array==j],
+                scale.sel(j=j), shape.sel(j=j))
             for j in range(j1, j2+1)
         }
 
@@ -928,19 +997,21 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         CDF = {
             j: normal_cdf(
                 np.log(leaders.get_values(j)),
-                C1_array[j_array == j],  # - ZPJCorr[j_array==j],
-                np.sqrt(scale[j_array == j]),
+                C1_array.sel(j=j),  # - ZPJCorr[j_array==j],
+                np.sqrt(scale.sel(j=j)),
                 p=1)
             for j in range(j1, j2+1)
         }
 
     skip_scales = {}
 
-    for idx_range, idx_signal in np.ndindex(CDF[j1].shape[1:]):
+    for idx_range in range(CDF[j1].sizes[Dim.scaling_range]):
+        for idx_signal in range(CDF[j1].sizes[Dim.channel]):
 
-        skip_scales[(idx_range, idx_signal)] = [
-            j for j in range(j1, j2+1)
-            if scale[j_array == j, idx_range, idx_signal] <= 0]
+            skip_scales[(idx_range, idx_signal)] = [
+                j for j in range(j1, j2+1)
+                if scale.sel(j=j).isel(
+                    scaling_range=idx_range, channel=idx_signal) <= 0]
 
     if verbose:
         plt.figure()
@@ -951,9 +1022,9 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         idx_reject = get_edge_reject(leaders)
     else:
         idx_reject = {
-            j: np.zeros_like(CDF[j], dtype=bool) for j in CDF
+            j: xr.zeros_like(CDF[j], dtype=bool) for j in CDF
             # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
-            for j in CDF
+            # for j in CDF
         }
 
     agg = compute_aggregate(CDF, j1, j2)
@@ -961,15 +1032,28 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
     # max_index = CDF[j2].shape[0] * 2 ** (j2 - j1)
 
-    for idx_range, idx_signal in np.ndindex(CDF[j1].shape[1:]):
+    for idx_range, idx_signal in np.ndindex(
+            CDF[j1].sizes[Dim.scaling_range], CDF[j1].sizes[Dim.channel]):
 
-        mask_nan_global = np.isnan(agg[:, :, idx_range, idx_signal]).any(axis=1)
+        mask_nan_global = np.isnan(
+            agg.isel(channel=idx_signal,
+                     scaling_range=idx_range)).any(dim=Dim.j).values
 
-        w = np.r_[
-            [-np.sum((pk * np.log(pk))[pk != 0])
-            for pk
-            in agg[~mask_nan_global, :, idx_range, idx_signal].transpose()]
-        ]
+        pk = agg.isel(channel=idx_signal, scaling_range=idx_range)
+        w = xr.DataArray(
+            (pk.values * np.log(pk).where(pk == 0, 0).values).sum(
+             axis=pk.dims.index(Dim.k_j)),
+            dims=(d for d in pk.dims if d != Dim.k_j)
+        )
+
+        # w = np.r_[
+        #     [(pk * np.log(pk)).where(pk != 0).sum()
+        #      for pk
+        #      in agg.isel(
+        #         channel=idx_signal,
+        #         scaling_range=idx_range).values[~mask_nan_global]
+        #     ]
+        # ]
 
         if not hilbert_weighted:
             w = np.ones_like(w)
@@ -987,13 +1071,16 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         pelt = rpt.Pelt(custom_cost=HilbertCost(w=w), jump=pelt_jump)
 
         result = [0] + pelt.fit_predict(
-            agg[~mask_nan_global, :, idx_range, idx_signal], pelt_beta)
+            agg.isel(channel=idx_signal,
+                     scaling_range=idx_range).values[~mask_nan_global],
+            pelt_beta)
+
         result[-1] -= 1
 
         if verbose:
-            rpt.display(agg[~mask_nan_global, 0, 0, 0], [], result, figsize=(7, 2))
+            rpt.display(agg.isel(channel=idx_signal, scaling_range=idx_range, j=0), [], result, figsize=(7, 2))
             kernel_matrix = distance.squareform(distance.pdist(
-                agg[~mask_nan_global, :, 0, 0], metric=w_hilbert, w=w))
+                agg.isel(scaling_range=idx_range, channel=idx_signal).values[~mask_nan_global], metric=w_hilbert, w=w))
             plt.show()
             sns.heatmap(kernel_matrix)
             plt.vlines(result, 0, max(result))
@@ -1005,10 +1092,12 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
         N_bins = ceil(1.5 * agg[~mask_nan_global].shape[0] ** (1/3))
 
-        for j in range(agg.shape[1]):
+        for j in agg.j:
+
+            j = int(j)
 
             # skip this scale because it does not contain relevant information
-            if j+j1 in skip_scales[(idx_range, idx_signal)]:
+            if j in skip_scales[(idx_range, idx_signal)]:
                 continue
 
             stat = []
@@ -1020,13 +1109,16 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
             for i in range(len(result) - 1):
                 samples.append(
-                    agg[:, j, idx_range, idx_signal][
-                        result_j[i]:result_j[i+1]])
+                    agg.isel(
+                        scaling_range=idx_range, channel=idx_signal).sel(
+                            {Dim.j: j, Dim.k_j: np.s_[result_j[i]:result_j[i+1]]}))
 
             if len(samples) == 1:
                 continue
 
-            right_edge = np.nanmax(agg[:, j, idx_range, idx_signal])
+            right_edge = agg.isel(
+                scaling_range=idx_range, channel=idx_signal).sel(j=j).max(skipna=True, dim=Dim.k_j)
+            # np.nanmax(agg[:, j, idx_range, idx_signal])
             # bins = np.sort(
             #     np.r_[1, 1-np.geomspace(1 - right_edge, 1, N_bins-1)])
 
@@ -1070,12 +1162,13 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                 # sl = accessible_indices[result[idx] // (2 ** (j)):result[idx+1] // (2 ** (j))+1]
                 # mask[sl] = True
 
-                idx_reject[j1+j][
-                    result_j[idx] // (2 ** (j)):
-                    result_j[idx+1] // (2 ** (j))+1,
-                    idx_range, idx_signal] = True
+                idx_reject[j][
+                    {Dim.k_j: np.s_[result_j[idx] // (2 ** (j-j1)):
+                                    result_j[idx+1] // (2 ** (j-j1))+1],
+                     Dim.scaling_range: idx_range,
+                     Dim.channel: idx_signal}] = True
 
-                for jj in range(j):
+                for jj in range(j-j1):
                     idx_reject[j1+jj][
                         result_j[idx] // (2 ** (jj)):
                         result_j[idx+1] // (2 ** (jj))+1,
@@ -1153,7 +1246,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
         left_reject = idx_reject[j][:right_reject.shape[0] * 2:2]
 
         combined = (left_reject | right_reject)[:idx_reject[j+1].shape[0]]
-        idx_reject[j+1][combined] = True
+        idx_reject[j+1].values[combined] = True
         print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):

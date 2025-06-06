@@ -16,6 +16,7 @@ from scipy.signal import welch
 
 # from .wavelet import estimate_eta_p, wavelet_analysis
 from . import wavelet, multiresquantity, estimation
+from .utils import Dim
 
 
 def _cp_string_format(cp, CI=False):
@@ -57,14 +58,14 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
     idx = np.s_[j_min:j_max]
 
     x = cm.j[idx]
-    y = getattr(cm, f'C{m1}{m2}')[idx, scaling_range, :, :, 0]
+    y = getattr(cm, f'C{m1}{m2}')
 
-    if m1 == 0:
-        y = y[:, signal_idx2, 0]
-    elif m2 == 0:
-        y = y[:, signal_idx1, 0]
+    if m1 == 0 and m2 > 0:
+        y = y.sel(channel2=signal_idx2)
+    elif m2 == 0 and m1 > 0:
+        y = y.sel(channel1=signal_idx1)
     else:
-        y = y[:, signal_idx1, signal_idx2]
+        y = y.sel(channel1=signal_idx1, channel2=signal_idx2)
 
     if cm.bootstrapped_obj is not None and plot_CI:
 
@@ -73,9 +74,8 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
                 f"{cm.bootstrapped_obj.j.min()} instead")
 
-        CI = getattr(cm, f'CIE_C{m1}{m2}')[
-            j1 - cm.bootstrapped_obj.j.min():
-            j2 - cm.bootstrapped_obj.j.min() + 1]
+        CI = getattr(cm, f'CIE_C{m1}{m2}').sel(
+            j=slice(j1, j2))
 
         CI -= y[:, None]
         CI[:, :, 1] *= -1
@@ -97,33 +97,34 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
 
     ax.set_xlabel('j')
     ax.set_ylabel(f'$C_{{{m1}{m2}}}(j)$')
-    # ax.grid()
-    # plt.draw()
 
     if len(cm.log_cumulants) > 0 and plot_fit:
 
         x0, x1 = cm.scaling_ranges[scaling_range]
 
-        slope_log2_e = getattr(cm, f'c{m1}{m2}')[
-            scaling_range, signal_idx1, signal_idx2, 0]
+        slope_log2_e = getattr(cm, f'c{m1}{m2}').sel(
+            scaling_range=scaling_range, channel1=signal_idx1,
+            channel2=signal_idx2)
         slope = slope_log2_e / np.log2(np.e)
 
         # match m1, m2:
         #     case 0, m2:
         #         intercept = cm.margin2_intercept[ind_m2, scaling_range].
 
-        intercept = cm.intercept[
-            m1, m2, scaling_range, signal_idx1, signal_idx2, 0]
+        intercept = cm.intercept.sel(
+            m1=m1, m2=m2, scaling_range=scaling_range, channel1=signal_idx1,
+            channel2=signal_idx2)
 
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept
 
         if cm.bootstrapped_obj is not None:
-            CI = getattr(cm, f"CIE_c{m1}{m2}")[
-                scaling_range, signal_idx1, signal_idx2]
+            CI = getattr(cm, f"CIE_c{m1}{m2}").sel(
+                scaling_range=scaling_range, channel1=signal_idx1,
+                channel2=signal_idx2)
             CI_legend = (
-                f"; [{_cp_string_format(CI[scaling_range, 1], True)}, "
-                f"{_cp_string_format(CI[scaling_range, 0], True)}]")
+                f"; [{_cp_string_format(CI[1], True)}, "
+                f"{_cp_string_format(CI[0], True)}]")
         else:
             CI_legend = ""
 
@@ -199,7 +200,8 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
 
     x = cm.j[j_min:j_max]
 
-    y = getattr(cm, f'C{m}')[j_min:j_max, range_idx, signal_idx, 0]
+    y = getattr(cm, f'C{m}').sel(
+        j=slice(j1, j2), scaling_range=range_idx, channel=signal_idx)
 
     if shift_gamint and ind_m == 0:
         y -= x * cm.gamint / np.log2(np.e)
@@ -214,9 +216,10 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         CI_slice = np.s_[int(j1 - cm.bootstrapped_obj.j.min()):
                          int(j2 - cm.bootstrapped_obj.j.min() + 1)]
 
-        CI = getattr(cm, f'CIE_C{m}')[CI_slice, range_idx, signal_idx]
+        CI = getattr(cm, f'CIE_C{m}').sel(
+            j=slice(j1, j2), scaling_range=range_idx, channel=signal_idx)
 
-        CI -= y[:, None]
+        CI -= y
         CI[:, 1] *= -1
 #         assert (CI < 0).sum() == 0
         CI[CI < 0] = 0
@@ -241,8 +244,8 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
     if len(cm.log_cumulants) > 0 and plot_fit:
 
         x0, x1 = cm.scaling_ranges[range_idx]
-        slope_log2_e = cm.log_cumulants[ind_m, range_idx].reshape(
-            cm.n_sig, -1)[signal_idx, 0]
+        slope_log2_e = cm.log_cumulants.sel(m=m).isel(
+            scaling_range=range_idx, channel=signal_idx)
 
         if shift_gamint and ind_m == 0:
             slope_log2_e -= cm.gamint
@@ -250,8 +253,8 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         slope = slope_log2_e / np.log2(np.e)
         # slope = cm.slope[ind_m, scaling_range, signal_idx]
 
-        intercept = cm.intercept[ind_m, range_idx].reshape(
-            cm.n_sig, -1)[signal_idx, 0]
+        intercept = cm.intercept.sel(m=m).isel(
+            scaling_range=range_idx, channel=signal_idx)
 
         y0 = slope*x0 + intercept + offset
         y1 = slope*x1 + intercept + offset
@@ -353,7 +356,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     #         for s in range(j1, j2+1) if s in mrq.values
     #     ]
 
-    values = [mrq.get_values(scale)[:, 0, signal_idx]
+    values = [mrq.get_values(scale).isel(channel=signal_idx)
               for scale in range(j1, j2+1)]
 
     # if leader and not np.isinf(mrq.p_exp):
@@ -379,9 +382,9 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
     #         ]
 
     if vmax is None:
-        vmax = max([np.nanmax(val) for val in values])
+        vmax = max([np.nanmax(val.values) for val in values])
     if vmin is None:
-        vmin = min([np.nanmin(abs(val)) for val in values])
+        vmin = min([np.nanmin(abs(val.values)) for val in values])
 
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=figsize, layout='constrained')
@@ -398,20 +401,21 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         if scale not in mrq.values:
             continue
 
-        temp = mrq.get_values(scale)[:, 0, signal_idx]
+        temp = mrq.get_values(scale).isel(channel=signal_idx).transpose(
+            Dim.k_j, ...)
         # temp = values[i]
 
-        X = ((np.arange(temp.shape[0] + 1)
+        X = ((np.arange(temp.sizes[Dim.k_j] + 1)
               ) * (2 ** (scale - j1)))
         # X += scale - 1
         # if leader and scale > 1:
         #     X += 2 ** (scale - j1 - 1)
         X = np.tile(X[:, None], (1, 2))
 
-        C = np.copy(temp[:, None])
-
         if not leader:
-            C = np.abs(C)
+            C = np.abs(temp)
+        else:
+            C = np.copy(temp)
 
         # Correcting potential p_leaders
         # if leader and not np.isinf(mrq.p_exp):

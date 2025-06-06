@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from .regression import linear_regression, prepare_regression, prepare_weights
 from . import scalingfunction
 from . import utils
+from .utils import Dim
 
 
 def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
@@ -23,7 +24,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     # TODO: change so it returns a constant number of outputs
 
     x, n_ranges, j_min, j_max, *_ = prepare_regression(
-        scaling_ranges, np.array([*mrq.values])
+        scaling_ranges, np.array([*mrq.values]), dims=(Dim.j)
     )
 
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is not None:
@@ -31,7 +32,7 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
         std = np.std(
             mrq.bootstrapped_obj._sup_coeffs(
                 n_ranges, j_max, j_min, scaling_ranges, idx_reject
-                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_sig, -1),
+                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_channel, -1),
             axis=-1)[None, :]
 
     else:
@@ -40,24 +41,22 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     sup_coeffs = mrq._sup_coeffs(
         n_ranges, j_max, j_min, scaling_ranges, idx_reject)
 
-    y = np.log2(sup_coeffs)[None, :]
+    y = np.log2(sup_coeffs).sel(j=slice(j_min, j_max))
 
     w = prepare_weights(
         mrq.get_nj_interv, weighted, n_ranges, j_min, j_max,
         scaling_ranges, y, std=std)
 
-    slope, intercept = linear_regression(x, y, w)
-
-    hmin = slope[0]
+    hmin, intercept = linear_regression(x, y, w)
 
     # warning
     if 0 in hmin and warn:
         warnings.warn(f"h_min = {hmin} < 0. gamint should be increased")
 
     if return_y:
-        return hmin, intercept[0], y[0]
+        return hmin, intercept, y
 
-    return hmin, intercept[0]
+    return hmin, intercept
 
 
 def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
@@ -78,7 +77,7 @@ def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
         weighted=weighted, idx_reject=idx_reject,
         bootstrapped_obj=bootstrapped_obj)
 
-    # shape N_ranges, N_signals
+    # shape N_ranges, n_channelnals
     return wavelet_structure.zeta[0]
 
 

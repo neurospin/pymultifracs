@@ -9,10 +9,11 @@ import warnings
 from typing import Any
 
 import numpy as np
+import xarray as xr
 import pywt
 
 from .utils import get_filter_length, max_scale_bootstrap, mask_reject, \
-    AbstractDataclass
+    AbstractDataclass, _expand_align, Dim
 from . import viz, wavelet, estimation
 
 
@@ -21,9 +22,10 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     """
     Abstract representation of all multi-resolution quantities
     """
-    n_sig: int
+    n_channel: int
     bootstrapped_obj: Any | None = None
     origin_mrq: Any | None = None
+    dims: tuple[str] = (Dim.k_j, Dim.channel)
 
     # def get_nj(self):
     #     """
@@ -81,19 +83,30 @@ class MultiResolutionQuantityBase(AbstractDataclass):
 
     def _sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
 
-        sup_coeffs = np.ones((j_max - j_min + 1, n_ranges, self.n_rep))
+        dims = [Dim.j, Dim.scaling_range]
+        shape = [j_max-j_min+1, n_ranges]
+        coords = {Dim.j: np.arange(j_min, j_max+1)}
 
-        for i, (j1, j2) in enumerate(scaling_ranges):
-            for j in range(j1, j2 + 1):
+        for d, s in zip(self.dims, self.values[j_max].shape):
 
-                # c_j = np.abs(self.values[j])[:, None, :]
+            if d == Dim.k_j:
+                continue
 
-                c_j = np.abs(self.get_values(j, idx_reject))
+            if d not in dims:
 
-                # c_j = mask_reject(c_j, idx_reject, j, 1)
+                dims.append(d)
+                shape.append(s)
 
-                sup_c_j = np.nanmax(c_j, axis=0)
-                sup_coeffs[j-j_min, i] = sup_c_j
+        sup_coeffs = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
+
+        # for i, (j1, j2) in enumerate(scaling_ranges):
+        for j in range(j_min, j_max + 1):
+
+            vals = self.get_values(j, idx_reject)
+
+            sup_coeffs.loc[{Dim.j: j}] = xr.DataArray(
+                np.nanmax(np.abs(vals.values), axis=vals.dims.index(Dim.k_j)),
+                dims=[d for d in vals.dims if d != Dim.k_j])
 
         return sup_coeffs
 
@@ -102,6 +115,9 @@ class MultiResolutionQuantityBase(AbstractDataclass):
         Returns the effective maximal scale
         """
         return max(list(self.values))
+
+    def get_extra_dims(self):
+        return self.values[min(self.values)].shape[1:], self.dims[1:]
 
 
 @dataclass(kw_only=True)
@@ -119,7 +135,7 @@ class WaveletDec(MultiResolutionQuantityBase):
     values : dict[int, ndarray]
         ``values[j]`` contains the coefficients at the scale j.
         Arrays are of the shape (nj, n_rep)
-    n_sig : int
+    n_channel : int
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays in case there are
         multiple repetitions associated to a single signal.
@@ -151,8 +167,9 @@ class WaveletDec(MultiResolutionQuantityBase):
         if j2 is None:
             j2 = max(self.values)
 
-        return np.array([(~np.isnan(self.get_values(j, idx_reject))).sum(axis=0)
-                         for j in range(j1, j2+1)])
+        return xr.concat(
+            [(~np.isnan(self.get_values(j, idx_reject))).sum(dim=Dim.k_j)
+             for j in range(j1, j2+1)], dim=Dim.j)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
         r"""
@@ -184,6 +201,8 @@ class WaveletDec(MultiResolutionQuantityBase):
 
         self.bootstrapped_obj = circular_leader_bootstrap(
             self, min_scale, max_scale, block_length, R)
+
+        # self.dims = (*self.dims, 'bootstrap')
 
         # j = np.array([*self.values])
         #
@@ -279,21 +298,39 @@ class WaveletDec(MultiResolutionQuantityBase):
     def _add_values(self, coeffs, j):
         self.values[j] = coeffs
 
-    def get_values(self, j, idx_reject=None, reshape=False):
+    # def get_dim_names(self):
+
+    #     dims = ['k_j(t)', 'channel']
+
+    #     # j_min = min(self.j)
+
+    #     # if self.values[j_min].ndim == 3:
+    #     #     dims.append('bootstrap')
+    #     # else:
+    #     #     dims.insert(1, 'p_exp')
+
+    #     if self.n_rep != self.n_channel:
+    #         dims.append('bootstrap')
+
+    #     return dims
+
+    def get_values(self, j, idx_reject=None):
         """
         Get the values of the MRQ, applying any finite size effects corrections
         if necessary (Wavelet p-leaders).
         """
 
-        # Case where bootstrapping was done
-        if self.values[j].ndim == 3:
-            out = self.values[j]
-        else:
-            out = self.values[j][:, None, :]
+        # # Case where bootstrapping was done
+        # if self.values[j].ndim == 3:
+        #     out = self.values[j]
+        # else:
+        #     out = self.values[j][:, None, :]
+
+        out = xr.DataArray(self.values[j], dims=self.dims)
 
         # Bootstrapped mrq needs to realign into signal and repetitions
-        if reshape:  # and self.n_rep != self.n_sig
-            out = out.reshape(self.values[j].shape[0], 1, self.n_sig, -1)
+        # if self.n_rep != self.n_channel:
+        #     out = out.reshape(self.values[j].shape[0], 1, self.n_channel, -1)
 
         if idx_reject is None:
             return out
@@ -491,7 +528,7 @@ class WaveletDec(MultiResolutionQuantityBase):
         if hmin // .5 > 0:
             gamint = 0
         else:
-            gamint = -.5 * (hmin.min() // .5)
+            gamint = -.5 * (float(hmin.min()) // .5)
 
             if gamint + hmin < 0.25:
                 gamint += .5
@@ -544,17 +581,31 @@ class WaveletDec(MultiResolutionQuantityBase):
 
     def __getattribute__(self, name: str) -> Any:
 
-        if name == 'filt_len':
-            return get_filter_length(self.wt_name)
+        match name:
+            case 'filt_len':
+                return get_filter_length(self.wt_name)
 
-        if name == 'n_rep':
-            if len(self.values) > 0:
-                return self.values[[*self.values][0]].shape[-1]
+            case str() if name.startswith('n_'):
 
-        # if name == 'n_sig' and super().__getattribute__('n_sig') is None:
+                dimension = name[2:]
+
+                # Convert to Enum entry if needed
+                if hasattr(Dim, dimension):
+                    dimension = getattr(Dim, dimension)
+
+                dimension_idx = self.dims.index(dimension)
+
+                return self.values[min(self.values)].shape[dimension_idx]
+            case _:
+                return super().__getattribute__(name)
+
+        # if name == 'n_rep':
+        #     if len(self.values) > 0:
+        #         return self.values[[*self.values][0]].shape[-1]
+
+        # if name == 'n_channel' and super().__getattribute__('n_channel') is None:
         #     return 1
 
-        return super().__getattribute__(name)
 
     # def __getattr__(self, name):
     #     return super().__getattr__(name)
@@ -565,21 +616,20 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     Return p-leader correction factor for finite resolution
     """
 
-    JJ = np.arange(min_level, max_level + 1)
+    j_array = np.arange(min_level, max_level + 1)
+    JJ = xr.DataArray(j_array, coords={'j': j_array})
     J1LF = 1
     JJ0 = JJ - J1LF + 1
 
     # eta_p shape (n_ranges, n_rep)
     # JJ0 shape (n_level,)
 
-    JJ0 = JJ0[None, None, :]
-    eta_p = wt_leaders.eta_p[:, :, None]
+    # JJ0 = JJ0[None, None, :]
+    eta_p = wt_leaders.eta_p
 
     zqhqcorr = np.log2((1 - np.power(2., -JJ0 * eta_p))
                        / (1 - np.power(2., -eta_p)))
     ZPJCorr = np.power(2, (-1.0 / p_exp) * zqhqcorr)
-
-    # import ipdb; ipdb.set_trace()
 
     # ZPJCorr shape (n_ranges, n_rep, n_level)
     # wt_leaders shape (n_coef_j, n_rep)
@@ -587,10 +637,10 @@ def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     #     wt_leaders.values[j] = \
     #         wt_leaders.values[j][:, None, :]*ZPJCorr[None, :, :, ind_j]
 
-    eta_negative = eta_p <= 0
-    ZPJCorr[eta_negative[..., 0], :] = 1
+    # ZPJCorr.where(eta_p <= 0, 1)
+    ZPJCorr = xr.where(eta_p <= 0, 1, ZPJCorr)
+    # ZPJCorr.values[eta_p <= 0] = 1
 
-    # ZPJCorr shape (n_ranges, n_rep, n_level)
     return ZPJCorr
 
 
@@ -610,7 +660,7 @@ class WaveletLeader(WaveletDec):
     values : dict[int, ndarray]
         ``values[j]`` contains the coefficients at the scale j.
         Arrays are of the shape (nj, n_rep)
-    n_sig: int
+    n_channel: int
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays in case there are
         multiple repetitions associated to a single signal.
@@ -645,6 +695,8 @@ class WaveletLeader(WaveletDec):
         self.bootstrapped_obj, self.origin_mrq.bootstrapped_obj = \
             self.__class__.bootstrap_multiple(
                 R, min_scale, [self, self.origin_mrq])
+
+        # self.bootstrapped_obj.dims = (*self.dims, Dim.bootstrap)
 
         return self.bootstrapped_obj
 
@@ -709,26 +761,64 @@ class WaveletLeader(WaveletDec):
         """
         return self.get_leaders(self.p_exp, self.interval_size, gamint)
 
-    def get_values(self, j, idx_reject=None, reshape=False):
+    # def get_dim_names(self, reshape=False):
 
-        # Case where bootstrapping was done
-        if self.values[j].ndim == 3:
-            return super().get_values(j, idx_reject, reshape)
+    #     names = super().get_dim_names()
+
+    #     if self.p_exp != np.inf:
+    #         names.insert(1, 'scaling_range')
+
+    #     return names
+
+    def get_nj_interv(self, j1=None, j2=None, idx_reject=None):
+        """
+        Returns nj as an array, for j in [j1,j2]
+        """
 
         if self.p_exp == np.inf:
-            return super().get_values(j, idx_reject, reshape)
+            return super().get_nj_interv(j1, j2, idx_reject)
+
+        p_exp = self.p_exp
+        self.p_exp = np.inf
+
+        out = super().get_nj_interv(j1, j2, idx_reject)
+
+        self.p_exp = p_exp
+
+        return out
+
+    def get_values(self, j, idx_reject=None):
+
+        # Case where bootstrapping was done
+        # if self.values[j].ndim == 3:
+        #     return super().get_values(j, idx_reject, reshape)
+
+        # if self.p_exp == np.inf:
+        #     return super().get_values(j, idx_reject, reshape)
+
+        out = super().get_values(j, idx_reject)
+
+        if self.p_exp == np.inf:
+            return out
 
         if self.ZPJCorr is None:
             self._correct_pleaders()
 
-        ZPJCorr = self.ZPJCorr[None, :, :, j - min(self.values)]
+        # by default, ['k_j(t)', 'channel']
+        # For p-leaders, ['k_j(t)', 'scaling_range', 'channel']
+        # out_dims = self.get_dim_names()
+
+        ZPJCorr = self.ZPJCorr.sel(j=j)
+
+        ZPJCorr, out = _expand_align(ZPJCorr, out)
 
         # ZPJCorr = self._correct_pleaders(j, j)[..., 0]
 
-        if reshape:
-            ZPJCorr = ZPJCorr[..., None]
+        # if 'bootstrap' in out_dims:
+        #     # Dimension: k(t) scaling_range bootstrap channel
+        #     ZPJCorr = ZPJCorr[..., None, :]
 
-        return ZPJCorr * super().get_values(j, idx_reject, reshape)
+        return xr.DataArray(ZPJCorr.values * out.values, dims=ZPJCorr.dims)
 
     def get_leaders(self, p_exp, interval_size=3, gamint=None):
 
@@ -853,7 +943,7 @@ class WaveletWSE(WaveletDec):
     values : dict[int, ndarray]
         ``values[j]`` contains the coefficients at the scale j.
         Arrays are of the shape (nj, n_rep)
-    n_sig: int
+    n_channel: int
         Number of underlying signals in the wavelet decomposition. May not
         match the dimensionality of the values arrays in case there are
         multiple repetitions associated to a single signal.

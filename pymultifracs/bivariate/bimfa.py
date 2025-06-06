@@ -39,7 +39,7 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     mode : str, optional
         Mode of bivariate analysis. Either:
             - 'all2all': each possible pair of signals between ``mrq1`` and
-                ``mrq2`` is analyzed, generating ``mrq1.n_sig x mrq2.n_sig``
+                ``mrq2`` is analyzed, generating ``mrq1.n_channel x mrq2.n_channel``
                 pairs
             - 'pairwise': the signals in ``mrq1`` and ``mrq2`` are paired
                 together based on their order of apparition, ``mrq1`` and
@@ -105,13 +105,8 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
     #                                q1, q2, bootstrap_weighted, R=1,
     #                                estimates=estimates[i])
     #             for i, m1 in enumerate(mrq1)]
-    
+
     j1 = min([sr[0] for sr in scaling_ranges])
-
-    if R > 1:
-        mrq1.bootstrap_multiple(R, j1, [mrq1, mrq2])
-
-    bimfa_boot = None
 
     if q1 is None:
         q1 = [2]
@@ -133,22 +128,41 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         raise ValueError("No valid scaling range provided. "
                          f"Effective max scale is {j2_eff}")
 
-    if check_regularity:
+    if R > 1 and mrq1.bootstrapped_obj is None:
+
         mrq1.check_regularity(scaling_ranges, weighted, idx_reject)
         mrq2.check_regularity(scaling_ranges, weighted, idx_reject)
+        mrq1.bootstrap_multiple(R, j1, [mrq1, mrq2])
+
+    else:
+        if check_regularity:
+            mrq1.check_regularity(scaling_ranges, weighted, idx_reject)
+            mrq2.check_regularity(scaling_ranges, weighted, idx_reject)
+
+    if weighted == 'bootstrap' and mrq1.bootstrapped_obj is None:
+        raise ValueError(
+            'weighted="bootstrap" requires R>1 or prior bootstrapping')
 
     if mrq1.bootstrapped_obj is not None:
 
         bimfa_boot = bimfa(
             mrq1.bootstrapped_obj, mrq2.bootsrapped_mrq, scaling_ranges,
-            bootstrap_weighted, n_cumul, q1, q2, None, 1, estimates)
+            bootstrap_weighted, n_cumul, q1, q2, None, 1, estimates,
+            idx_reject=idx_reject)
+
+    else:
+        bimfa_boot = None
 
     if min_j == 'auto':
         min_j = j1
 
+    if min_j < (mrq_jmin := min(min(mrq1.values), min(mrq2.values))):
+        min_j = mrq_jmin
+
     if min_j > j1:
-        raise ValueError('Minimum j should be lower than the smallest fitting scale')
-    
+        raise ValueError(
+            'Minimum j should be lower than the smallest fitting scale')
+
     parameters = {
         'q1': q1,
         'q2': q2,

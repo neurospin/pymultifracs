@@ -184,7 +184,7 @@ class Benchmark:
 
         # print(estimation_param_grid)
 
-        # N_signals = sum(df.shape[0] for df in signal_param_grid.values())
+        # n_channelnals = sum(df.shape[0] for df in signal_param_grid.values())
 
         # def signal_iterator():
         #     for fun in signal_param_grid:
@@ -214,9 +214,9 @@ class Benchmark:
                     if k in self.estimation_param_grid[method]
                 }
 
-                df = pd.DataFrame.from_dict(
-                    est_fun(signal, **param_restriction))
+                df = est_fun(signal, **param_restriction)
                 df = df.assign(**est_params, method=method)
+                df = df.reset_index()
                 df.index.name = 'k'
 
                 res.append(df)

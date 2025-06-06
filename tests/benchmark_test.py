@@ -34,10 +34,12 @@ def test_benchmark_unit():
         lwt = mfa(
             WT, scaling_ranges=[(3, 7)], robust=robust, weighted=None, n_cumul=2)
 
-        return {
-            'c1': lwt.cumulants.c1[0, :, 0],
-            'c2': lwt.cumulants.c2[0, :, 0]
-        }
+        return lwt.cumulants.log_cumulants.to_dataframe('cm').unstack('m')
+
+        # return {
+        #     'c1': lwt.cumulants.c1.to_dataframe(name='c1'),
+        #     'c2': lwt.cumulants.c2.to_dataframe(name='c2')
+        # }
 
     estimation_param_grid = {
         'leader': {

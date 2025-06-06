@@ -9,6 +9,7 @@ from typing import Tuple
 from collections.abc import Iterable
 
 import numpy as np
+import xarray as xr
 
 from recombinator.block_bootstrap import\
      _verify_shape_of_bootstrap_input_data_and_get_dimensions, \
@@ -16,7 +17,7 @@ from recombinator.block_bootstrap import\
      _generate_block_start_indices_and_successive_indices, \
      _general_block_bootstrap_loop, circular_block_bootstrap
 
-from .utils import max_scale_bootstrap
+from .utils import max_scale_bootstrap, Dim
 
 
 def estimate_confidence_interval_from_bootstrap(
@@ -33,23 +34,28 @@ def estimate_confidence_interval_from_bootstrap(
                           interval in percent (i.e. between 0 and 100)
     """
 
-    # bootstrap estimates shape (n_j, n_sig, n_rep)
+    # bootstrap estimates shape (n_j, n_channel, n_rep)
     percent = 100.0 - confidence_level
 
     # bootstrap_estimates: shape (..., n_CI)
-    idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(axis=-1) < 3
+    # idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(axis=-1) < 3
+    idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(dim=Dim.bootstrap) < 3
 
-    bootstrap_confidence_interval = np.array([
-        np.nanpercentile(bootstrap_estimates, percent / 2.0, axis=-1),
-        np.nanpercentile(bootstrap_estimates, 100.0 - percent / 2.0, axis=-1)
-        ])
+    bootstrap_confidence_interval = xr.concat([
+        bootstrap_estimates.quantile(
+            percent / 2.0 / 100, dim=Dim.bootstrap, skipna=True),
+        bootstrap_estimates.quantile(
+            1.0 - percent / 2.0 / 100, dim=Dim.bootstrap, skipna=True),
+        ],
+        dim=xr.DataArray(['lower', 'upper'], dims=['CI'])
+    )
 
-    bootstrap_confidence_interval[:, idx_unreliable] = np.nan
+    bootstrap_confidence_interval.where(idx_unreliable, np.nan)
 
-    if bootstrap_confidence_interval.ndim > 2:
-        return np.rollaxis(
-            bootstrap_confidence_interval, 0,
-            bootstrap_confidence_interval.ndim)
+    # if bootstrap_confidence_interval.ndim > 2:
+    #     return np.rollaxis(
+    #         bootstrap_confidence_interval, 0,
+    #         bootstrap_confidence_interval.ndim)
 
     # if bootstrap_confidence_interval.ndim > 3:
     #     return bootstrap_confidence_interval.transpose(1, 2, 3, 0)
@@ -131,10 +137,14 @@ def get_std(mrq, name):
         def wrapper(*args, **kwargs):
 
             var = attribute(*args, **kwargs)
-            var = var.reshape(*var.shape[:-1], mrq.n_sig, -1)
-            unreliable = (~np.isnan(var)).sum(axis=-1) < 3
-            std = np.nanstd(var, ddof=1, axis=-1)
-            std[unreliable] = np.nan
+            # var = var.reshape(*var.shape[:-1], mrq.n_channel, -1)
+            # unreliable = (~np.isnan(var)).sum(axis=-1) < 3
+            # std = np.nanstd(var, ddof=1, axis=-1)
+            # std[unreliable] = np.nan
+            std = np.nanstd(
+                var, axis=var.dims.index(Dim.bootstrap), ddof=1)
+            # std.where((~np.isnan(attribute)).sum(dim=Dim.bootstrap))
+            std.values[(~np.isnan(var)).sum(dim=Dim.bootstrap) < 3] = np.nan
 
             return std
 
@@ -142,27 +152,33 @@ def get_std(mrq, name):
 
     # n_rep = attribute.shape[-1]
 
-    # # shape (..., n_rep) -> (..., n_sig, n_rep_per_sig)
-    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_sig, -1)
+    # # shape (..., n_rep) -> (..., n_channel, n_rep_per_sig)
+    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_channel, -1)
     # TODO: improve the following section with xarray
-    if (attribute.shape[-2] != mrq.n_sig
-            or attribute.shape[-1] * attribute.shape[-2] != mrq.n_rep):
-        attribute = reshape(attribute, mrq.n_sig)
+    # if (attribute.shape[-2] != mrq.n_channel
+    #         or attribute.shape[-1] * attribute.shape[-2] != mrq.n_rep):
+    #     attribute = reshape(attribute, mrq.n_channel)
 
-    unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
-    std = np.nanstd(attribute, axis=-1, ddof=1)
-    std[unreliable] = np.nan
+    # unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
+    # std = np.nanstd(
+    #     attribute, axis=attribute.dims.index(Dim.bootstrap), ddof=1)
+
+    std = attribute.std(skipna=True, dim=Dim.bootstrap, ddof=1)
+    # std.where((~np.isnan(attribute)).sum(dim=Dim.bootstrap), np.nan)
+    std.values[(~np.isnan(attribute)).sum(dim=Dim.bootstrap) < 3] = np.nan
+
+    # std[unreliable] = np.nan
 
     return std
 
 
-def reshape(attribute, n_sig):
+def reshape(attribute, n_channel):
     """
     Automatically reshapes to expected shape.
     """
-    if n_sig == 1:
+    if n_channel == 1:
         return attribute
-    return attribute.reshape((*attribute.shape[:-1], n_sig, -1))
+    return attribute.reshape((*attribute.shape[:-1], n_channel, -1))
 
 
 def get_confidence_interval(mrq, name):
@@ -309,7 +325,7 @@ def bootstrap(mrq, R, wt_name, min_scale=1):
         'nj': nj,
         'values': values,
         'wt_name': wt_name,
-        'n_sig': mrq.n_rep
+        # 'n_channel': mrq.n_channel * R,
     })
 
     return new_mrq
@@ -405,19 +421,23 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
         nj_double = {rep: {} for rep in indices_double}
 
     values = {}
-    nj = {}
+
+    min_shape = mrq.get_values(min_scale).transpose(
+        Dim.k_j, Dim.channel, ...).shape
+
+    # nj = {}
 
     for scale, indices_scale in indices.items():
 
         if scale < min_scale:
             continue
 
-        data = mrq.get_values(scale)
+        data = mrq.get_values(scale).transpose(Dim.k_j, Dim.channel, ...)
+        dims = data.dims
+        shape = data.shape
+        data = data.values
 
-        if data.ndim == 1:
-            data = np.hstack((data, data[:block_length]))
-        else:
-            data = np.vstack((data, data[:block_length]))
+        data = np.vstack((data, data[:block_length]))
 
         idx = indices_scale[indices_scale >= 0]
 
@@ -441,9 +461,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                     temp_indices[idx_double]
 
                 out_double = np.zeros(
-                    (replications,
-                     mrq.values[1][~np.isnan(mrq.values[1])].shape[0]),
-                    dtype=float) + np.nan
+                    (replications, *min_shape), dtype=float) + np.nan
                 out_double[idx_final >= 0] = data[idx_final[idx_final >= 0]]
 
                 compact_idx = np.all(np.isnan(out_double), axis=0)
@@ -455,11 +473,10 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
                     [idx_final[rep2][idx_final[rep2] >= 0].shape[0]
                      for rep2 in range(replications)])
 
-        out = np.zeros(
-            (replications, *mrq.get_values(min_scale).shape),
-            dtype=float) + np.nan
+        out = np.zeros((replications, *min_shape), dtype=float) + np.nan
 
         out[indices_scale >= 0] = data[idx]
+        # out = np.where((indices_scale >= 0).expand_dims(), data[idx], out)
 
         compact_idx = np.all(
             np.isnan(out), axis=tuple(k for k in range(out.ndim) if k != 1))
@@ -467,15 +484,17 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
         values[scale] = out[:, ~compact_idx].transpose(
             *[*range(out.ndim)[1:], 0])
 
-        values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
+        # values[scale] = values[scale].reshape(*values[scale].shape[:-2], -1)
 
-        nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
+        # nj[scale] = np.array([(~np.isnan(values[scale])).sum(axis=0)])
 
     new_mrq = mrq._from_dict({
         'values': values,
     })
 
     new_mrq.eta_p = None
+
+    new_mrq.dims = (*dims, Dim.bootstrap)
 
     if double:
 
@@ -487,6 +506,8 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         for rep in double_mrq:
             double_mrq[rep].eta_p = None
+
+        double_mrq.dims = (*double_mrq.dims, Dim.bootstrap)
 
         return new_mrq, double_mrq
 

@@ -195,7 +195,7 @@ numpydoc_xref_ignore = {
     "n_pos",
     "n_node_names",
     "n_tapers",
-    "n_signals",
+    "n_channelnals",
     "n_step",
     "n_freqs",
     "wsize",
@@ -250,7 +250,7 @@ numpydoc_xref_ignore = {
     "n_new_events",
     "n_j",
     "n_scaling_ranges",
-    "n_rep",
+    # "n_rep",
     "n_realisations",
     # sklearn subclasses
     "mapping",

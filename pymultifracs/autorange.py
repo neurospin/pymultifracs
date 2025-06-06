@@ -6,6 +6,7 @@ Automated scaling range selection based on bootstrapping.
 
 import numpy as np
 from .regression import prepare_regression
+from .utils import Dim
 
 # def mf_analysis_ar(wt_coefs, wt_leaders, scaling_rangexs, weighted,
 #                    n_cumul, q):
@@ -63,28 +64,39 @@ from .regression import prepare_regression
 
 
 def compute_Lambda(R, R_b):
+    return 1 - ((R_b < R).sum(dim=Dim.bootstrap) / R_b.sizes[Dim.bootstrap])
 
-    return 1 - ((R_b < R).sum(axis=-1) / R_b.shape[-1])
 
+def find_max_lambda(L, per_moment=False):
+    # L.mean(dim=Dim.j) == np.amax(L.mean(dim=Dim.j))
 
-def find_max_lambda(L):
+    if per_moment:
+        return L.argmax(dim=Dim.scaling_range)
 
-    return np.argwhere(L.mean(axis=0) == np.amax(L.mean(axis=0)))
+    if Dim.q in L.dims:
+        moment_dim = Dim.q
+    else:
+        moment_dim = Dim.m
+
+    return L.sum(dim=moment_dim).argmax(dim=Dim.scaling_range)
 
 
 def compute_R(moment, slope, intercept, weights, j_min_max, j):
 
-    x, _, _, _, j_min_idx, j_max_idx = prepare_regression(j_min_max, j)
+    x, _, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        j_min_max, j, moment.dims)
 
-    # Shape (n_moments, n_scales, n_scaling_ranges, n_sig, R)
-    moment = moment[:, j_min_idx:j_max_idx]
-    slope = slope[:, None]
-    intercept = intercept[:, None]
+    moment = moment.sel(j=slice(j_min, j_max))
+    # slope = slope
+    # intercept = intercept[:, None]
     # weights = weights[..., None]
-    x = x[..., None]
+    # x = x[..., None]
 
-    return np.nansum(
-        weights ** 2 * (moment - x * slope - intercept) ** 2, axis=1)
+    # return np.nansum(
+    #     weights ** 2 * (moment - x * slope - intercept) ** 2, axis=1)
+    return (
+        weights ** 2 * (moment - x * slope - intercept) ** 2).mean(
+            dim=Dim.j, skipna=True)
 
 
 def sanitize_scaling_ranges(scaling_ranges, j2_eff):
