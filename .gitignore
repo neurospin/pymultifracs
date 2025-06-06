@@ -56,4 +56,4 @@ data/
 examples/*.mat
 *.pkl
 
-.coverage
+.coverage*
