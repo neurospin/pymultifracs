@@ -79,7 +79,6 @@ pwt.spectrum.plot()
 # In order to determine the best scaling range among multiple choices,
 # it is possible to use a bootstrapped-based criterion (see Leonarduzzi et al., 2014):
 
-print('Second mfa')
 pwt = mfa(WTpL, [(2, 8), (3, 8), (2, 7), (3, 7)], weighted=None, R=20)
 
 # %% To determine the optimal scale, the :meth:`.ScalingFunction.find_best_range()` method is used:

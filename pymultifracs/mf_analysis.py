@@ -114,16 +114,13 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
             mrq.check_regularity(
                 scaling_ranges, weighted if weighted != 'bootstrap' else None,
                 idx_reject)
-            print("Regularity check for bootstrap")
             mrq.bootstrap(R, j1)
 
     else:
         if check_regularity:
             mrq.check_regularity(scaling_ranges, None, idx_reject, min_j=min_j)
-            print("Regular regularity check")
         else:
-            # print(mrq.ZPJCorr.shape)
-            print("Skipped regularity check")
+            pass
 
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
         raise ValueError(

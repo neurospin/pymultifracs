@@ -336,19 +336,8 @@ class StructureFunction(ScalingFunction):
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
-        self.dims = (
-            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:]
-        )
-
-        self._compute(mrq, idx_reject)
-        self._compute_fit()
-
-    def _compute(self, mrq, idx_reject):
-
-        shape = (
-            len(self.q), len(self.j), len(self.scaling_ranges),
-        )
         dims = (Dim.q, Dim.j, Dim.scaling_range)
+        shape = (len(self.q), len(self.j), len(self.scaling_ranges))
 
         mrq_sizes = mrq.get_values(self.j.max()).sizes
 
@@ -368,6 +357,11 @@ class StructureFunction(ScalingFunction):
 
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
         self.values = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
+
+        self._compute(mrq, idx_reject)
+        self._compute_fit()
+
+    def _compute(self, mrq, idx_reject):
 
         for ind_j, j in enumerate(self.j):
 
@@ -995,6 +989,7 @@ class MFSpectrum(ScalingFunction):
             # nj = mrq.nj[j]
             mrq_values_j = mrq.get_values(j, idx_reject)
             dims = mrq_values_j.dims
+            coords = mrq_values_j.coords
             mrq_values_j = np.abs(mrq_values_j.values)
 
             # if 'scaling_range' not in dim_names:
@@ -1016,9 +1011,12 @@ class MFSpectrum(ScalingFunction):
 
             dims = (Dim.q, *dims)
 
-            Z = np.expand_dims(np.nansum(temp, axis=dims.index(Dim.k_j)),
-                               axis=dims.index(Dim.k_j))
+            Z = np.nansum(temp, axis=dims.index(Dim.k_j), keepdims=True)
             Z[Z == 0] = np.nan
+
+            # Z = np.expand_dims(np.nansum(temp, axis=dims.index(Dim.k_j)),
+            #                    axis=dims.index(Dim.k_j))
+            # Z[Z == 0] = np.nan
 
             R_j = temp / Z
 
@@ -1036,21 +1034,22 @@ class MFSpectrum(ScalingFunction):
 
             new_dims = [d for d in dims if d != Dim.k_j]
 
-            self.V.loc[{Dim.j: j}] = xr.DataArray(fixednansum(
-                R_j * np.log2(temp),
-                axis=dims.index(Dim.k_j)), dims=new_dims)
-            self.U.loc[{Dim.j: j}] = np.log2(N_useful) + xr.DataArray(fixednansum(
-                (R_j * np.log2(R_j)),
-                axis=dims.index(Dim.k_j)), dims=new_dims)
+            self.V.loc[{Dim.j: j}] = xr.DataArray(
+                fixednansum(R_j * np.log2(mrq_values_j)[None, :], axis=dims.index(Dim.k_j)),
+                dims=new_dims)
+
+            self.U.loc[{Dim.j: j}] = np.log2(N_useful) + xr.DataArray(
+                fixednansum(R_j * np.log2(R_j), axis=dims.index(Dim.k_j)),
+                dims=new_dims)
 
             idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
-                self.V.values[:, ind_j, ..., idx_unreliable] = np.nan
-                self.U.values[:, ind_j, ..., idx_unreliable] = np.nan
 
-        # self.U.where(np.isinf(self.U.values), np.nan)
-        # self.V.where(np.isinf(self.V.values), np.nan)
+                self.V.loc[{Dim.j: j}] = self.V.sel(j=j).where(
+                    ~idx_unreliable, np.nan)
+                self.U.loc[{Dim.j: j}] = self.U.sel(j=j).where(
+                    ~idx_unreliable, np.nan)
 
         self.U.values[np.isinf(self.U)] = np.nan
         self.V.values[np.isinf(self.V)] = np.nan

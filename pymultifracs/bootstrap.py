@@ -480,7 +480,6 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         compact_idx = np.all(
             np.isnan(out), axis=tuple(k for k in range(out.ndim) if k != 1))
-        # print(compact_idx.shape, out.shape)
         values[scale] = out[:, ~compact_idx].transpose(
             *[*range(out.ndim)[1:], 0])
 
@@ -493,6 +492,8 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
     })
 
     new_mrq.eta_p = None
+    new_mrq.ZPJCorr = None
+    new_mrq.bootstrapped_obj = None
 
     new_mrq.dims = (*dims, Dim.bootstrap)
 
@@ -506,6 +507,8 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         for rep in double_mrq:
             double_mrq[rep].eta_p = None
+            new_mrq.ZPJCorr = None
+            new_mrq.bootstrapped_obj = None
 
         double_mrq.dims = (*double_mrq.dims, Dim.bootstrap)
 
