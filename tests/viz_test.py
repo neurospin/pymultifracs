@@ -21,8 +21,11 @@ def test_plots(fbm_file):
 
     plot_psd(X[:, 0], 1)
 
-    WTpL = wavelet_analysis(X).get_leaders(2)
+    WT = wavelet_analysis(X)
 
+    WTpL = WT.get_leaders(2)
+
+    WT.plot(3, 7)
     WTpL.plot(3, 7)
 
     pwt = mfa(WTpL, [(3, 7)], n_cumul=4, q=build_q_log(.1, 5, 5))
@@ -49,3 +52,27 @@ def test_plots(fbm_file):
         # assert abs(lwt.cumulants.log_cumulants[1, :].mean()) < 0.0105
 
     return
+
+
+@pytest.mark.bootstrap
+def test_bootstrap(mrw_file):
+
+    with open(mrw_file[0], 'rb') as f:
+        X = np.load(f)
+
+    WT = wavelet_analysis(X[:, :2])
+    WTpL = WT.get_leaders(2)
+
+    j2 = WTpL.max_scale_bootstrap()
+    scaling_ranges = [(2, j2), (3, j2)]
+
+    WT = WT.auto_integrate(scaling_ranges)
+
+    dwt, lwt = mfa(
+        [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+        R=20, estimates='scm')
+
+    dwt.structure.plot()
+
+    lwt.cumulants.plot()
+    lwt.spectrum.plot()

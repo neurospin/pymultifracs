@@ -119,6 +119,14 @@ class MultiResolutionQuantityBase(AbstractDataclass):
     def get_extra_dims(self):
         return self.values[min(self.values)].shape[1:], self.dims[1:]
 
+    def get_n_bootstrap(self):
+
+        sizes = self.get_values(max(self.values)).sizes
+
+        if Dim.bootstrap not in sizes:
+            return 0
+
+        return sizes[Dim.bootstrap]
 
 @dataclass(kw_only=True)
 class WaveletDec(MultiResolutionQuantityBase):
@@ -799,7 +807,8 @@ class WaveletLeader(WaveletDec):
 
         out = super().get_values(j, idx_reject)
 
-        if self.p_exp == np.inf:
+        # leaders and bootstrapped p-leaders are not corrected
+        if self.p_exp == np.inf or Dim.bootstrap in self.dims:
             return out
 
         if self.ZPJCorr is None:

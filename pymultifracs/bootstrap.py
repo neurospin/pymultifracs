@@ -17,7 +17,7 @@ from recombinator.block_bootstrap import\
      _generate_block_start_indices_and_successive_indices, \
      _general_block_bootstrap_loop, circular_block_bootstrap
 
-from .utils import max_scale_bootstrap, Dim
+from .utils import max_scale_bootstrap, Dim, scaling_range_to_str
 
 
 def estimate_confidence_interval_from_bootstrap(
@@ -47,7 +47,7 @@ def estimate_confidence_interval_from_bootstrap(
         bootstrap_estimates.quantile(
             1.0 - percent / 2.0 / 100, dim=Dim.bootstrap, skipna=True),
         ],
-        dim=xr.DataArray(['lower', 'upper'], dims=['CI'])
+        dim=xr.DataArray(['upper', 'lower'], dims=[Dim.CI])
     )
 
     bootstrap_confidence_interval.where(idx_unreliable, np.nan)
@@ -588,3 +588,20 @@ def circular_leader_bootstrap(mrq, min_scale, max_scale, block_length,
     else:
         return _create_bootstrapped_obj(mrq, indices, min_scale, block_length,
                                         double, indices_double, replications)
+
+
+def _need_redo_bootstrap(mrq, R, scaling_ranges):
+
+    assert mrq.bootstrapped_obj is not None
+
+    if R != mrq.bootstrapped_obj.get_n_bootstrap():
+        return True
+
+    if mrq.ZPJCorr is None:
+        return False
+
+    if (set(mrq.ZPJCorr.scaling_range.values)
+            == set([scaling_range_to_str(s) for s in scaling_ranges[:2]])):
+        return True
+
+    return False

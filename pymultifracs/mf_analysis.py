@@ -10,6 +10,7 @@ import numpy as np
 from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
+from .bootstrap import _need_redo_bootstrap
 
 
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
@@ -106,15 +107,23 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     j1 = min(sr[0] for sr in scaling_ranges)
 
-    if (R > 1 and mrq.bootstrapped_obj is None):
+    if R > 1:
+        if (mrq.bootstrapped_obj is None
+                or _need_redo_bootstrap(mrq, R, scaling_ranges)):
 
-        mrq.check_regularity(
-            scaling_ranges, weighted if weighted != 'bootstrap' else None,
-            idx_reject)
-        mrq.bootstrap(R, j1)
+            mrq.check_regularity(
+                scaling_ranges, weighted if weighted != 'bootstrap' else None,
+                idx_reject)
+            print("Regularity check for bootstrap")
+            mrq.bootstrap(R, j1)
+
     else:
         if check_regularity:
             mrq.check_regularity(scaling_ranges, None, idx_reject, min_j=min_j)
+            print("Regular regularity check")
+        else:
+            # print(mrq.ZPJCorr.shape)
+            print("Skipped regularity check")
 
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is None:
         raise ValueError(
@@ -124,7 +133,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         mfa_boot = mfa(
             mrq.bootstrapped_obj, scaling_ranges, bootstrap_weighted,
             n_cumul, q, None, 1, estimates, robust,
-            robust_kwargs, idx_reject, check_regularity=check_regularity)
+            robust_kwargs, idx_reject, check_regularity=None)
     else:
         mfa_boot = None
 

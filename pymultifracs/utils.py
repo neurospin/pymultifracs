@@ -7,6 +7,7 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 from enum import Enum
 from dataclasses import dataclass
+from abc import abstractmethod
 from typing import Any
 from collections import namedtuple
 import warnings
@@ -48,6 +49,7 @@ class DimensionNames:
     bootstrap: str = 'bootstrap'
     q: str = 'q'
     m: str = 'm'
+    CI: str = 'CI'
 
     def __getattr__(self, name):
 
@@ -89,6 +91,14 @@ class Formalism(Enum):
     weak_scaling_exponent = 4
 
 
+def scaling_range_to_str(scaling_range):
+    return f"{scaling_range[0]:d}-{scaling_range[1]:d}"
+
+
+def str_to_scaling_range(input):
+    return tuple(int(i) for i in input.split('-'))
+
+
 @dataclass
 class AbstractDataclass:
     """
@@ -96,28 +106,13 @@ class AbstractDataclass:
     """
     bootstrapped_obj: Any | None = None
 
+    @abstractmethod
+    def get_n_bootstrap(self):
+        pass
+
     def _check_enough_rep_bootstrap(self):
 
-        # bootstrap_index = self.dims.index('bootstrap')
-
-        # if self.values[min(self.values)].shape[bootstrap_index] < 2:
-
-        if isinstance(self.values, xr.DataArray):
-
-            if Dim.bootstrap not in self.values.sizes:
-                n_bootstrap = 0
-            else:
-                n_bootstrap = self.values.sizes[Dim.bootstrap]
-
-        else:
-
-            if Dim.bootstrap not in self.dims:
-                n_bootstrap = 0
-            else:
-                n_bootstrap = self.values[max(self.values)].shape[
-                    self.dims.index(Dim.bootstrap)]
-
-        if n_bootstrap < 2:
+        if (n_bootstrap := self.get_n_bootstrap()) < 2:
             raise ValueError(
                 f'n_bootstrap = {n_bootstrap} per original signal too '
                 'small to build confidence intervals'
@@ -143,13 +138,13 @@ class AbstractDataclass:
 
         self.bootstrapped_obj._check_enough_rep_bootstrap()
 
-    def std_values(self):  # pylint: disable=C0116
+    def std_values(self, name='values'):  # pylint: disable=C0116
 
         from .bootstrap import get_std
 
         self._check_enough_rep_bootstrap()
 
-        return get_std(self, 'values')
+        return get_std(self, name)
 
     def __getattr__(self, name):
 
