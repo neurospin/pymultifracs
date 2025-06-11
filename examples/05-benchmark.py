@@ -59,8 +59,8 @@ def pleader_est(X, p_exp):
     WT = wavelet_analysis(X).get_leaders(p_exp=p_exp)
     pwt = mfa(WT, [(3, 7)], estimates='c', weighted='Nj')
 
-    out = pwt.cumulants.log_cumulants.isel(scaling_range=0).to_dataframe('cm').unstack('m')
-    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x[1]}')
+    out = pwt.cumulants.log_cumulants.isel(scaling_range=0).to_series().unstack('m')
+    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x}')
 
     return out
 
@@ -69,8 +69,8 @@ def coef_est(X):
     WT = wavelet_analysis(X)
     dwt = mfa(WT, [(3, 7)], estimates='c')
 
-    out = dwt.cumulants.log_cumulants.isel(scaling_range=0).to_dataframe('cm').unstack('m')
-    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x[1]}')
+    out = dwt.cumulants.log_cumulants.isel(scaling_range=0).to_series().unstack('m')
+    out.columns = out.columns.to_flat_index().map(lambda x: f'c{x}')
 
     return out
 
