@@ -35,6 +35,7 @@ setup(name='pymultifracs',
       packages=['pymultifracs'],
       install_requires=[
           'numpy', 'scipy', 'pywavelets', 'seaborn', 'xarray',
+          'typing_extensions'
       ],
       extras_require=extras,
       zip_safe=False,
