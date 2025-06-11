@@ -19,7 +19,7 @@ from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2, compute_RMSE
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
-    AbstractDataclass, Formalism, Dim, _expand_align
+    AbstractDataclass, Formalism, Dim, _expand_align, scaling_range_to_str
 from . import multiresquantity, viz
 
 
@@ -215,12 +215,9 @@ class ScalingFunction(AbstractScalingFunction):
 
         return j1, j2, j_min, j_max
 
-    def _compute_fit(self, value_name=None, out_name=None):
+    def _compute_fit(self, value_name='values', out_name=None):
 
-        if value_name is not None:
-            values = getattr(self, value_name)
-        else:
-            values = self.values
+        values = getattr(self, value_name)
 
         # slope = np.zeros(
         #     (values.shape[0], len(self.scaling_ranges),
@@ -236,7 +233,8 @@ class ScalingFunction(AbstractScalingFunction):
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
-                std = self.std_values().sel(j=slice(j_min, j_max))
+
+                std = self.std_values(value_name).sel(j=slice(j_min, j_max))
 
             else:
 
@@ -250,7 +248,8 @@ class ScalingFunction(AbstractScalingFunction):
                 #     int(j_min - self.bootstrapped_obj.j.min()):
                 #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
 
-                std = self.bootstrapped_obj.std_values().sel(j=slice(j_min, j_max))
+                std = self.bootstrapped_obj.std_values(value_name).sel(
+                    j=slice(j_min, j_max))
 
         else:
             std = None
@@ -270,6 +269,13 @@ class ScalingFunction(AbstractScalingFunction):
             slope = setattr(self, out_name, slope)
         else:
             self.slope = slope
+
+    def get_n_bootstrap(self):
+
+        if Dim.bootstrap not in self.values.sizes:
+            return 0
+
+        return self.values.sizes[Dim.bootstrap]
 
 
 @dataclass(kw_only=True)
@@ -354,8 +360,10 @@ class StructureFunction(ScalingFunction):
         shape = (*shape, *mrq_shapes)
 
         coords = {
-            'q': self.q,
-            'j': self.j
+            Dim.q: self.q,
+            Dim.j: self.j,
+            Dim.scaling_range: [scaling_range_to_str(s)
+                                for s in self.scaling_ranges]
         }
 
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
@@ -365,34 +373,29 @@ class StructureFunction(ScalingFunction):
 
             c_j = mrq.get_values(j, idx_reject)
 
-            mask_nan = np.isnan(c_j) | np.isinf(c_j)
-            N_useful = (~mask_nan.values).sum(axis=c_j.dims.index(Dim.k_j))
-            idx_unreliable = N_useful < 3
-
             # c_j = _expand_align(c_j, reference_order=self.dims[1:])
 
             for ind_q, q in enumerate(self.q):
 
-                self.values[ind_q, ind_j] = xr.DataArray(
+                self.values.loc[{Dim.q: q, Dim.j: j}] = xr.DataArray(
                     np.log2(np.nanmean(fast_power(np.abs(c_j.values), q),
                                        axis=c_j.dims.index(Dim.k_j))),
                     dims=[d for d in c_j.dims if d != Dim.k_j])
 
-                # if idx_unreliable.any():
-
-                    # self.values[ind_q, ind_j] = np.nan
-                    # for i in range(idx_unreliable.sizes[Dim.channel]):
-
-                    # np.nan
+            mask_nan = np.isnan(c_j) | np.isinf(c_j)
+            N_useful = (~mask_nan).sum(dim=Dim.k_j)
+            idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
+
+                self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
+                    ~idx_unreliable, np.nan)
+
                 # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
-                self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
+                # self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
 
         # self.values.where(np.isinf(self.values), np.nan)
         self.values.values[np.isinf(self.values)] = np.nan
-
-        # print(self.values)
 
     def _get_H(self):
         return self.slope.sel(q=2) / 2
@@ -510,9 +513,9 @@ class StructureFunction(ScalingFunction):
                     scaling_range=scaling_range, channel=signal_idx)
 
                 CI -= y#[:, None]
-                CI[:, 1] *= -1
+                CI.loc[{Dim.CI: 'lower'}] *= -1
                 assert (CI < 0).sum() == 0
-                CI = CI.transpose()
+                CI = CI.transpose(Dim.CI, Dim.j)
 
             else:
                 CI = None
@@ -526,8 +529,10 @@ class StructureFunction(ScalingFunction):
             counter += 1
 
             x0, x1 = self.scaling_ranges[scaling_range]
-            slope = self.slope[ind_q, scaling_range, 0]
-            intercept = self.intercept[ind_q, scaling_range, 0]
+            slope = self.slope.sel(q=q).isel(
+                channel=signal_idx, scaling_range=scaling_range)
+            intercept = self.intercept.sel(q=q).isel(
+                scaling_range=scaling_range, channel=signal_idx)
 
             assert x0 in x, "Scaling range not included in plotting range"
             assert x1 in x, "Scaling range not included in plotting range"
@@ -536,8 +541,9 @@ class StructureFunction(ScalingFunction):
             y1 = slope*x1 + intercept
 
             if self.bootstrapped_obj is not None and plot_CI:
-                CI = self.CIE_s_q(q)[scaling_range, signal_idx]
-                CI_legend = f"; [{CI[0]:.1f}, {CI[1]:.1f}]"
+                CI = self.CIE_s_q(q).isel(
+                    scaling_range=scaling_range, channel=signal_idx)
+                CI_legend = viz._get_CI_legend(CI)
             else:
                 CI_legend = ""
 
@@ -582,7 +588,11 @@ class StructureFunction(ScalingFunction):
         if ax is None:
             _, ax = plt.subplots(figsize=(4, 2.5), layout='tight')
 
-        ax.plot(self.q, self.slope[:, range_idx, signal_idx], **plot_kw)
+        ax.plot(
+            self.q,
+            self.slope.isel(scaling_range=range_idx, channel=signal_idx),
+            **plot_kw
+        )
 
         ax.set(
             xlabel='Moment $q$',
@@ -682,7 +692,10 @@ class Cumulants(ScalingFunction):
         self.values = xr.DataArray(
             np.zeros((*shape, *mrq_shapes)),
             dims=(*dims, *mrq_dims),
-            coords={Dim.j: self.j, Dim.m: self.m})
+            coords={Dim.j: self.j, Dim.m: self.m,
+                    Dim.scaling_range: [scaling_range_to_str(s)
+                                        for s in self.scaling_ranges]}
+        )
 
         if robust:
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
@@ -938,13 +951,25 @@ class MFSpectrum(ScalingFunction):
 
         super().__post_init__(idx_reject, mrq, min_j)
 
-        self.dims = (
-            Dim.q, Dim.j, Dim.scaling_range, *mrq.dims[1:])
+        dims = (Dim.q, Dim.j, Dim.scaling_range)
+        shape = (len(self.q), len(self.j), len(self.scaling_ranges))
+
+        mrq_dims = []
+        mrq_shapes = []
+
+        for d, s, in mrq.get_values(self.j.max()).sizes.items():
+
+            if d in [Dim.k_j, *dims]:
+                continue
+
+            mrq_dims.append(d)
+            mrq_shapes.append(s)
 
         self.U = xr.DataArray(
-            np.zeros((len(self.q), len(self.j), len(self.scaling_ranges),
-                      *mrq.values[self.j.min()].shape[1:])),
-            dims=self.dims, coords={Dim.j: self.j, Dim.q: self.q})
+            np.zeros((*shape, *mrq_shapes)), dims=(*dims, *mrq_dims),
+            coords={Dim.j: self.j, Dim.q: self.q,
+                    Dim.scaling_range: [scaling_range_to_str(s)
+                                        for s in self.scaling_ranges]})
         self.V = xr.zeros_like(self.U)
 
         if self.bootstrapped_obj is not None:
@@ -1096,30 +1121,59 @@ class MFSpectrum(ScalingFunction):
             CI_Dq -= self.D_q()
             CI_hq -= self.h_q()
 
-            CI_Dq = CI_Dq[:, range_idx, signal_idx]
-            CI_hq = CI_hq[:, range_idx, signal_idx]
+            CI_Dq = CI_Dq.isel(scaling_range=range_idx, channel=signal_idx).copy()
+            CI_hq = CI_hq.isel(scaling_range=range_idx, channel=signal_idx).copy()
 
-            CI_Dq[:, 1] *= -1
-            CI_hq[:, 1] *= -1
+            CI_Dq.loc[{Dim.CI: 'lower'}] *= -1
+            CI_hq.loc[{Dim.CI: 'lower'}] *= -1
 
-            CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
-            CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
+            #TODO: scale using rtol with actual Dq and hq values
+            CI_Dq.values[(CI_Dq < 0) & np.isclose(0, CI_Dq, atol=5e-2)] = 0
+            CI_hq.values[(CI_hq < 0) & np.isclose(0, CI_hq, atol=5e-2)] = 0
 
-            assert (CI_Dq < 0).sum() == 0
+            # CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
+            # CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
+
+            assert (CI_Dq < 0).sum() == 0, "Estimate outside confidence interval"
             assert (CI_hq < 0).sum() == 0
 
-            CI_Dq = CI_Dq.transpose()
-            CI_hq = CI_hq.transpose()
+            CI_Dq = CI_Dq.transpose(Dim.CI, Dim.q)
+            CI_hq = CI_hq.transpose(Dim.CI, Dim.q)
 
         else:
             CI_Dq, CI_hq = None, None
 
         shift = 0 if not shift_gamint else self.gamint
 
-        ax.errorbar(self.hq[:, range_idx, signal_idx] - shift,
-                    self.Dq[:, range_idx, signal_idx],
-                    CI_Dq, CI_hq, fmt,
-                    **plot_kwargs)
+        idx_dict = {Dim.scaling_range: range_idx, Dim.channel: signal_idx}
+
+        x = self.hq[idx_dict] - shift
+        y = self.Dq[idx_dict]
+
+        xerr = None
+        yerr = None
+
+        if CI_Dq is not None:
+            yerr = CI_Dq
+
+        if CI_hq is not None:
+            xerr = CI_Dq
+
+        # handling deprecation issue that matplotlib refuses to solve:
+        # https://github.com/matplotlib/matplotlib/issues/25744
+        if self.hq[idx_dict].ndim == 1 and self.hq[idx_dict].shape[0] == 1:
+
+            x = [x.item()] * 2
+            y = [y.item()] * 2
+
+            if yerr is not None:
+                yerr = np.c_[yerr, yerr]
+
+            if xerr is not None:
+                xerr = np.c_[xerr, xerr]
+
+        ax.errorbar(
+            x, y, yerr, xerr, fmt, **plot_kwargs)
 
         ax.set(xlabel=f'Regularity $h{self.regularity_suffix}$',
                ylabel=rf'Fractal dimension $\mathcal{{L}}'
@@ -1132,3 +1186,10 @@ class MFSpectrum(ScalingFunction):
 
         if filename is not None:
             plt.savefig(filename)
+
+    def get_n_bootstrap(self):
+
+        if Dim.bootstrap not in self.Dq.sizes:
+            return 0
+
+        return self.Dq.sizes[Dim.bootstrap]

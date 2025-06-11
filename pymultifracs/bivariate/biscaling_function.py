@@ -498,11 +498,11 @@ class BiStructureFunction(BiScalingFunction):
                 # idx_a = np.s_[ind_q1, ind_q2, scaling_range]
                 # idx_b = np.s_[signal_idx1, signal_idx2]
 
-                slope = self.s_qq(q1, q2).sel(
-                    scaling_range=scaling_range).isel(
+                slope = self.s_qq(q1, q2).isel(
+                        scaling_range=scaling_range,
                         channel1=signal_idx1, channel2=signal_idx2)
                 intercept = self.intercept.sel(
-                    q1=q1, q2=q2, scaling_range=scaling_range).isel(
+                    q1=q1, q2=q2).isel(scaling_range=scaling_range,
                         channel1=signal_idx1, channel2=signal_idx2)
 
                 assert x0 in x, "Scaling range not included in plotting range"

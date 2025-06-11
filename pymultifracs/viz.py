@@ -37,6 +37,14 @@ def _cp_string_format(cp, CI=False):
         return f"{cp:.3f}"
 
 
+def _get_CI_legend(CI):
+
+    return (
+        f"; [{_cp_string_format(CI.loc[{Dim.CI: 'lower'}], True)}, "
+        f"{_cp_string_format(CI.loc[{Dim.CI: 'upper'}], True)}]"
+    )
+
+
 def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
               fit_color='k', plot_legend=False, lw_fit=2, plot_fit=True,
               C_fmt='--.', lw_C=None, offset=0, plot_CI=True, signal_idx1=0,
@@ -77,10 +85,10 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
         CI = getattr(cm, f'CIE_C{m1}{m2}').sel(
             j=slice(j1, j2))
 
-        CI -= y[:, None]
-        CI[:, :, 1] *= -1
+        CI -= y
+        CI.loc[{Dim.CI, 'lower'}] *= -1
         assert (CI < 0).sum() == 0
-        CI = CI.transpose()
+        CI = CI.transpose(Dim.CI, Dim.j)
 
     else:
         CI = None
@@ -102,7 +110,7 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
 
         x0, x1 = cm.scaling_ranges[scaling_range]
 
-        slope_log2_e = getattr(cm, f'c{m1}{m2}').sel(
+        slope_log2_e = getattr(cm, f'c{m1}{m2}').isel(
             scaling_range=scaling_range, channel1=signal_idx1,
             channel2=signal_idx2)
         slope = slope_log2_e / np.log2(np.e)
@@ -112,19 +120,18 @@ def plot_bicm(cm, m1, m2, j1, j2, scaling_range, ax, C_color='grey',
         #         intercept = cm.margin2_intercept[ind_m2, scaling_range].
 
         intercept = cm.intercept.sel(
-            m1=m1, m2=m2, scaling_range=scaling_range, channel1=signal_idx1,
-            channel2=signal_idx2)
+            m1=m1, m2=m2).isel(
+                scaling_range=scaling_range, channel1=signal_idx1,
+                channel2=signal_idx2)
 
         y0 = slope*x0 + intercept
         y1 = slope*x1 + intercept
 
         if cm.bootstrapped_obj is not None:
-            CI = getattr(cm, f"CIE_c{m1}{m2}").sel(
+            CI = getattr(cm, f"CIE_c{m1}{m2}").isel(
                 scaling_range=scaling_range, channel1=signal_idx1,
                 channel2=signal_idx2)
-            CI_legend = (
-                f"; [{_cp_string_format(CI[1], True)}, "
-                f"{_cp_string_format(CI[0], True)}]")
+            CI_legend = _get_CI_legend(CI)
         else:
             CI_legend = ""
 
@@ -201,7 +208,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
     x = cm.j[j_min:j_max]
 
     y = getattr(cm, f'C{m}').sel(
-        j=slice(j1, j2), scaling_range=range_idx, channel=signal_idx)
+        j=slice(j1, j2)).isel(scaling_range=range_idx, channel=signal_idx)
 
     if shift_gamint and ind_m == 0:
         y -= x * cm.gamint / np.log2(np.e)
@@ -217,13 +224,13 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
                          int(j2 - cm.bootstrapped_obj.j.min() + 1)]
 
         CI = getattr(cm, f'CIE_C{m}').sel(
-            j=slice(j1, j2), scaling_range=range_idx, channel=signal_idx)
+            j=slice(j1, j2)).isel(scaling_range=range_idx, channel=signal_idx)
 
         CI -= y
-        CI[:, 1] *= -1
-#         assert (CI < 0).sum() == 0
-        CI[CI < 0] = 0
-        CI = CI.transpose()
+        CI.loc[{Dim.CI: 'lower'}] *= -1
+        assert (CI < 0).sum() == 0
+        # CI[CI < 0] = 0
+        CI = CI.transpose(Dim.CI, Dim.j)
 
     else:
         CI = None
@@ -262,9 +269,7 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
         if cm.bootstrapped_obj is not None and plot_CI:
             CI = getattr(cm, f"CIE_c{m}")[range_idx, signal_idx]
 
-            CI_legend = (
-                f"; [{_cp_string_format(CI[1], True)}, "
-                f"{_cp_string_format(CI[0], True)}]")
+            CI_legend = _get_CI_legend(CI)
         else:
             CI_legend = ""
 
@@ -403,6 +408,9 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
 
         temp = mrq.get_values(scale).isel(channel=signal_idx).transpose(
             Dim.k_j, ...)
+
+        if Dim.scaling_range in temp.dims:
+            temp = temp.isel(scaling_range=0)
         # temp = values[i]
 
         X = ((np.arange(temp.sizes[Dim.k_j] + 1)
@@ -413,9 +421,9 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         X = np.tile(X[:, None], (1, 2))
 
         if not leader:
-            C = np.abs(temp)
+            C = np.abs(temp).values
         else:
-            C = np.copy(temp)
+            C = temp.values
 
         # Correcting potential p_leaders
         # if leader and not np.isinf(mrq.p_exp):
@@ -424,7 +432,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
 
-        qm = ax.pcolormesh(X, Y, C, cmap=cmap, norm=norm, rasterized=True)
+        qm = ax.pcolormesh(X, Y, C[:, None], cmap=cmap, norm=norm, rasterized=True)
 
         if nan_idx is not None and scale in nan_idx:
             idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
