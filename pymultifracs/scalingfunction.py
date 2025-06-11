@@ -381,14 +381,9 @@ class StructureFunction(ScalingFunction):
             idx_unreliable = N_useful < 3
 
             if idx_unreliable.any():
-
                 self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
                     ~idx_unreliable, np.nan)
 
-                # idx_unreliable = _expand_align(idx_unreliable, reference_order=self.dims[1:])
-                # self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
-
-        # self.values.where(np.isinf(self.values), np.nan)
         self.values.values[np.isinf(self.values)] = np.nan
 
     def _get_H(self):
@@ -802,10 +797,8 @@ class Cumulants(ScalingFunction):
                     self.values.loc[loc_dict] = moments.sel(m=m, j=j) - aux
 
             if idx_unreliable.any():
-                self.values.values[:, ind_j, ..., idx_unreliable] = np.nan
-                    # for i in range(idx_unreliable.shape[0]):
-                    #     self.values[ind_m, ind_j, :, idx_unreliable[i]] = \
-                    #         np.nan
+                self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
+                    ~idx_unreliable, np.nan)
 
         # self.values.where(np.isinf(self.values), np.nan)
         self.values.values[np.isinf(self.values)] = np.nan
