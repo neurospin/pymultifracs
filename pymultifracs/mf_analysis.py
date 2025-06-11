@@ -11,6 +11,7 @@ from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
 from .bootstrap import _need_redo_bootstrap
+from .bootstrap import _need_redo_bootstrap
 
 
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
@@ -110,6 +111,9 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     if R > 1:
         if (mrq.bootstrapped_obj is None
                 or _need_redo_bootstrap(mrq, R, scaling_ranges)):
+    if R > 1:
+        if (mrq.bootstrapped_obj is None
+                or _need_redo_bootstrap(mrq, R, scaling_ranges)):
 
             mrq.check_regularity(
                 scaling_ranges, weighted if weighted != 'bootstrap' else None,
@@ -130,6 +134,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         mfa_boot = mfa(
             mrq.bootstrapped_obj, scaling_ranges, bootstrap_weighted,
             n_cumul, q, None, 1, estimates, robust,
+            robust_kwargs, idx_reject, check_regularity=None)
             robust_kwargs, idx_reject, check_regularity=None)
     else:
         mfa_boot = None
