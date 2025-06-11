@@ -751,9 +751,9 @@ class Cumulants(ScalingFunction):
 
             T_X_j = np.abs(mrq.get_values(j, None))
             dims = T_X_j.dims
-            T_X_j = T_X_j.values
+            # T_X_j = T_X_j.values
 
-            np.log(T_X_j, out=T_X_j)
+            np.log(T_X_j.values, out=T_X_j.values)
 
             mask_nan = np.isnan(T_X_j)
             mask_nan |= np.isinf(T_X_j)
@@ -762,9 +762,9 @@ class Cumulants(ScalingFunction):
                 # delta = (mrq.interval_size - 1) // 2
                 mask_nan |= idx_reject[j]
 
-            T_X_j[mask_nan] = 0
+            T_X_j.values[mask_nan.values] = 0
 
-            N_useful = (~mask_nan).sum(axis=dims.index(Dim.k_j))
+            N_useful = (~mask_nan).sum(dim=Dim.k_j)
             idx_unreliable = N_useful < 3
 
             for m in self.m:
@@ -772,8 +772,8 @@ class Cumulants(ScalingFunction):
                 loc_dict = {Dim.m: m, Dim.j: j}
 
                 moments.loc[loc_dict] = xr.DataArray(
-                    np.sum(fast_power(T_X_j, m),
-                           axis=dims.index(Dim.k_j)) / N_useful,
+                    np.sum(fast_power(T_X_j.values, m),
+                           axis=dims.index(Dim.k_j)) / N_useful.values,
                     dims=[d for d in dims if d != Dim.k_j]
                 )
                 # np.divide(
