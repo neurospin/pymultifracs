@@ -81,7 +81,7 @@ class MultiResolutionQuantityBase(AbstractDataclass):
             if k in parameters
         })
 
-    def _sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
+    def _sup_coeffs(self, n_ranges, j_max, j_min, idx_reject):
 
         dims = [Dim.j, Dim.scaling_range]
         shape = [j_max-j_min+1, n_ranges]
@@ -388,7 +388,8 @@ class WaveletDec(MultiResolutionQuantityBase):
         if nan_idx is not None and nan_idx[j1].dtype == bool:
 
             nan_idx = {
-                scale: np.arange(nan_idx[scale].shape[0])[nan_idx[scale][:, 0, signal_idx]]
+                scale: np.arange(
+                    nan_idx[scale].shape[0])[nan_idx[scale][:, 0, signal_idx]]
                 for scale in nan_idx
             }
 
@@ -608,17 +609,6 @@ class WaveletDec(MultiResolutionQuantityBase):
             case _:
                 return super().__getattribute__(name)
 
-        # if name == 'n_rep':
-        #     if len(self.values) > 0:
-        #         return self.values[[*self.values][0]].shape[-1]
-
-        # if name == 'n_channel' and super().__getattribute__('n_channel') is None:
-        #     return 1
-
-
-    # def __getattr__(self, name):
-    #     return super().__getattr__(name)
-
 
 def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     """
@@ -697,7 +687,7 @@ class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, repr=False, default=None)
-    # ZPJCorr: np.ndarray = field(init=False, default=None)
+    ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
 

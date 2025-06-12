@@ -573,8 +573,8 @@ def compute_wse(wt_coefs, theta=0.5, omega=1):
     """
 
     wse_coef = multiresquantity.WaveletWSE(
-        n_channel=wt_coefs.n_channel, origin_mrq=wt_coefs, wt_name=wt_coefs.wt_name,
-        gamint=wt_coefs.gamint, theta=theta)
+        n_channel=wt_coefs.n_channel, origin_mrq=wt_coefs,
+        wt_name=wt_coefs.wt_name, gamint=wt_coefs.gamint, theta=theta)
 
     for scale, dwt in wt_coefs.values.items():
 

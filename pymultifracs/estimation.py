@@ -29,17 +29,13 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
 
     if weighted == 'bootstrap' and mrq.bootstrapped_obj is not None:
 
-        std = np.std(
-            mrq.bootstrapped_obj._sup_coeffs(
-                n_ranges, j_max, j_min, scaling_ranges, idx_reject
-                ).reshape(j_max-j_min+1, len(scaling_ranges), mrq.n_channel, -1),
-            axis=-1)[None, :]
+        std = mrq.std_values('_sup_coeffs')(n_ranges, j_max, j_min, idx_reject)
 
     else:
         std = None
 
     sup_coeffs = mrq._sup_coeffs(
-        n_ranges, j_max, j_min, scaling_ranges, idx_reject)
+        n_ranges, j_max, j_min, idx_reject)
 
     y = np.log2(sup_coeffs).sel(j=slice(j_min, j_max))
 
@@ -67,9 +63,11 @@ def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
     bootstrapped_obj = None
 
     if weighted == 'bootstrap':
+
         ws_boot = scalingfunction.StructureFunction(
             mrq=wt_coefs.bootstrapped_obj, q=np.array([p_exp]),
             scaling_ranges=scaling_ranges, weighted=None)
+
         bootstrapped_obj = utils.MFractalVar(ws_boot, None, None)
 
     wavelet_structure = scalingfunction.StructureFunction(

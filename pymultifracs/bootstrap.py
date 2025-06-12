@@ -34,12 +34,10 @@ def estimate_confidence_interval_from_bootstrap(
                           interval in percent (i.e. between 0 and 100)
     """
 
-    # bootstrap estimates shape (n_j, n_channel, n_rep)
     percent = 100.0 - confidence_level
 
-    # bootstrap_estimates: shape (..., n_CI)
-    # idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(axis=-1) < 3
-    idx_unreliable = (~np.isnan(bootstrap_estimates)).sum(dim=Dim.bootstrap) < 3
+    idx_unreliable = (
+        ~np.isnan(bootstrap_estimates)).sum(dim=Dim.bootstrap) < 3
 
     bootstrap_confidence_interval = xr.concat([
         bootstrap_estimates.quantile(
@@ -434,7 +432,7 @@ def _create_bootstrapped_obj(mrq, indices, min_scale, block_length, double,
 
         data = mrq.get_values(scale).transpose(Dim.k_j, Dim.channel, ...)
         dims = data.dims
-        shape = data.shape
+        # shape = data.shape
         data = data.values
 
         data = np.vstack((data, data[:block_length]))
