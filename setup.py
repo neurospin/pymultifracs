@@ -34,9 +34,7 @@ setup(name='pymultifracs',
       license='MIT',
       packages=['pymultifracs'],
       install_requires=[
-          'numpy', 'scipy', 'pywavelets', 'seaborn', 'xarray',
-          'typing_extensions'
-      ],
+          'numpy', 'scipy', 'pywavelets', 'seaborn', 'xarray'],
       extras_require=extras,
       zip_safe=False,
       python_requires='>=3.10',

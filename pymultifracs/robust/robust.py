@@ -1247,7 +1247,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
         combined = (left_reject | right_reject)[:idx_reject[j+1].shape[0]]
         idx_reject[j+1].values[combined] = True
-        print(combined.shape, idx_reject[j+1].shape)
+        # print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):
 
