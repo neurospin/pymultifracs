@@ -19,7 +19,7 @@ def test_unit_outlier_fbm(fbm_file):
     fname = fbm_file[0]
 
     with open(fname, 'rb') as f:
-        X = np.diff(np.load(f)[:, 0])
+        X = np.diff(np.load(f)[:, :2], axis=0)
 
     N = X.shape[0]
     j2 = int(np.log2(N) - 3)
@@ -29,9 +29,9 @@ def test_unit_outlier_fbm(fbm_file):
     mask = create_mask3(
         N, count=int(coverage), size=(N) // 100,
         align_scale=align_scale)
-    
+
     noise = np.diff(fbm(shape=N+1, H=.5), axis=0)[:, None]
-    noisy_X = X[:, None] + noise * mask[:, None] * 8
+    noisy_X = X + noise * mask[:, None] * 8
 
     scaling_ranges = [(3, j2-2)]
     pelt_beta = 5
@@ -43,10 +43,10 @@ def test_unit_outlier_fbm(fbm_file):
     _, idx_reject = get_outliers(
         WT, scaling_ranges, pelt_beta, threshold, pelt_jump,
         generalized=False)
-    
+
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning)
-    
+
         _, idx_reject = get_outliers(
             WT, scaling_ranges, pelt_beta, threshold, pelt_jump,
             generalized=True)
@@ -56,7 +56,7 @@ def test_unit_outlier_fbm(fbm_file):
     lwt = mfa(
         WT, scaling_ranges=scaling_ranges, robust=False, weighted=None,
         n_cumul=2, idx_reject=idx_reject)
-    
+
     WT.plot(3, j2-2, nan_idx=idx_reject)
 
 

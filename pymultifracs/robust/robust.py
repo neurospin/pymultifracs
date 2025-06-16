@@ -738,14 +738,14 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
         if scale not in cdf:
             continue
 
-        temp = cdf[scale][:, signal_idx, range_idx]
+        temp = cdf[scale].isel(channel=signal_idx, scaling_range=range_idx)
         # temp = np.exp(abs(temp - .5) ** 2)
 
         X = ((np.arange(temp.shape[0] + 1))
              * (2 ** (scale - j1 + 1)))
         X = np.tile(X[:, None], (1, 2))
 
-        C = np.copy(temp[:, None])
+        C = np.copy(temp)[:, None]
 
         if pval:
             C = -np.log(C)
@@ -1181,7 +1181,8 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
 
 def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
-                 robust_cm=False, verbose=False, generalized=False, remove_edges=False):
+                 robust_cm=False, verbose=False, generalized=False,
+                 remove_edges=False):
     """Detect outliers in a signal.
 
     Parameters
@@ -1232,7 +1233,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
               robust=robust_cm, min_j=min_scale, estimates='c')
 
     if verbose:
-        lwt.cumulants.plot(j1=min_scale, nrow=4, figsize=(3.3, 4), n_cumul=4)
+        lwt.cumulants.plot(j1=min_scale, nrow=4, figsize=(3.3, 4))
         plt.show()
 
     idx_reject = cluster_reject_leaders(
@@ -1269,12 +1270,12 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     if verbose:
 
-        idx_reject_pos = {
-            scale: np.arange(idx_reject[scale].shape[0])[idx_reject[scale][:, 0, 0]]
-            for scale in idx_reject
-        }
+        # idx_reject_pos = {
+        #     scale: np.arange(idx_reject[scale].shape[0])[idx_reject[scale][:, 0, 0]]
+        #     for scale in idx_reject
+        # }
 
-        leaders.plot(min_scale, j2, nan_idx=idx_reject_pos)
+        leaders.plot(min_scale, j2, nan_idx=idx_reject)
 
         plt.figure()
         plt.plot(idx_reject[min_scale][:, 0, 0])

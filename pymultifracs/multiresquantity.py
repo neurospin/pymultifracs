@@ -385,11 +385,16 @@ class WaveletDec(MultiResolutionQuantityBase):
             Colormap for the plot.
         """
 
+        isel_dict = {Dim.channel: signal_idx}
+
+        if Dim.scaling_range in nan_idx[j1].dims:
+            isel_dict[Dim.scaling_range] = 0
+
         if nan_idx is not None and nan_idx[j1].dtype == bool:
 
             nan_idx = {
                 scale: np.arange(
-                    nan_idx[scale].shape[0])[nan_idx[scale][:, 0, signal_idx]]
+                    nan_idx[scale][isel_dict].sizes[Dim.k_j])[nan_idx[scale][isel_dict]]
                 for scale in nan_idx
             }
 

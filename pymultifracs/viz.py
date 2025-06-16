@@ -443,7 +443,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
                     continue
 
                 ax.pcolormesh(
-                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]][:, None], alpha=1,
                     edgecolor='xkcd:blue')
 
     ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
