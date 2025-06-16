@@ -108,21 +108,3 @@ def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):
     plt.draw()
 
     plt.show()
-
-
-# def compute_hurst(wt_coefs, j1, j2, weighted):
-#     """
-#     Estimate the Hurst exponent using the wavelet structure function for q=2
-#     """
-
-#     structure_dwt = scalingfunction.StructureFunction(wt_coefs,
-#                                       np.array([2.0]),
-#                                       j1,
-#                                       j2,
-#                                       weighted)
-
-#     log2_Sj_2 = np.log2(structure_dwt.values[0, :])  # log2(S(j, 2))
-#     hurst_structure = log2_Sj_2
-#     hurst = structure_dwt.zeta[0]/2
-
-#     return hurst, structure_dwt, hurst_structure

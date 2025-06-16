@@ -822,13 +822,13 @@ class BiCumulants(BiScalingFunction):
 
         # Plot the surface.
         surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
-                            #   facecolors=colors,
-                            # lightsource=light,
-                            #    linewidth=1, vmin=0, vmax=1,
-                            #    rstride=1, cstride=1,
-                            # linestyle='-',
-                            #    zorder=1)
-        )
+                               #   facecolors=colors,
+                               # lightsource=light,
+                               #    linewidth=1, vmin=0, vmax=1,
+                               #    rstride=1, cstride=1,
+                               # linestyle='-',
+                               #    zorder=1)
+                               )
 
         # argmax = np.argmax(L, axis=-1)
         # ax.contour(X[..., argmax], Y[..., argmax], L[..., argmax], zdir='x')

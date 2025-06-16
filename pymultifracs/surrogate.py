@@ -1,3 +1,7 @@
+"""
+Authors: Merlin Dumeur <merlin@dumeur.net>
+"""
+
 import numpy as np
 
 

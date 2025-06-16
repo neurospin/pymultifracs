@@ -8,7 +8,7 @@ All rights reserved.
 
 Authors:
     Original authors of the Pelt python implementation.
-    Merlin Dumeur <merlin@dumeur.net>.
+    Merlin Dumeur <merlin@dumeur.net> (modifications of the PELT algorithm)
 """
 
 from math import floor
