@@ -135,37 +135,16 @@ def get_std(mrq, name):
         def wrapper(*args, **kwargs):
 
             var = attribute(*args, **kwargs)
-            # var = var.reshape(*var.shape[:-1], mrq.n_channel, -1)
-            # unreliable = (~np.isnan(var)).sum(axis=-1) < 3
-            # std = np.nanstd(var, ddof=1, axis=-1)
-            # std[unreliable] = np.nan
             std = np.nanstd(
                 var, axis=var.dims.index(Dim.bootstrap), ddof=1)
-            # std.where((~np.isnan(attribute)).sum(dim=Dim.bootstrap))
             std.values[(~np.isnan(var)).sum(dim=Dim.bootstrap) < 3] = np.nan
 
             return std
 
         return wrapper
 
-    # n_rep = attribute.shape[-1]
-
-    # # shape (..., n_rep) -> (..., n_channel, n_rep_per_sig)
-    # attribute = attribute.reshape(*attribute.shape[:-1], mrq.n_channel, -1)
-    # TODO: improve the following section with xarray
-    # if (attribute.shape[-2] != mrq.n_channel
-    #         or attribute.shape[-1] * attribute.shape[-2] != mrq.n_rep):
-    #     attribute = reshape(attribute, mrq.n_channel)
-
-    # unreliable = (~np.isnan(attribute)).sum(axis=-1) < 3
-    # std = np.nanstd(
-    #     attribute, axis=attribute.dims.index(Dim.bootstrap), ddof=1)
-
     std = attribute.std(skipna=True, dim=Dim.bootstrap, ddof=1)
-    # std.where((~np.isnan(attribute)).sum(dim=Dim.bootstrap), np.nan)
     std.values[(~np.isnan(attribute)).sum(dim=Dim.bootstrap) < 3] = np.nan
-
-    # std[unreliable] = np.nan
 
     return std
 
@@ -187,7 +166,6 @@ def get_confidence_interval(mrq, name):
     if mrq is None:
         return None
 
-    # shape (n_scale, n_rep)
     attribute = getattr(mrq, name)
 
     if callable(attribute):
@@ -235,12 +213,8 @@ def _get_align_slice(attribute, mrq, ref_mrq):
     ref_mrq_start = 0
 
     if (min_diff := mrq.j.min() - ref_mrq.j.min()) > 0:
-        # mrq_slice = np.s_[:]
-        # ref_mrq_slice = np.s_[mrq.j.min()-ref_mrq.j.min():]
         ref_mrq_start = min_diff
     elif min_diff < 0:
-        # mrq_slice = np.s_[ref_mrq.j.min()-mrq.j.min():]
-        # ref_mrq_slice = np.s_[:]
         mrq_start = -min_diff
 
     mrq_end = mrq.j.shape[0]
