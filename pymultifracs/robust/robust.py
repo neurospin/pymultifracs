@@ -792,132 +792,6 @@ def plot_cdf(cdf, j1, j2, ax=None, vmin=None, vmax=None,
         cb.ax.tick_params(which='minor', right=False)
 
 
-# def cluster_reject_leaders(j1, j2, p_exp, cm, coefs, leaders, verbose,
-#                            generalized=False):
-
-#     ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
-#     ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
-
-#     if generalized:
-
-#         j_array, C1_array, scale, shape = get_location_scale_shape(cm)
-
-#         CDF = {
-#             j: gen_cdf(
-#             np.log(leaders.values[j][:, None]),
-#             C1_array[j_array == j] - ZPJCorr[j_array==j],
-#             scale[j_array==j], shape[j_array==j])
-#             for j in range(j1, j2+1)
-#         }
-
-#     else:
-#         j_array, C1_array, C2_array = get_location_scale(cm)
-
-#         CDF = {
-#             j: normal_cdf(
-#             np.log(leaders.values[j][:, None]),
-#             C1_array[j_array == j] - ZPJCorr[j_array==j],
-#             np.sqrt(C2_array[j_array == j]),
-#             p=1)
-#             for j in range(j1, j2+1)
-#         }
-
-#     if verbose:
-#         plt.figure()
-#         plot_cdf(CDF, j1, j2, pval=False)
-
-#     idx_reject = {
-#         j: np.zeros_like(CDF[j], dtype=bool) for j in range(j1, j2+1)
-#     }
-
-#     agg = compute_all_aggregate(CDF, j1, j2, leader=True)
-
-#     # mask_nan = np.isnan(agg[:, :agg.shape[1] // 2, 0, 0]).any(axis=1)
-#     mask_nan = np.isnan(agg[:, :, 0, 0]).any(axis=1)
-
-#     clusterer = hdbscan.HDBSCAN(
-#         cluster_selection_epsilon=5, metric='euclidean',
-#         min_cluster_size=(~mask_nan).sum() // 2 + 1,
-#         min_samples=1, cluster_selection_method='eom',
-#         allow_single_cluster=True, gen_min_span_tree=verbose,
-#         algorithm='boruvka_balltree')
-
-#     # clusterer = hdbscan.HDBSCAN(
-#     #     cluster_selection_epsilon=.9, metric='minkowski', min_cluster_size=1920,
-#     #     min_samples=1,
-#     #     cluster_selection_method='eom', p=2,
-#     #     allow_single_cluster=True, gen_min_span_tree=verbose)
-
-#     for idx_signal, idx_range in tqdm(np.ndindex(CDF[j1].shape[1:])):
-
-#         standard_embedding = umap.UMAP(
-#             n_components=j2-j1,
-#             n_neighbors=20,
-#             metric='manhattan',
-#             n_epochs=10000,
-#             set_op_mix_ratio=.5,
-#             min_dist=0,
-#         # ).fit_transform(agg[~mask_nan, :agg.shape[1] // 2, idx_signal, idx_range])
-#         ).fit_transform(agg[~mask_nan, :, idx_signal, idx_range])
-
-#         if verbose:
-#             plt.figure()
-#             N = (~mask_nan).sum()
-#             cmap = sns.color_palette('inferno', as_cmap=True)
-#             ax = sns.scatterplot(
-#                 x=standard_embedding[:, 0], y=standard_embedding[:, 1],
-#                 s=30, color=cmap(np.arange(N)/N), legend=False)
-#             ax.set(xlabel='1st embedding dimension',
-#                    ylabel='2nd embedding dimension',
-#                    title='UMAP embedding')
-
-#         p = clusterer.fit_predict(standard_embedding)
-
-#         # p = clusterer.fit_predict(agg[~mask_nan, :28, idx_signal, idx_range])
-
-#         if verbose and idx_signal == 0 and idx_range == 0:
-#             plt.figure()
-#             sns.histplot(clusterer.minimum_spanning_tree_.to_pandas().distance.values, log=True)
-
-#         # First slice to mask_nan shape, which correspond to the
-#         idx_reject[j1][:mask_nan.shape[0]][~mask_nan, idx_signal, idx_range] = p == -1
-
-#     # if verbose:
-
-#     #     print(agg[~idx_reject[j1][:mask_nan.shape[0], 0, 0]].shape)
-
-#     #     standard_embedding = umap.UMAP(
-#     #         n_components=j2-j1, #agg.shape[1],
-#     #         n_neighbors=20,
-#     #         metric='manhattan',
-#     #         n_epochs=100,
-#     #         set_op_mix_ratio=.5,
-#     #         min_dist=0,
-#     #     # ).fit_transform(agg[~mask_nan, :agg.shape[1] // 2, idx_signal, idx_range])
-#     #     ).fit_transform(agg[~(idx_reject[j1][:mask_nan.shape[0], idx_signal, idx_range] | mask_nan), :, idx_signal, idx_range])
-
-#     #     plt.figure()
-#     #     N = (~mask_nan).sum()
-#     #     cmap = sns.color_palette('inferno', as_cmap=True)
-#     #     ax = sns.scatterplot(x=standard_embedding[:, 0], y=standard_embedding[:, 1],
-#     #                          s=30, legend=False)
-#     #     ax.set(xlabel='1st embedding dimension', ylabel='2nd embedding dimension', title='UMAP embedding')
-
-#     #     p = clusterer.fit_predict(standard_embedding)
-
-#     #     # p = clusterer.fit_predict(agg[~mask_nan, :28, idx_signal, idx_range])
-
-#     #     if verbose and idx_signal == 0 and idx_range == 0:
-#     #         plt.figure()
-#     #         sns.histplot(clusterer.minimum_spanning_tree_.to_pandas().distance.values, log=True)
-
-#     return idx_reject
-
-
-# def normal_cdf(x, mu, sigma, p):
-#     return .5 * (1 + erf((x - p * mu) / (p * sigma * np.sqrt(2))))
-
-
 def gen_cdf(x, mu, alpha, beta):
     return (
         .5 + np.sign(x - mu) / 2
@@ -935,13 +809,13 @@ def compute_aggregate(CDF, j1, j2):
         np.zeros((max_index, j2-j1+1,
                   *(s for d, s in CDF[j1].sizes.items() if d != Dim.k_j))),
         dims=(Dim.k_j, Dim.j, *(d for d in CDF[j2].dims if d != Dim.k_j)),
-        # coords=CDF[j2].coords
         coords={Dim.j: np.arange(j1, j2+1)},
     )
 
     agg[{Dim.j: 0}] = CDF[j1].isel({Dim.k_j: np.s_[:max_index]})
 
-    i = 0
+    # i = 0
+
     for n in range(1, j2-j1+1):
 
         xp = np.arange(CDF[j1+n].sizes[Dim.k_j]) + .5
@@ -954,7 +828,6 @@ def compute_aggregate(CDF, j1, j2):
                *[CDF[j1].sizes[s]
                  for s in [Dim.channel, Dim.scaling_range]]):
 
-            # x = np.sort(np.r_[*[xp - 2 ** -n + i * 2 ** (-n+1) for k in range(2 ** n)]]
             idx_dict = {Dim.channel: idx_signal, Dim.scaling_range: idx_range}
             agg[{Dim.j: n, **idx_dict}] = np.interp(
                 x, xp,
@@ -971,33 +844,26 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
     from .hilbert import HilbertCost, w_hilbert
     import ruptures as rpt
 
-    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())
-    # idx_j = np.s_[cm.j.min() - min(leaders.values):
-    #               cm.j.max() - min(leaders.values) + 1]
-
-    # ZPJCorr = leaders._correct_pleaders(cm.j.min(), cm.j.max())#[..., idx_j]
-    # ZPJCorr = np.log(ZPJCorr).transpose(2, 0, 1)
-
     if generalized:
 
-        j_array, C1_array, scale, shape = get_location_scale_shape(cm)
+        _, C1_array, scale, shape = get_location_scale_shape(cm)
 
         CDF = {
             j: gen_cdf(
                 np.log(leaders.get_values(j)),
-                C1_array.sel(j=j),  #- ZPJCorr[j_array==j],
+                C1_array.sel(j=j),
                 scale.sel(j=j), shape.sel(j=j))
             for j in range(j1, j2+1)
         }
 
     else:
 
-        j_array, C1_array, scale = get_location_scale(cm)
+        _, C1_array, scale = get_location_scale(cm)
 
         CDF = {
             j: normal_cdf(
                 np.log(leaders.get_values(j)),
-                C1_array.sel(j=j),  # - ZPJCorr[j_array==j],
+                C1_array.sel(j=j),
                 np.sqrt(scale.sel(j=j)),
                 p=1)
             for j in range(j1, j2+1)
@@ -1021,16 +887,9 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
     if remove_edges:
         idx_reject = get_edge_reject(leaders)
     else:
-        idx_reject = {
-            j: xr.zeros_like(CDF[j], dtype=bool) for j in CDF
-            # j: np.zeros((CDF[j].shape[0], CDF[j].shape[2]), dtype=bool)
-            # for j in CDF
-        }
+        idx_reject = {j: xr.zeros_like(CDF[j], dtype=bool) for j in CDF}
 
     agg = compute_aggregate(CDF, j1, j2)
-    # max_index = agg.shape[0]
-
-    # max_index = CDF[j2].shape[0] * 2 ** (j2 - j1)
 
     for idx_range, idx_signal in np.ndindex(
             CDF[j1].sizes[Dim.scaling_range], CDF[j1].sizes[Dim.channel]):
@@ -1078,9 +937,14 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         result[-1] -= 1
 
         if verbose:
-            rpt.display(agg.isel(channel=idx_signal, scaling_range=idx_range, j=0).values[~mask_nan_global], [], result, figsize=(7, 2))
+            rpt.display(
+                agg.isel(channel=idx_signal, scaling_range=idx_range, j=0
+                         ).values[~mask_nan_global],
+                [], result, figsize=(7, 2))
             kernel_matrix = distance.squareform(distance.pdist(
-                agg.isel(scaling_range=idx_range, channel=idx_signal).values[~mask_nan_global], metric=w_hilbert, w=w))
+                agg.isel(scaling_range=idx_range, channel=idx_signal
+                         ).values[~mask_nan_global],
+                metric=w_hilbert, w=w))
             plt.show()
             sns.heatmap(kernel_matrix)
             plt.vlines(result, 0, max(result))
@@ -1090,7 +954,7 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         result_j = [reachable_index[r] for r in result]
         result_j[-1] += 1
 
-        N_bins = ceil(1.5 * agg[~mask_nan_global].shape[0] ** (1/3))
+        # N_bins = ceil(1.5 * agg[~mask_nan_global].shape[0] ** (1/3))
 
         for j in agg.j:
 
@@ -1102,8 +966,6 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
 
             stat = []
             median = []
-
-            # mask_nan = np.isnan(agg[:, j, idx_signal, idx_range])
 
             samples = []
 
@@ -1117,14 +979,13 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                 continue
 
             right_edge = agg.isel(
-                scaling_range=idx_range, channel=idx_signal).sel(j=j).max(skipna=True, dim=Dim.k_j)
+                scaling_range=idx_range, channel=idx_signal).sel(j=j).max(
+                    skipna=True, dim=Dim.k_j)
             # np.nanmax(agg[:, j, idx_range, idx_signal])
             # bins = np.sort(
             #     np.r_[1, 1-np.geomspace(1 - right_edge, 1, N_bins-1)])
 
-            for i in range(len(samples)):
-
-                samp = samples[i]
+            for i, samp in enumerate(samples):
 
                 # python >= 3.11
                 # other_samples = np.r_[*samples[:i], *samples[i+1:]]
@@ -1243,37 +1104,38 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
 
     for j in range(min(idx_reject), max(idx_reject)):
 
-        right_reject = idx_reject[j][1::2]
-        left_reject = idx_reject[j][:right_reject.shape[0] * 2:2]
+        right_reject = idx_reject[j].isel({Dim.k_j: np.s_[1::2]})
+        left_reject = idx_reject[j].isel(
+            {Dim.k_j: np.s_[:right_reject.sizes[Dim.k_j] * 2:2]})
 
-        combined = (left_reject | right_reject)[:idx_reject[j+1].shape[0]]
+        combined = (left_reject | right_reject)[
+            {Dim.k_j: np.s_[:idx_reject[j+1].sizes[Dim.k_j]]}]
         idx_reject[j+1].values[combined] = True
         # print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):
 
-        for k in range(3):
+        spread = 3
 
+        for k in range(spread):
+
+            # right-side
             start = k
-            end = -3 + k
+            end = -spread + k
 
-            idx_reject[j][3:] |= idx_reject[j][start:end]
+            idx_reject[j][{Dim.k_j: np.s_[spread:]}] |= \
+                idx_reject[j][{Dim.k_j: np.s_[start:end]}]
 
-        for k in range(3):
-
-            start = k+1
-            end = -2 + k
+            # left-side
+            start = k + 1
+            end = -spread + 1 + k
             if not end:
                 end = None
 
-            idx_reject[j][:-3] |= idx_reject[j][start:end]
+            idx_reject[j][{Dim.k_j: np.s_[:-spread]}] |= \
+                idx_reject[j][{Dim.k_j: np.s_[start:end]}]
 
     if verbose:
-
-        # idx_reject_pos = {
-        #     scale: np.arange(idx_reject[scale].shape[0])[idx_reject[scale][:, 0, 0]]
-        #     for scale in idx_reject
-        # }
 
         leaders.plot(min_scale, j2, nan_idx=idx_reject)
 

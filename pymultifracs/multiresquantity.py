@@ -392,14 +392,13 @@ class WaveletDec(MultiResolutionQuantityBase):
             if Dim.scaling_range in nan_idx[j1].dims:
                 isel_dict[Dim.scaling_range] = 0
 
-            if nan_idx[j1].dtype == bool:
+            # if nan_idx[j1].dtype == bool:
 
-                nan_idx = {
-                    scale: np.arange(
-                        nan_idx[scale][isel_dict].sizes[Dim.k_j])[
-                            nan_idx[scale][isel_dict]]
-                    for scale in nan_idx
-                }
+                def ufunc(idx_nan):
+                    return np.arange(idx_nan.sizes[Dim.k_j])[
+                        idx_nan.isel(isel_dict)]
+
+                nan_idx = {scale: ufunc(nan_idx[scale]) for scale in nan_idx}
 
         viz.plot_coef(
             self, j1, j2, ax=ax, vmin=vmin, vmax=vmax, cbar=cbar,
