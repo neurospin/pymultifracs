@@ -1278,6 +1278,7 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
         leaders.plot(min_scale, j2, nan_idx=idx_reject)
 
         plt.figure()
-        plt.plot(idx_reject[min_scale][:, 0, 0])
+        plt.plot(idx_reject[min_scale].isel(channel=0, scaling_range=0))
+        plt.show()
 
     return leaders, idx_reject
