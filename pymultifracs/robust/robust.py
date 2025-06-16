@@ -1078,7 +1078,7 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         result[-1] -= 1
 
         if verbose:
-            rpt.display(agg.isel(channel=idx_signal, scaling_range=idx_range, j=0), [], result, figsize=(7, 2))
+            rpt.display(agg.isel(channel=idx_signal, scaling_range=idx_range, j=0).values[~mask_nan_global], [], result, figsize=(7, 2))
             kernel_matrix = distance.squareform(distance.pdist(
                 agg.isel(scaling_range=idx_range, channel=idx_signal).values[~mask_nan_global], metric=w_hilbert, w=w))
             plt.show()
