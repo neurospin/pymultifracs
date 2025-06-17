@@ -51,5 +51,5 @@ zip-safe = false
 package-dir = { "" = "pymultifracs" }
 packages = { find = { where = ["pymultifracs"] } }
 
-[tool.setuptools.dynamic]
-version = { file = "pymultifracs/_version.py", attr = "__version__" }
+[tool.setuptools_scm]
+version_file = "pymultifracs/_version.py"
