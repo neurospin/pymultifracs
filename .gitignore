@@ -41,6 +41,8 @@ examples/Demo-mne.ipynb
 MF_Synthesis/
 
 notebooks/figures/
+notebooks/__marimo__/
+*/cython_debug/
 
 pymultifracs/todo.txt
 
