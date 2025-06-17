@@ -48,8 +48,9 @@ doc = ["sphinx", "numpydoc", "pydata-sphinx-theme", "sphinx-gallery", "joblib", 
 
 [tool.setuptools]
 zip-safe = false
-package-dir = { "" = "pymultifracs" }
-packages = { find = { where = ["pymultifracs"] } }
+
+[tool.setuptools.packages.find]
+include = ["pymultifracs*"]
 
 [tool.setuptools_scm]
 write_to = "pymultifracs/_version.py"
