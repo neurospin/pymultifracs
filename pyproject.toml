@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=64", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -52,4 +52,4 @@ package-dir = { "" = "pymultifracs" }
 packages = { find = { where = ["pymultifracs"] } }
 
 [tool.setuptools_scm]
-version_file = "pymultifracs/_version.py"
+write_to = "pymultifracs/_version.py"
