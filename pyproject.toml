@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel", "setuptools_scm"]
+requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -52,5 +52,5 @@ zip-safe = false
 [tool.setuptools.packages.find]
 include = ["pymultifracs*"]
 
-[tool.setuptools_scm]
-write_to = "pymultifracs/_version.py"
+[tool.setuptools.dynamic]
+version = { attr = "pymultifracs._version.__version__" }
