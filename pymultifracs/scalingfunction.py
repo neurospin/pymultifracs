@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2, compute_RMSE
 from .autorange import compute_Lambda, compute_R, find_max_lambda
-from .utils import fast_power, fixednansum, \
-    AbstractDataclass, Formalism, Dim, scaling_range_to_str
+from .utils import fast_power, mask_reject, isclose, fixednansum, \
+    AbstractDataclass, Formalism, Dim, _expand_align, scaling_range_to_str
 from . import multiresquantity, viz
 
 
@@ -348,11 +348,7 @@ class StructureFunction(ScalingFunction):
             Dim.q: self.q,
             Dim.j: self.j,
             Dim.scaling_range: [scaling_range_to_str(s)
-                                for s in self.scaling_ranges]
-            Dim.q: self.q,
-            Dim.j: self.j,
-            Dim.scaling_range: [scaling_range_to_str(s)
-                                for s in self.scaling_ranges]
+                                for s in self.scaling_ranges],
         }
 
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
