@@ -21,7 +21,8 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
 
     Parameters
     ----------
-    mrq : :class:`.MultiResolutionQuantityBase` | List[:class:`.MultiResolutionQuantityBase`]
+    mrq : :class:`.MultiResolutionQuantityBase` | \
+    List[:class:`.MultiResolutionQuantityBase`]
         Multi-resolution quantity to analyze, or list of MRQs. If it is a list,
         will return a list of the output of the function applied to each MRQ
         individually.
@@ -108,6 +109,9 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     j1 = min(sr[0] for sr in scaling_ranges)
 
     if R > 1:
+
+        from .bootstrap import _need_redo_bootstrap
+
         if (mrq.bootstrapped_obj is None
                 or _need_redo_bootstrap(mrq, R, scaling_ranges)):
 

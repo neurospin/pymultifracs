@@ -1,3 +1,56 @@
 [build-system]
-requires = ["setuptools >= 64"]
+requires = ["setuptools>=64", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymultifracs"
+dynamic = ["version"]
+description = "Implements wavelet based fractal and multifractal analysis of 1d signals."
+readme = "README.rst"
+authors = [
+    { name = "Merlin Dumeur" },
+    { name = "Omar Darwiche Domingues" },
+    { name = "Roberto Fabio Leonarduzzi" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pywavelets",
+    "seaborn",
+    "xarray"
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3"
+]
+
+[project.urls]
+Documentation = "https://www.neurospin.fr/pymultifracs/"
+Source = "https://github.com/neurospin/pymultifracs"
+Tracker = "https://github.com/neurospin/pymultifracs/issues/"
+
+[project.optional-dependencies]
+bootstrap = ["recombinator"]
+robust = ["statsmodels", "ruptures", "numba", "tqdm"]
+test = ["pytest", "pytest-xdist", "pytest-cov", "statsmodels", "recombinator", "joblib"]
+doc = ["sphinx", "numpydoc", "pydata-sphinx-theme", "sphinx-gallery", "joblib", "pooch", "myst-parser"]
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["pymultifracs*"]
+
+[tool.setuptools_scm]
+write_to = "pymultifracs/_version.py"

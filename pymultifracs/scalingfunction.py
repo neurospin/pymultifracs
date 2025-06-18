@@ -14,7 +14,6 @@ from scipy import special
 
 import matplotlib.pyplot as plt
 
-# from .multiresquantity import WaveletDec
 from .regression import prepare_weights, prepare_regression, \
     linear_regression, compute_R2, compute_RMSE
 from .autorange import compute_Lambda, compute_R, find_max_lambda
@@ -85,9 +84,6 @@ class AbstractScalingFunction(AbstractDataclass):
 
     def __getattr__(self, name):
 
-        # if name == 'n_rep':
-        #     return self.intercept.shape[-1]
-
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
 
@@ -105,7 +101,7 @@ class ScalingFunction(AbstractScalingFunction):
     regularity_suffix: str = field(init=False)
     gamint: float = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq, min_j):  # pylint: disable=W0613
+    def __post_init__(self, idx_reject, mrq, min_j):
 
         self.gamint = mrq.gamint
         self.n_channel = mrq.n_channel
@@ -223,7 +219,7 @@ class ScalingFunction(AbstractScalingFunction):
         #     (values.shape[0], len(self.scaling_ranges),
         #      values.shape[-1]))
 
-        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        x, n_ranges, j_min, j_max, _, _ = prepare_regression(
             self.scaling_ranges, self.j, values.dims)
 
         # self.intercept = np.zeros_like(slope)
@@ -352,7 +348,7 @@ class StructureFunction(ScalingFunction):
             Dim.q: self.q,
             Dim.j: self.j,
             Dim.scaling_range: [scaling_range_to_str(s)
-                                for s in self.scaling_ranges]
+                                for s in self.scaling_ranges],
         }
 
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
@@ -363,13 +359,13 @@ class StructureFunction(ScalingFunction):
 
     def _compute(self, mrq, idx_reject):
 
-        for ind_j, j in enumerate(self.j):
+        for j in self.j:
 
             c_j = mrq.get_values(j, idx_reject)
 
             # c_j = _expand_align(c_j, reference_order=self.dims[1:])
 
-            for ind_q, q in enumerate(self.q):
+            for q in self.q:
 
                 self.values.loc[{Dim.q: q, Dim.j: j}] = xr.DataArray(
                     np.log2(np.nanmean(fast_power(np.abs(c_j.values), q),
@@ -485,7 +481,7 @@ class StructureFunction(ScalingFunction):
 
         counter = 0
 
-        for ind_q, q in enumerate(self.q):
+        for q in self.q:
 
             if q == 0.0 and ignore_q0:
                 continue
@@ -501,7 +497,7 @@ class StructureFunction(ScalingFunction):
                 CI = self.CIE_S_q(q).sel(j=slice(j_min_CI, j_max_CI)).isel(
                     scaling_range=scaling_range, channel=signal_idx)
 
-                CI -= y#[:, None]
+                CI -= y
                 CI.loc[{Dim.CI: 'lower'}] *= -1
                 assert (CI < 0).sum() == 0
                 CI = CI.transpose(Dim.CI, Dim.j)
@@ -712,15 +708,12 @@ class Cumulants(ScalingFunction):
 
         from . import robust  # pylint: disable=C0415
 
-        for ind_j, j in enumerate(self.j):
+        for j in self.j:
 
             T_X_j = np.abs(mrq.get_values(j))
             dims = T_X_j.dims
             T_X_j = T_X_j.values
             # T_X_j = T_X_j[:, None, :]
-
-            # if self.formalism == 'wavelet p-leader':
-            #     T_X_j = T_X_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             np.log(T_X_j, out=T_X_j)
 
@@ -747,7 +740,7 @@ class Cumulants(ScalingFunction):
 
         moments = xr.zeros_like(self.values)
 
-        for ind_j, j in enumerate(self.j):
+        for j in self.j:
 
             T_X_j = np.abs(mrq.get_values(j, None))
             dims = T_X_j.dims
@@ -776,13 +769,6 @@ class Cumulants(ScalingFunction):
                            axis=dims.index(Dim.k_j)) / N_useful.values,
                     dims=[d for d in dims if d != Dim.k_j]
                 )
-                # np.divide(
-                #     moments[ind_m, ind_j], N_useful, out=moments[ind_m, ind_j])
-
-                # idx_unreliable = N_useful < 3
-
-                # for i in range(idx_unreliable.shape[0]):
-                #     moments[ind_m, ind_j, i, idx_unreliable[i]] = np.nan
 
                 if m == 1:
                     self.values.loc[loc_dict] = moments.sel(m=m, j=j)
@@ -977,20 +963,17 @@ class MFSpectrum(ScalingFunction):
 
         # shape (n_q, n_scales, n_rep)
 
-        for ind_j, j in enumerate(self.j):
+        for j in self.j:
 
             # nj = mrq.nj[j]
             mrq_values_j = mrq.get_values(j, idx_reject)
             dims = mrq_values_j.dims
-            coords = mrq_values_j.coords
+            # coords = mrq_values_j.coords
             mrq_values_j = np.abs(mrq_values_j.values)
 
             # if 'scaling_range' not in dim_names:
             #     dim_names.insert(1, 'scaling_range')
             #     mrq_values_j = mrq_values_j[:, None]
-
-            # if self.formalism == 'wavelet p-leader':
-            #     mrq_values_j = mrq_values_j * mrq.ZPJCorr[None, :, :, ind_j]
 
             # mrq_values_j = mask_reject(
             #     mrq_values_j, idx_reject, j, mrq.interval_size)
@@ -1028,7 +1011,8 @@ class MFSpectrum(ScalingFunction):
             new_dims = [d for d in dims if d != Dim.k_j]
 
             self.V.loc[{Dim.j: j}] = xr.DataArray(
-                fixednansum(R_j * np.log2(mrq_values_j)[None, :], axis=dims.index(Dim.k_j)),
+                fixednansum(R_j * np.log2(mrq_values_j)[None, :],
+                            axis=dims.index(Dim.k_j)),
                 dims=new_dims)
 
             self.U.loc[{Dim.j: j}] = np.log2(N_useful) + xr.DataArray(
@@ -1067,13 +1051,13 @@ class MFSpectrum(ScalingFunction):
         """
         Returns :math:`\\mathcal{L}(q)`.
         """
-        return self.Dq#.sel(q=q, method='nearest', tolerance=.1)
+        return self.Dq  # .sel(q=q, method='nearest', tolerance=.1)
 
     def h_q(self):
         """
         Returns :math:`h(q)`.
         """
-        return self.hq#.sel(q=q, method='nearest', tolerance=.1)
+        return self.hq  # .sel(q=q, method='nearest', tolerance=.1)
 
     def plot(self, filename=None, ax=None, fmt='ko-', range_idx=0,
              signal_idx=0, shift_gamint=False, **plot_kwargs):
@@ -1113,21 +1097,25 @@ class MFSpectrum(ScalingFunction):
             CI_Dq -= self.D_q()
             CI_hq -= self.h_q()
 
-            CI_Dq = CI_Dq.isel(scaling_range=range_idx, channel=signal_idx).copy()
-            CI_hq = CI_hq.isel(scaling_range=range_idx, channel=signal_idx).copy()
+            CI_Dq = CI_Dq.isel(
+                scaling_range=range_idx, channel=signal_idx).copy()
+            CI_hq = CI_hq.isel(
+                scaling_range=range_idx, channel=signal_idx).copy()
 
             CI_Dq.loc[{Dim.CI: 'lower'}] *= -1
             CI_hq.loc[{Dim.CI: 'lower'}] *= -1
 
-            #TODO: scale using rtol with actual Dq and hq values
+            # TODO: scale using rtol with actual Dq and hq values
             CI_Dq.values[(CI_Dq < 0) & np.isclose(0, CI_Dq, atol=5e-2)] = 0
             CI_hq.values[(CI_hq < 0) & np.isclose(0, CI_hq, atol=5e-2)] = 0
 
             # CI_Dq[(CI_Dq < 0) & (CI_Dq > -1e-12)] = 0
             # CI_hq[(CI_hq < 0) & (CI_hq > -1e-12)] = 0
 
-            assert (CI_Dq < 0).sum() == 0, "Estimate outside confidence interval"
-            assert (CI_hq < 0).sum() == 0
+            assert (CI_Dq < 0).sum() == 0, \
+                "Estimate outside confidence interval"
+            assert (CI_hq < 0).sum() == 0, \
+                "Estimate outside confidence interval"
 
             CI_Dq = CI_Dq.transpose(Dim.CI, Dim.q)
             CI_hq = CI_hq.transpose(Dim.CI, Dim.q)

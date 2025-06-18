@@ -82,27 +82,22 @@ def test_bootstrap_weighting(mrw_file):
 @pytest.mark.bootstrap
 def test_autorange(mrw_file):
 
-    with open('tests/mrw_config.json', 'rb') as f:
-        config_list = json.load(f)
+    with open(mrw_file[0], 'rb') as f:
+        X = np.load(f)
 
-    for i, fname in enumerate(mrw_file):
+    WT = wavelet_analysis(X[:, :20])
+    WTpL = WT.get_leaders(2)
 
-        with open(fname, 'rb') as f:
-            X = np.load(f)
+    j2 = WTpL.max_scale_bootstrap()
+    scaling_ranges = [(2, j2), (3, j2)]
 
-        WT = wavelet_analysis(X[:, :20])
-        WTpL = WT.get_leaders(2)
+    WT = WT.auto_integrate(scaling_ranges)
 
-        j2 = WTpL.max_scale_bootstrap()
-        scaling_ranges = [(2, j2), (3, j2)]
+    dwt, lwt = mfa(
+        [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
+        R=5, estimates='sc')
 
-        WT = WT.auto_integrate(scaling_ranges)
-
-        dwt, lwt = mfa(
-            [WT, WTpL], scaling_ranges, weighted='bootstrap', n_cumul=2,
-            R=5, estimates='sc')
-
-        lwt.cumulants.find_best_range()
-        lwt.cumulants.find_best_range(True)
-        dwt.structure.find_best_range()
-        dwt.structure.find_best_range(True)
+    lwt.cumulants.find_best_range()
+    lwt.cumulants.find_best_range(True)
+    dwt.structure.find_best_range()
+    dwt.structure.find_best_range(True)

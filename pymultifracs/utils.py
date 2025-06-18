@@ -72,6 +72,7 @@ class DimensionNames:
             case _:
                 return self.__getattribute__(name)
 
+
 Dim = DimensionNames()
 
 # class Dim(Enum):
@@ -92,11 +93,24 @@ class Formalism(Enum):
 
 
 def scaling_range_to_str(scaling_range):
+    """
+    Maps a scaling range tuple to a string
+    """
     return f"{scaling_range[0]:d}-{scaling_range[1]:d}"
 
 
-def str_to_scaling_range(input):
-    return tuple(int(i) for i in input.split('-'))
+def str_to_scaling_range(sr):
+    """
+    Maps a scaling range string to a tuple
+    """
+
+    if not isinstance(sr, str):
+        raise ValueError('Input argument should be a string')
+
+    if '-' not in sr:
+        raise ValueError('Input argument should be of the form "j1-j2"')
+
+    return tuple(int(i) for i in sr.split('-'))
 
 
 @dataclass
@@ -108,7 +122,10 @@ class AbstractDataclass:
 
     @abstractmethod
     def get_n_bootstrap(self):
-        pass
+        """
+        Returns the number of bootstrapping repetition, or 0 if no
+        bootstrapping
+        """
 
     def _check_enough_rep_bootstrap(self):
 
@@ -388,10 +405,11 @@ def scale_position(time, scale_min, scale_max, wt_leaders=None):
 
     return out_idx, out_leader
 
+
 def _expand_align(*arrays, reference_order=None):
     """
-    Expand xarrays to the covering list of dimensions, and then align their order
-    to enable broadcasting.
+    Expand xarrays to the covering list of dimensions, and then align their
+    order to enable broadcasting.
     """
 
     out = []
@@ -419,6 +437,7 @@ def _expand_align(*arrays, reference_order=None):
         return out[0]
 
     return out
+
 
 def mask_reject(values, idx_reject, j, interval_size):
     """
@@ -448,6 +467,9 @@ def mask_reject(values, idx_reject, j, interval_size):
 
 
 def get_edge_reject(WT):
+    """
+    Rejects the edge coefficients of the WT transform
+    """
 
     idx_reject = {
         j: np.isnan(WT.values[j], dtype=bool)[:, None] for j in WT.values}
@@ -458,6 +480,7 @@ def get_edge_reject(WT):
             continue
 
         if j-1 in idx_reject:
-            idx_reject[j-1][:idx_reject[j].shape[0] * 2] |= np.repeat(idx_reject[j], 2, axis=0)
+            idx_reject[j-1][:idx_reject[j].shape[0] * 2] |= np.repeat(
+                idx_reject[j], 2, axis=0)
 
     return idx_reject

@@ -25,8 +25,10 @@ from pymultifracs.robust.benchmark import Benchmark
 
 N = 2 ** 12
 
+
 def fbm_gen(H):
     return fbm(H=H, shape=(N, 40))
+
 
 def mrw_gen(H):
     return mrw(H=H, shape=(N, 40), L=N, lam=np.sqrt(.05))
@@ -36,7 +38,7 @@ def mrw_gen(H):
 # Then we define the signal generation parameter grids:
 
 signal_param_grid = {
-    'fbm':{
+    'fbm': {
         'H': np.array([.7, .8])
     },
     'mrw': {
@@ -59,17 +61,20 @@ def pleader_est(X, p_exp):
     WT = wavelet_analysis(X).get_leaders(p_exp=p_exp)
     pwt = mfa(WT, [(3, 7)], estimates='c', weighted='Nj')
 
-    out = pwt.cumulants.log_cumulants.isel(scaling_range=0).to_series().unstack('m')
+    out = pwt.cumulants.log_cumulants.isel(
+        scaling_range=0).to_series().unstack('m')
     out.columns = out.columns.to_flat_index().map(lambda x: f'c{x}')
 
     return out
+
 
 def coef_est(X):
 
     WT = wavelet_analysis(X)
     dwt = mfa(WT, [(3, 7)], estimates='c')
 
-    out = dwt.cumulants.log_cumulants.isel(scaling_range=0).to_series().unstack('m')
+    out = dwt.cumulants.log_cumulants.isel(
+        scaling_range=0).to_series().unstack('m')
     out.columns = out.columns.to_flat_index().map(lambda x: f'c{x}')
 
     return out
@@ -108,7 +113,9 @@ bench.results.query('method=="pleader"').head(10)
 # %%
 # We can then derive statistics from that dataframe.
 
-bench.results.xs(('fbm', 'pleader', .7), level=('model', 'method', 'H')).groupby('p_exp').mean()
+bench.results.xs(
+    ('fbm', 'pleader', .7), level=('model', 'method', 'H')
+    ).groupby('p_exp').mean()
 
 # %%
 # Seaborn can effectively use the results dataframe to show group statistics.
@@ -117,4 +124,5 @@ bench.results.xs(('fbm', 'pleader', .7), level=('model', 'method', 'H')).groupby
 
 import seaborn as sns
 
-sns.boxplot(data=bench.results.xs(('mrw','pleader'), level=('model', 'method')), x='p_exp', y='c2')
+sns.boxplot(data=bench.results.xs(
+    ('mrw','pleader'), level=('model', 'method')), x='p_exp', y='c2')

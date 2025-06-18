@@ -32,6 +32,9 @@ author = 'M. Dumeur, O. D. Domingues, P. Ciuciu, V. van Wassenhove, P. Abry'
 from pymultifracs._version import __version__
 release = __version__
 
+if '+' in release:
+    release = release.split('+')[0]
+
 # -- General configuration ---------------------------------------------------
 
 needs_sphinx = "2.0"
@@ -51,6 +54,7 @@ extensions = ['sphinx.ext.autodoc',
             #   'sphinx_bootstrap_theme',
             #   'nbsphinx',
             #   'myst_nb',
+              'myst_parser',
               'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -385,7 +389,14 @@ nbsphinx_execute_arguments = [
 
 nb_execution_mode = "off"
 
-#%% Adjusting the displayed name of functions
+# myst_parser
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown'
+}
+
+# %% Adjusting the displayed name of functions
 # https://stackoverflow.com/a/72658470
 
 # def smart_fullname(fullname):

@@ -188,4 +188,3 @@ def bimfa(mrq1, mrq2, scaling_ranges, weighted=None, n_cumul=2, q1=None,
         bicumul = BiCumulants._from_dict(parameters)
 
     return MFractalBiVar(bistruct, bicumul)
-

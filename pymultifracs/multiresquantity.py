@@ -81,7 +81,7 @@ class MultiResolutionQuantityBase(AbstractDataclass):
             if k in parameters
         })
 
-    def _sup_coeffs(self, n_ranges, j_max, j_min, scaling_ranges, idx_reject):
+    def _sup_coeffs(self, n_ranges, j_max, j_min, idx_reject):
 
         dims = [Dim.j, Dim.scaling_range]
         shape = [j_max-j_min+1, n_ranges]
@@ -127,6 +127,7 @@ class MultiResolutionQuantityBase(AbstractDataclass):
             return 0
 
         return sizes[Dim.bootstrap]
+
 
 @dataclass(kw_only=True)
 class WaveletDec(MultiResolutionQuantityBase):
@@ -385,12 +386,20 @@ class WaveletDec(MultiResolutionQuantityBase):
             Colormap for the plot.
         """
 
-        if nan_idx is not None and nan_idx[j1].dtype == bool:
+        isel_dict = {Dim.channel: signal_idx}
 
-            nan_idx = {
-                scale: np.arange(nan_idx[scale].shape[0])[nan_idx[scale][:, 0, signal_idx]]
-                for scale in nan_idx
-            }
+        if nan_idx is not None:
+
+            if Dim.scaling_range in nan_idx[j1].dims:
+                isel_dict[Dim.scaling_range] = 0
+
+            # if nan_idx[j1].dtype == bool:
+
+                def ufunc(idx_nan):
+                    return np.arange(idx_nan.sizes[Dim.k_j])[
+                        idx_nan.isel(isel_dict)]
+
+                nan_idx = {scale: ufunc(nan_idx[scale]) for scale in nan_idx}
 
         viz.plot_coef(
             self, j1, j2, ax=ax, vmin=vmin, vmax=vmax, cbar=cbar,
@@ -608,17 +617,6 @@ class WaveletDec(MultiResolutionQuantityBase):
             case _:
                 return super().__getattribute__(name)
 
-        # if name == 'n_rep':
-        #     if len(self.values) > 0:
-        #         return self.values[[*self.values][0]].shape[-1]
-
-        # if name == 'n_channel' and super().__getattribute__('n_channel') is None:
-        #     return 1
-
-
-    # def __getattr__(self, name):
-    #     return super().__getattr__(name)
-
 
 def _correct_pleaders(wt_leaders, p_exp, min_level, max_level):
     """
@@ -697,7 +695,7 @@ class WaveletLeader(WaveletDec):
     p_exp: float
     interval_size: int = 1
     eta_p: np.ndarray = field(init=False, repr=False, default=None)
-    # ZPJCorr: np.ndarray = field(init=False, default=None)
+    ZPJCorr: np.ndarray = field(init=False, default=None)
 
     def bootstrap(self, R, min_scale=1, idx_reject=None):
 

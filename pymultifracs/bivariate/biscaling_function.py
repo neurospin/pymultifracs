@@ -8,18 +8,10 @@ from dataclasses import dataclass, field, InitVar
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from scipy import special
 
-
 from ..regression import prepare_regression, prepare_weights
-
-# For zeta(q1, q2) plot
-# from mpl_toolkits.mplot3d import axes3d
-# from matplotlib import cm
-# from matplotlib.ticker import LinearLocator, FormatStrFormatter
-
-from ..utils import fast_power, isclose, Dim
+from ..utils import fast_power, Dim
 from ..viz import plot_bicm
 from ..regression import linear_regression
 from ..multiresquantity import WaveletDec
@@ -40,7 +32,7 @@ class BiScalingFunction(AbstractScalingFunction):
     n_channel: tuple[int] = field(init=False)
     nj_margin: dict[str, np.ndarray] = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
+    def __post_init__(self, mrq1, mrq2, min_j):
 
         if mrq1.get_formalism() != mrq2.get_formalism():
             raise ValueError(
@@ -58,8 +50,8 @@ class BiScalingFunction(AbstractScalingFunction):
                 if mrq1.n_channel != mrq2.n_channel:
                     raise ValueError(
                         'Pairwise mode needs equal number of signals on each '
-                        f'multi-resolution quantity, currently {mrq1.n_channel=} '
-                        f'and {mrq2.n_channel=}')
+                        'multi-resolution quantity, currently'
+                        f'{mrq1.n_channel=} and {mrq2.n_channel=}')
                 self.n_channel = (mrq1.n_channel, 1)
 
         if max(mrq1.values) < max(mrq2.values):
@@ -69,7 +61,8 @@ class BiScalingFunction(AbstractScalingFunction):
 
         self.j = self.j[self.j >= min_j]
 
-        self.nj_margin = np.array([mrq1.get_nj_interv(min_j), mrq2.get_nj_interv(min_j)])
+        self.nj_margin = np.array(
+            [mrq1.get_nj_interv(min_j), mrq2.get_nj_interv(min_j)])
         self.nj = (
             (self.nj_margin[0][:, None] + self.nj_margin[1][..., None]) / 2
             ).reshape(len(self.j), len(self.scaling_ranges), -1)
@@ -120,37 +113,7 @@ class BiScalingFunction(AbstractScalingFunction):
 
         return j1, j2, j_min, j_max
 
-    def _prepare_nrep(self, mrq1, mrq2):
-
-        match self.mode:
-            case 'all2all':
-                n_rep = (mrq1.n_channel, mrq2.n_channel)
-            case 'pairwise':
-                n_rep = (mrq1.n_channel, 1)
-
-        flag_bootstrap1 = 'bootstrap' in mrq1.dims
-        flag_bootstrap2 = 'bootstrap' in mrq2.dims
-
-        if (
-                (flag_bootstrap1 and not flag_bootstrap2)
-                or (flag_bootstrap2 and not flag_bootstrap1)):
-
-            raise ValueError(
-                'One of the Mrqs has been bootstrapped but not the other.')
-
-        if flag_bootstrap1 and flag_bootstrap2:
-
-            if ((ratio1 := mrq1.n_rep // mrq1.n_channel)
-                    != (ratio2 := mrq2.n_rep // mrq2.n_channel)):
-                raise ValueError(
-                    'Mrq 1 and 2 have different number of bootstrapping '
-                    f'repetitions: {ratio1} and {ratio2}, respectively.')
-
-            n_rep.append(ratio1)
-
-        return n_rep
-
-    def _compute_fit(self, mrq1, mrq2, margin=None, value_name=None):
+    def _compute_fit(self, margin=None, value_name=None):
         """
         Compute the value of the scale function zeta(q_1, q_2) for all q_1, q_2
         """
@@ -160,24 +123,15 @@ class BiScalingFunction(AbstractScalingFunction):
         else:
             values = self.values
 
-        # n1, n2 = values.shape[:2]
-
-        # self.slope = np.zeros(
-        #     (n1, n2, len(self.scaling_ranges), np.prod(values.shape[4:])))
-
-        x, n_ranges, j_min, j_max, j_min_idx, j_max_idx = prepare_regression(
+        x, n_ranges, j_min, j_max, _, _ = prepare_regression(
             self.scaling_ranges, self.j, values.dims)
-
-        # y = values.reshape(
-            # n1 * n2, len(self.j), len(self.scaling_ranges),
-            # np.prod(values.shape[4:]))[:, j_min_idx:j_max_idx]
 
         y = values.sel(j=slice(j_min, j_max))
 
         if self.weighted == 'bootstrap':
 
             if self.bootstrapped_obj is None:
-                std = self.std_values().sel(j=slice(j_min,j_max))
+                std = self.std_values().sel(j=slice(j_min, j_max))
 
             else:
 
@@ -187,11 +141,8 @@ class BiScalingFunction(AbstractScalingFunction):
                         f'{self.bootstrapped_obj.j.min()} inferior to minimum'
                         f'scale {j_min} used in estimation')
 
-                # std_slice = np.s_[
-                #     int(j_min - self.bootstrapped_obj.j.min()):
-                #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
-
-                std = self.bootstrapped_obj.std_values().sel(j=slice(j_min, j_max))
+                std = self.bootstrapped_obj.std_values().sel(
+                    j=slice(j_min, j_max))
 
         else:
             std = None
@@ -206,19 +157,7 @@ class BiScalingFunction(AbstractScalingFunction):
 
         slope, intercept = linear_regression(x, y, weights)
 
-        # slope = slope.reshape(n1, n2, n_ranges, *values.shape[4:])
-        # intercept = intercept.reshape(n1, n2, n_ranges, *values.shape[4:])
-
         return slope, intercept, weights
-
-        # if out_prefix is not None:
-        #     setattr(self, out_prefix + '_slope', slope)
-        #     setattr(self, out_prefix + '_intercept', intercept)
-        #     setattr(self, out_prefix + '_weights', weights)
-        # else:
-        #     self.slope = slope
-        #     self.intercept = intercept
-        #     self.weights = weights
 
     def _create_values(self, mrq1, mrq2, moment1, moment2, name1, name2,
                        margins=False):
@@ -237,7 +176,7 @@ class BiScalingFunction(AbstractScalingFunction):
                 mrq_dims = [d for d in mrq_sizes
                             if d not in [Dim.channel, Dim.k_j, *dims]]
                 mrq_shapes = [s for d, s in mrq_sizes.items()
-                                if d not in [Dim.channel, Dim.k_j, *dims]]
+                              if d not in [Dim.channel, Dim.k_j, *dims]]
 
                 dims = (*dims, *mrq_dims, Dim.channel1, Dim.channel2)
                 shape = (
@@ -249,14 +188,14 @@ class BiScalingFunction(AbstractScalingFunction):
 
                 mrq_dims = [d for d in mrq_sizes if d not in [Dim.k_j, *dims]]
                 mrq_shapes = [s for d, s in mrq_sizes.items()
-                                if d not in [Dim.k_j, *dims]]
+                              if d not in [Dim.k_j, *dims]]
 
                 dims = (*dims, *mrq_dims)
                 shape = (*shape, *mrq_shapes)
 
         values = xr.DataArray(
             np.ones(shape), dims=dims,
-            coords={name1: moment1, name2: moment2, Dim.j:self.j},
+            coords={name1: moment1, name2: moment2, Dim.j: self.j},
         )
 
         if margins:
@@ -264,15 +203,15 @@ class BiScalingFunction(AbstractScalingFunction):
             mrq_dims = [d for d in mrq_sizes
                         if d not in [Dim.k_j, *dims]]
             mrq_shapes = [s for d, s in mrq_sizes.items()
-                        if d not in [Dim.k_j, *dims]]
+                          if d not in [Dim.k_j, *dims]]
 
             shape = (len(moment1), len(self.j), len(self.scaling_ranges),
-                    *mrq_shapes)
+                     *mrq_shapes)
 
             margin1_values = xr.DataArray(
                 np.ones(shape),
                 dims=(name1, Dim.j, Dim.scaling_range, *mrq_dims),
-                coords={name1: moment1, Dim.j:self.j}
+                coords={name1: moment1, Dim.j: self.j}
             ).rename({Dim.channel: Dim.channel1})
 
             # mrq_dims = [d for d in mrq_sizes
@@ -281,18 +220,25 @@ class BiScalingFunction(AbstractScalingFunction):
             #               if d not in [Dim.k_j, *dims]]
 
             shape = (len(moment2), len(self.j), len(self.scaling_ranges),
-                    *mrq_shapes)
+                     *mrq_shapes)
 
             margin2_values = xr.DataArray(
                 np.ones(shape),
                 dims=(name2, Dim.j, Dim.scaling_range, *mrq_dims),
-                coords={name2: moment2, Dim.j:self.j},
+                coords={name2: moment2, Dim.j: self.j},
             ).rename({Dim.channel: Dim.channel2})
 
             return values, margin1_values, margin2_values
 
         # dims q1 q2 j scaling_range channel_left channel_right bootstrap
         return values
+
+    def get_n_bootstrap(self):
+
+        if Dim.bootstrap not in self.values.sizes:
+            return 0
+
+        return self.values.sizes[Dim.bootstrap]
 
 
 @dataclass(kw_only=True)
@@ -306,14 +252,13 @@ class BiStructureFunction(BiScalingFunction):
 
     def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
 
-        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
+        super().__post_init__(mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
 
         self._compute(mrq1, mrq2, idx_reject)
-        self.slope, self.intercept, self.weights = self._compute_fit(
-            mrq1, mrq2)
+        self.slope, self.intercept, self.weights = self._compute_fit()
 
     def _compute(self, mrq1, mrq2, idx_reject):
 
@@ -371,20 +316,21 @@ class BiStructureFunction(BiScalingFunction):
 
                         case (q1, 0):
                             self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
-                                np.log2(np.nanmean(pow1[q1],
-                                                   axis=dims_mrq1.index(Dim.k_j))),
+                                np.log2(np.nanmean(
+                                    pow1[q1], axis=dims_mrq1.index(Dim.k_j))),
                                 dims=[d for d in dims_mrq1 if d != Dim.k_j])
 
                         case (0, q2):
                             self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
-                                np.log2(np.nanmean(pow2[q2],
-                                                   axis=dims_mrq2.index(Dim.k_j))),
+                                np.log2(np.nanmean(
+                                    pow2[q2], axis=dims_mrq2.index(Dim.k_j))),
                                 dims=[d for d in dims_mrq2 if d != Dim.k_j])
 
                         case (q1, q2):
                             self.values[ind_q1, ind_q2, ind_j] = xr.DataArray(
-                                np.log2(np.nanmean(pow1[q1] * pow2[q2],
-                                                   axis=dims_mrq1.index(Dim.k_j))),
+                                np.log2(np.nanmean(
+                                    pow1[q1] * pow2[q2],
+                                    axis=dims_mrq1.index(Dim.k_j))),
                                 dims=[d for d in dims_mrq2 if d != Dim.k_j])
 
             # 3 - Compute the coherence
@@ -412,8 +358,10 @@ class BiStructureFunction(BiScalingFunction):
                 np.nanmean(values_mrq1 * values_mrq2,
                            axis=dims_mrq1.index(Dim.k_j))
                 / np.sqrt(
-                    np.nanmean(fast_power(values_mrq1, 2) * fast_power(values_mrq2, 2),
-                               axis=dims_mrq1.index(Dim.k_j))),
+                    np.nanmean(
+                        fast_power(values_mrq1, 2)
+                        * fast_power(values_mrq2, 2),
+                        axis=dims_mrq1.index(Dim.k_j))),
                 dims=[d for d in dims_mrq1 if d != Dim.k_j])
 
         mapping = {
@@ -502,14 +450,15 @@ class BiStructureFunction(BiScalingFunction):
                         scaling_range=scaling_range,
                         channel1=signal_idx1, channel2=signal_idx2)
                 intercept = self.intercept.sel(
-                    q1=q1, q2=q2).isel(scaling_range=scaling_range,
+                    q1=q1, q2=q2).isel(
+                        scaling_range=scaling_range,
                         channel1=signal_idx1, channel2=signal_idx2)
 
                 assert x0 in x, "Scaling range not included in plotting range"
                 assert x1 in x, "Scaling range not included in plotting range"
 
-                y0 = slope *x0 + intercept
-                y1 = slope*x1 + intercept
+                y0 = slope * x0 + intercept
+                y1 = slope * x1 + intercept
 
                 if self.bootstrapped_obj is not None and plot_CI:
                     CI = self.CIE_s_qq(q1, q2)[scaling_range]
@@ -545,7 +494,7 @@ class BiCumulants(BiScalingFunction):
                 'Bivariate analysis for cumulant order >= 3 not yet '
                 'implemented.')
 
-        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
+        super().__post_init__(mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -587,33 +536,17 @@ class BiCumulants(BiScalingFunction):
 
         (self.slope[idx_dict1], self.intercept[idx_dict1], _) = \
             self._compute_fit(
-                mrq1, mrq2, margin=0, value_name='margin1_values')
+                margin=0, value_name='margin1_values')
 
         (self.slope[idx_dict2], self.intercept[idx_dict2], _) = \
             self._compute_fit(
-                mrq1, mrq2, margin=1, value_name='margin2_values')
+                margin=1, value_name='margin2_values')
 
-        idx_main =  {Dim.m2: slice(1, self.n_cumul+1),
-                     Dim.m1: slice(1, self.n_cumul+1)}
+        idx_main = {Dim.m2: slice(1, self.n_cumul+1),
+                    Dim.m1: slice(1, self.n_cumul+1)}
 
         (self.slope[idx_main], self.intercept[idx_main], _) = \
-            self._compute_fit(mrq1, mrq2)
-
-        # self.slope[{Dim.m2: 0, Dim.m1: slice(1, self.n_cumul+1)}] = slope1
-
-        # self.slope[idx_margin1] = slope1[:, 0, :, :, None]
-        # self.intercept[idx_margin1] = intercept1[:, 0, :, :, None]
-
-        # slope2, intercept2, _ = self._compute_fit(
-        #     mrq1, mrq2, margin=1, value_name='margin2_values')
-        # self.slope[idx_margin2] = slope2[:, 0, :, None]
-        # self.intercept[idx_margin2] = intercept2[:, 0, :, None]
-
-        # idx = np.s_[1:, 1:]
-        # self.slope[idx], self.intercept[idx], _ = self._compute_fit(mrq1, mrq2)
-
-        # self.margin1_log_cumulants = self.margin1_slope * np.log2(np.e)
-        # self.margin2_log_cumulants = self.margin2_slope * np.log2(np.e)
+            self._compute_fit()
 
         self.log_cumulants = self.slope * np.log2(np.e)
 
@@ -664,7 +597,6 @@ class BiCumulants(BiScalingFunction):
                     np.nanmean(pow2[m], axis=dims_mrq2.index(Dim.k_j)),
                     dims=[d for d in dims_mrq2 if d != Dim.k_j]
                     )
-                # margin2_moments = np.nanmean(pow2[m], axis=dims_mrq2.index(Dim.k_j))
 
                 # Margin of mrq1
                 aux = 0
@@ -672,7 +604,7 @@ class BiCumulants(BiScalingFunction):
                 for n in np.arange(1, m):
 
                     aux += (special.binom(m-1, n-1)
-                            * self.margin1_values.sel(m1=n,j=j)
+                            * self.margin1_values.sel(m1=n, j=j)
                             * margin1_moments.sel(m1=m-n, j=j)
                             )
 
@@ -686,15 +618,12 @@ class BiCumulants(BiScalingFunction):
                 for n in np.arange(1, m):
 
                     aux += (special.binom(m-1, n-1)
-                            * self.margin2_values.sel(m2=n,j=j)
+                            * self.margin2_values.sel(m2=n, j=j)
                             * margin2_moments.sel(m2=m-n, j=j)
                             )
 
                 self.margin2_values.loc[{Dim.m2: m, Dim.j: j}] = \
                     margin2_moments.sel(m2=m, j=j) - aux
-
-            # Compute bivariate cumulants
-            # pow1 = {k: v[..., None] for k, v in pow1.items()}
 
             match self.mode:
                 case 'all2all':
@@ -704,7 +633,6 @@ class BiCumulants(BiScalingFunction):
                     dims_mrq2 = (*dims_mrq2[:-1], Dim.channel1, Dim.channel2)
                 case 'pairwise':
                     pass
-                    # pow2 = {k: v[..., None] for k, v in pow2.items()}
 
             processed = []
 
@@ -716,9 +644,6 @@ class BiCumulants(BiScalingFunction):
                 moments.loc[{Dim.m1: m1, Dim.m2: m2, Dim.j: j}] = np.nanmean(
                     (pow1[m1] * pow2[m2]), axis=dims_mrq1.index(Dim.k_j)
                 )
-
-                # ind_m1 = list(self.margin_m).index(m1)
-                # ind_m2 = list(self.margin_m).index(m2)
 
                 if m1 == m2 == 1:
 
@@ -760,23 +685,12 @@ class BiCumulants(BiScalingFunction):
             case ['C', m1, m2] if m1.isdigit() and m2.isdigit():
 
                 m1, m2 = int(m1), int(m2)
-                if m1 not in self.values.coords['m1'] or m2 not in self.values.coords['m2']:
+                if (m1 not in self.values.coords['m1']
+                        or m2 not in self.values.coords['m2']):
                     raise ValueError(
                         f'Cumulant of order {m1}, {m2} has not been computed')
 
                 return self.values.sel(m1=m1, m2=m2)
-
-        # if name[0] == 'c' and len(name) == 3 and name[1:].isdigit():
-
-        #     out = self.log_cumulants[self.m == int(name[1]),
-        #                              self.m == int(name[2])][0]
-
-        #     return out.reshape(
-        #         len(self.scaling_ranges), *self.values.shape[4:])
-
-        # if name[0] == 'C' and len(name) == 3 and name[1:].isdigit():
-        #     return self.values[self.m == int(name[1]),
-        #                        self.m == int(name[2])][0]
 
         if (super_attr := super().__getattr__(name)) is not None:
             return super_attr
@@ -789,10 +703,6 @@ class BiCumulants(BiScalingFunction):
         """
         Plot bivariate cumulants.
         """
-
-        # if self.j.min() > j1:
-        #     raise ValueError(f"Expected mrq to have minium scale {j1=}, got "
-        #                      f"{self.j.min()} instead")
 
         ncol = self.n_cumul + 1
 
@@ -830,11 +740,10 @@ class BiCumulants(BiScalingFunction):
         """
 
         if signal_idx1 == signal_idx2:
-            raise ValueError('signal_idx1 should be different from signal_idx2')
+            raise ValueError(
+                'signal_idx1 should be different from signal_idx2')
 
         h_support = np.linspace(*h_support, resolution)
-
-        sl_ = np.s_[idx_range, signal_idx1, signal_idx2]
 
         idx_dict = {
             Dim.scaling_range: idx_range,
@@ -882,7 +791,7 @@ class BiCumulants(BiScalingFunction):
 
         cmap = cmap or plt.cm.viridis  # pylint: disable=no-member
 
-        fig, ax = plt.subplots(
+        _, ax = plt.subplots(
             figsize=figsize, subplot_kw={'projection': '3d'})
         # ax = fig.add_subplot(1, 1, 1, projection='3d')
 
@@ -901,17 +810,17 @@ class BiCumulants(BiScalingFunction):
 
         X, Y = np.meshgrid(h_x, h_y)
 
-        light = mpl.colors.LightSource(azdeg=60, altdeg=60)
+        # light = mpl.colors.LightSource(azdeg=60, altdeg=60)
 
-        # Plot the surface.
-        surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
-                            #   facecolors=colors,
-                            # lightsource=light,
-                            #    linewidth=1, vmin=0, vmax=1,
-                            #    rstride=1, cstride=1,
-                            # linestyle='-',
-                            #    zorder=1)
-        )
+        # # Plot the surface.
+        # surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
+        #                        #   facecolors=colors,
+        #                        # lightsource=light,
+        #                        #    linewidth=1, vmin=0, vmax=1,
+        #                        #    rstride=1, cstride=1,
+        #                        # linestyle='-',
+        #                        #    zorder=1)
+        #                        )
 
         # argmax = np.argmax(L, axis=-1)
         # ax.contour(X[..., argmax], Y[..., argmax], L[..., argmax], zdir='x')
@@ -934,8 +843,7 @@ class BiCumulants(BiScalingFunction):
         # TODO manage to plot the contours or switch to 3D plotting libs
         # fig.colorbar(surf, shrink=0.6, aspect=10)
 
-    def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
-                         use_ipyvtk=False):
+    def plot_legendre_pv(self, resolution=30, use_ipyvtk=False):
         """
         Plot the bivariate Legendre spectrum using pyvista.
         """

@@ -15,7 +15,7 @@ import numpy as np
 from scipy.signal import welch
 
 # from .wavelet import estimate_eta_p, wavelet_analysis
-from . import wavelet, multiresquantity, estimation
+from . import wavelet, multiresquantity
 from .utils import Dim
 
 
@@ -219,9 +219,6 @@ def plot_cm(cm, ind_m, j1, j2, range_idx, ax, C_color='grey',
             raise ValueError(
                 f"Expected bootstrapped mrq to have minimum scale {j1=}, got "
                 f"{cm.bootstrapped_obj.j.min()} instead")
-
-        CI_slice = np.s_[int(j1 - cm.bootstrapped_obj.j.min()):
-                         int(j2 - cm.bootstrapped_obj.j.min() + 1)]
 
         CI = getattr(cm, f'CIE_C{m}').sel(
             j=slice(j1, j2)).isel(scaling_range=range_idx, channel=signal_idx)
@@ -432,7 +429,8 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
         Y = np.ones(X.shape[0]) * scale
         Y = np.stack([Y - .5, Y + .5]).transpose()
 
-        qm = ax.pcolormesh(X, Y, C[:, None], cmap=cmap, norm=norm, rasterized=True)
+        qm = ax.pcolormesh(
+            X, Y, C[:, None], cmap=cmap, norm=norm, rasterized=True)
 
         if nan_idx is not None and scale in nan_idx:
             idx = np.unique(np.r_[nan_idx[scale], nan_idx[scale] + 1])
@@ -445,7 +443,7 @@ def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
                     continue
 
                 ax.pcolormesh(
-                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]], alpha=1,
+                    X[seg[[0, -1]]], Y[seg[[0, -1]]], C[[0]][:, None], alpha=1,
                     edgecolor='xkcd:blue')
 
     ax.set(ylim=(j1-.5, j2+.5), yticks=range(j1, j2+1),
@@ -505,6 +503,7 @@ def start_xvfb(wait=3, window_size=None):
         Window size of the virtual frame buffer.  Defaults to the
         default window size in ``rcParams``.
     """
+
     from pyvista import rcParams  # pylint: disable=C0415
 
     if os.name != 'posix':
@@ -754,7 +753,8 @@ def wavelet_estimation(signal, fs, j2=None, wt_name='db2'):
     WT = wavelet.wavelet_analysis(
         signal, j2=j2, normalization=1, wt_name=wt_name)
 
-    psd = [np.nanmean(np.square(arr[:, 0]), axis=0) for arr in WT.values.values()]
+    psd = [np.nanmean(np.square(arr[:, 0]), axis=0)
+           for arr in WT.values.values()]
     psd = np.array(psd)
 
     # Frequency

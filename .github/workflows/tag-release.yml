@@ -1,0 +1,50 @@
+name: Tag Commit on PR Merge
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+jobs:
+  tag-commit:
+    # Only run if the PR was merged
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push tags
+
+    steps:
+      # Checkout the repository at the merge commit
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0  # Fetch full history to ensure we can tag
+
+      # Download the artifact containing the version
+      - name: Download version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: version-artifact  # Name of the artifact uploaded in the test job
+          path: ./artifacts
+
+      # Extract the version from the artifact
+      - name: Extract version
+        id: extract-version
+        run: |
+          VERSION=$(cat ./artifacts/version.txt)
+          echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # Configure Git user
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Create and push the tag
+      - name: Create and push tag
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
+          git tag -a "v$VERSION" -m "Release version $VERSION"
+          git push origin tag "v$VERSION"

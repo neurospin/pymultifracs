@@ -47,7 +47,8 @@ ax[0].plot(X[:, 0])
 ax[1].plot(X[:, 1], c='C1')
 
 # %%
-# First we need :func:`wavelet_analysis` as ususal, to obtain p-leaders in this case
+# First we need :func:`wavelet_analysis` as ususal, to obtain p-leaders in
+# this case
 
 from pymultifracs import wavelet_analysis
 

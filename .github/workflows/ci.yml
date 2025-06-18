@@ -93,3 +93,13 @@ jobs:
           name: codecov-umbrella # optional
           fail_ci_if_error: false # optional (default = false)
           verbose: true # optional (default = false)
+      - name: Create version tag file
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.13' }}
+        run: |
+          python -c "import pymultifracs; print(f'v{pymultifracs._version.__version__}')" > version.txt
+      - name: Upload version tag
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version ==  '3.13' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-artifact
+          path: version.txt
