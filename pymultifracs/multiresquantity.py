@@ -128,6 +128,7 @@ class MultiResolutionQuantityBase(AbstractDataclass):
 
         return sizes[Dim.bootstrap]
 
+
 @dataclass(kw_only=True)
 class WaveletDec(MultiResolutionQuantityBase):
     r"""

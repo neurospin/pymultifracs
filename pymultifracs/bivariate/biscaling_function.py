@@ -8,17 +8,9 @@ from dataclasses import dataclass, field, InitVar
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from scipy import special
 
-
 from ..regression import prepare_regression, prepare_weights
-
-# For zeta(q1, q2) plot
-# from mpl_toolkits.mplot3d import axes3d
-# from matplotlib import cm
-# from matplotlib.ticker import LinearLocator, FormatStrFormatter
-
 from ..utils import fast_power, Dim
 from ..viz import plot_bicm
 from ..regression import linear_regression
@@ -40,7 +32,7 @@ class BiScalingFunction(AbstractScalingFunction):
     n_channel: tuple[int] = field(init=False)
     nj_margin: dict[str, np.ndarray] = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
+    def __post_init__(self, mrq1, mrq2, min_j):
 
         if mrq1.get_formalism() != mrq2.get_formalism():
             raise ValueError(
@@ -260,7 +252,7 @@ class BiStructureFunction(BiScalingFunction):
 
     def __post_init__(self, idx_reject, mrq1, mrq2, min_j):
 
-        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
+        super().__post_init__(mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -502,7 +494,7 @@ class BiCumulants(BiScalingFunction):
                 'Bivariate analysis for cumulant order >= 3 not yet '
                 'implemented.')
 
-        super().__post_init__(idx_reject, mrq1, mrq2, min_j)
+        super().__post_init__(mrq1, mrq2, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
@@ -818,17 +810,17 @@ class BiCumulants(BiScalingFunction):
 
         X, Y = np.meshgrid(h_x, h_y)
 
-        light = mpl.colors.LightSource(azdeg=60, altdeg=60)
+        # light = mpl.colors.LightSource(azdeg=60, altdeg=60)
 
-        # Plot the surface.
-        surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
-                               #   facecolors=colors,
-                               # lightsource=light,
-                               #    linewidth=1, vmin=0, vmax=1,
-                               #    rstride=1, cstride=1,
-                               # linestyle='-',
-                               #    zorder=1)
-                               )
+        # # Plot the surface.
+        # surf = ax.plot_surface(X, Y, L, alpha=.95, cmap=cmap,
+        #                        #   facecolors=colors,
+        #                        # lightsource=light,
+        #                        #    linewidth=1, vmin=0, vmax=1,
+        #                        #    rstride=1, cstride=1,
+        #                        # linestyle='-',
+        #                        #    zorder=1)
+        #                        )
 
         # argmax = np.argmax(L, axis=-1)
         # ax.contour(X[..., argmax], Y[..., argmax], L[..., argmax], zdir='x')
@@ -851,8 +843,7 @@ class BiCumulants(BiScalingFunction):
         # TODO manage to plot the contours or switch to 3D plotting libs
         # fig.colorbar(surf, shrink=0.6, aspect=10)
 
-    def plot_legendre_pv(self, resolution=30, figsize=(10, 10), cmap=None,
-                         use_ipyvtk=False):
+    def plot_legendre_pv(self, resolution=30, use_ipyvtk=False):
         """
         Plot the bivariate Legendre spectrum using pyvista.
         """
