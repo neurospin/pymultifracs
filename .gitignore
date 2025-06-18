@@ -60,4 +60,4 @@ examples/*.mat
 
 .coverage*
 
-pymultifracs/_version.py
+# pymultifracs/_version.py
