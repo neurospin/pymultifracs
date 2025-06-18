@@ -9,3 +9,4 @@ Contents
 
    reference
    auto_examples/index
+   version_updates
