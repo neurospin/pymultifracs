@@ -8,12 +8,12 @@ dynamic = ["version"]
 description = "Implements wavelet based multifractal analysis of 1d signals."
 readme = "README.rst"
 authors = [
-    { name = "Merlin Dumeur", email="merlin@dumeur.net" },
+    { name = "Merlin Dumeur" },
     { name = "Omar Darwiche Domingues" },
     { name = "Roberto Fabio Leonarduzzi" }
 ]
 license = "MIT"
-license-files = ["LICENCE"]
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
