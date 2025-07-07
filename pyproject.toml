@@ -5,14 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pymultifracs"
 dynamic = ["version"]
-description = "Implements wavelet based fractal and multifractal analysis of 1d signals."
+description = "Implements wavelet based multifractal analysis of 1d signals."
 readme = "README.rst"
 authors = [
-    { name = "Merlin Dumeur" },
+    { name = "Merlin Dumeur", email="merlin@dumeur.net" },
     { name = "Omar Darwiche Domingues" },
     { name = "Roberto Fabio Leonarduzzi" }
 ]
 license = { text = "MIT" }
+license-files = ["LICENCE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -25,14 +26,10 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved",
-    "Programming Language :: Python",
+    "Programming Language :: Python :: 3"
     "Topic :: Software Development",
     "Topic :: Scientific/Engineering",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX",
-    "Operating System :: Unix",
-    "Operating System :: MacOS",
-    "Programming Language :: Python :: 3"
+    "Operating System :: OS Independent",
 ]
 
 [project.urls]
