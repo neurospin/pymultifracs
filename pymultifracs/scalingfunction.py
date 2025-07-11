@@ -649,10 +649,13 @@ class Cumulants(ScalingFunction):
     n_cumul: int
     robust: InitVar[bool] = False
     robust_kwargs: InitVar[dict[str, object]] = dict()
+    bias_correction: InitVar[bool] = False
     m: np.ndarray = field(init=False)
     log_cumulants: np.ndarray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq, min_j, robust, robust_kwargs):
+    def __post_init__(
+            self, idx_reject, mrq, min_j, robust, robust_kwargs,
+            bias_correction):
 
         super().__post_init__(idx_reject, mrq, min_j)
 
@@ -685,7 +688,7 @@ class Cumulants(ScalingFunction):
         if robust:
             self._compute_robust(mrq, idx_reject, **robust_kwargs)
         else:
-            self._compute(mrq, idx_reject)
+            self._compute(mrq, idx_reject, bias_correction)
 
         self._compute_fit()
         self.log_cumulants = self.slope * np.log2(np.e)
@@ -736,7 +739,7 @@ class Cumulants(ScalingFunction):
 
             self.values.loc[{Dim.j: j}] = values
 
-    def _compute(self, mrq, idx_reject):
+    def _compute(self, mrq, idx_reject, bias_correction):
 
         moments = xr.zeros_like(self.values)
 
@@ -786,7 +789,30 @@ class Cumulants(ScalingFunction):
                 self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
                     ~idx_unreliable, np.nan)
 
-        # self.values.where(np.isinf(self.values), np.nan)
+            if bias_correction:
+
+                correction_factor = xr.ones_like(N_useful, dtype=float)
+
+                for m in self.m:
+
+                    if m == 1:
+                        continue
+
+                    correction_factor *= N_useful / (N_useful - (m-1))
+
+                    loc_dict = {Dim.m: m, Dim.j: j}
+
+                    if m == 4:
+
+                        correction_term = moments.loc[loc_dict] / N_useful
+                        correction_term += (
+                            moments.loc[{Dim.m: 2, Dim.j: j}] * 3 / N_useful
+                            )
+
+                        self.values.loc[loc_dict] -= correction_term
+
+                    self.values.loc[loc_dict] *= correction_factor
+
         self.values.values[np.isinf(self.values)] = np.nan
 
     def __getattr__(self, name):

@@ -15,7 +15,8 @@ from .bootstrap import _need_redo_bootstrap
 
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         bootstrap_weighted=None, R=1, estimates="auto", robust=False,
-        robust_kwargs=None, idx_reject=None, check_regularity=True, min_j=1):
+        robust_kwargs=None, idx_reject=None, check_regularity=True, min_j=1,
+        bias_correction=False):
     """
     Perform multifractal analysis, given wavelet coefficients.
 
@@ -158,6 +159,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         'robust': robust,
         'idx_reject': idx_reject,
         'min_j': min_j,
+        'bias_correction': bias_correction,
     }
 
     if robust_kwargs is not None:
