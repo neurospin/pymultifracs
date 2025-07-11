@@ -804,12 +804,13 @@ class Cumulants(ScalingFunction):
 
                     if m == 4:
 
-                        correction_term = moments.loc[loc_dict] / N_useful
-                        correction_term += (
-                            moments.loc[{Dim.m: 2, Dim.j: j}] * 3 / N_useful
-                            )
+                        correction_term = (
+                            moments.loc[loc_dict]
+                            + moments.sel(m=2, j=j) ** 2 * 3)
 
-                        self.values.loc[loc_dict] -= correction_term
+                        correction_term /= N_useful
+
+                        self.values.loc[loc_dict] += correction_term
 
                     self.values.loc[loc_dict] *= correction_factor
 
