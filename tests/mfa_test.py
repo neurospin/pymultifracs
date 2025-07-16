@@ -69,7 +69,7 @@ def test_mfa_mrw(mrw_file):
         q = np.array([-2, -1, 0, 1, 2])
 
         dwt, lwt = mfa(
-            [WT, WTpL], scaling_ranges, n_cumul=4, q=q)
+            [WT, WTpL], scaling_ranges, n_cumul=4, q=q, bias_correction=True)
         assert abs(dwt.structure.H.mean(dim=Dim.channel) - WT.gamint - config_list[i]['H']) < 0.11
         assert abs(lwt.cumulants.c2.mean(dim=Dim.channel)
                    + (config_list[i]['lam'] ** 2)) < 0.025
