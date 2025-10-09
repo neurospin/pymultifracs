@@ -57,7 +57,7 @@ def test_unit_outlier_fbm(fbm_file):
 
     WT = WT.integrate(1).get_leaders(2)
 
-    lwt = mfa(
+    mfa(
         WT, scaling_ranges=scaling_ranges, robust=False, weighted=None,
         n_cumul=2, idx_reject=idx_reject)
 

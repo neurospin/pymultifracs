@@ -1,0 +1,1 @@
+# Bootstrapping for multifractal analysis

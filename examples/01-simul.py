@@ -40,23 +40,26 @@ plt.show()
 # -----------------
 
 # %% [markdown]
-# Wavelet transform is performed the :func:`pymultifracs.wavelet_analysis`
+# Wavelet transform is performed the :func:`~pymultifracs.wavelet_analysis`
 # function
 #
-# Parameters:
+# **Parameters**
 #
-# - ``wt_name``: The discrete wavelet to use, following the convention of the
-# :mod:`pywavelets` package.
+# ``wt_name``
+#   The discrete wavelet to use, following the convention of the
+#   :mod:`pywavelet` package.
 #
-# - ``j2``: The largest scale to analyze, by default ``None`` which means that
-# the analysis is carried to the coarsest possible temporal scale. The
-# motivation for setting a lower value is to reduce the computation time and
-# memory footprint.
+# ``j2``
+#    The largest scale to analyze, by default ``None`` which means that
+#    the analysis is carried to the coarsest possible temporal scale. The
+#    motivation for setting a lower value is to reduce the computation time and
+#    memory footprint.
 #
-# - ``normalization``: Normalization norm for the wavelet coefficients: takes
-# the value of :math:`p` to define the :math:`p`-norm used in normalization.
-# Defaults to 1 (:math:`1`-norm) which is appropriate for scale invariance
-# analysis.
+# ``normalization``
+#   Normalization norm for the wavelet coefficients: takes
+#   the value of :math:`p` to define the :math:`p`-norm used in normalization.
+#   Defaults to 1 (:math:`1`-norm) which is appropriate for scale invariance
+#   analysis.
 #
 # Multivariate time series, such as we are dealing with here, are passed with
 # the shape `(n_samples, n_channels)`
@@ -79,8 +82,8 @@ WT.plot(j1=6, j2=11)
 
 # %% [markdown]
 # Multi-resolution quantities derived from the wavelet transform can be
-# obtained using the associated methods :meth:`.WaveletDec.get_leaders` and
-# :meth:`.WaveletDec.get_wse`:
+# obtained using the associated methods :meth:`~.WaveletDec.get_leaders` and
+# :meth:`~.WaveletDec.get_wse`:
 
 # %%
 WTL = WT.get_leaders(p_exp=np.inf)
@@ -111,7 +114,7 @@ scaling_ranges = [(2, 8), (3, 8)]
 # In order for the analysis to be meaningful under the chosen multifractal
 # formalism (wavelet coefficient, wavelet (p-)leader, etc.) it may be necessary
 # to verify a minimum regularity condition.
-# The method :meth:`.WaveletDec.check_regularity` is available with all
+# The method :meth:`~.WaveletDec.check_regularity` is available with all
 # multi-resolution quantities, and takes ``scaling_ranges`` as an argument:
 
 # %%
@@ -124,7 +127,7 @@ WSE.check_regularity(scaling_ranges)
 # In case the minimal regularity is too low, it may be necessary to
 # fractionally integrate the time series.
 #
-# A simple approach is provided in the :meth:`.WaveletDec.auto_integrate`
+# A simple approach is provided in the :meth:`~.WaveletDec.auto_integrate`
 # method, which will try to find a fractional integration coefficient large
 # enough that all signals may be analyzed, and return the properly integrated
 # multi-resolution quantity.
@@ -135,7 +138,7 @@ WTpL = WTpL.auto_integrate(scaling_ranges)
 # %% [markdown]
 # Otherwise, and for instance in the case where multiple sets of data need to
 # be compared using the same integration coefficient, the fractional
-# integration can be set using the  :meth:`.WaveletDec.integrate` method on a
+# integration can be set using the  :meth:`~.WaveletDec.integrate` method on a
 # MRQ object by passing the fractional integration coefficient :math:`\gamma`:
 
 # %%
@@ -148,17 +151,20 @@ WT_int = WT.integrate(.5)
 # %% [markdown]
 # Multifractal analysis is carried out using the :func:`mfa` function.
 #
-# Basic parameters:
+# **Basic parameters**
 #
-# - ``mrq``: Multi-resolution quantity (:class:`.WaveletDec`,
-# :class:`.WaveletLeader`, :class:`.WaveletWSE`) on which to perform the
-# analysis.
+# ``mrq``
+#   Multi-resolution quantity (:class:`.WaveletDec`,
+#   :class:`.WaveletLeader`, :class:`.WaveletWSE`) on which to perform the
+#   analysis.
 #
-# - ``weighted``: whether the linear regressions should be weighted. Defaults
-# to None, which means no weighting is performed. ``"Nj"`` indicates that the
-# weights are determined from the number of coefficients at each scale.
+# ``weighted``
+#   whether the linear regressions should be weighted. Defaults
+#   to None, which means no weighting is performed. ``"Nj"`` indicates that the
+#   weights are determined from the number of coefficients at each scale.
 #
-# - ``q``: list of moments.
+# ``q``
+#   list of moments.
 #
 # .. note:: by default, :func:`mfa` checks the regularity of the time series.
 # It is possible to disable this by passing ``check_regularity=False``.
@@ -173,10 +179,10 @@ pwt = mfa(WTpL, scaling_ranges, weighted='Nj', q=[-2, -1, 0, 1, 2])
 # The function outputs a :class:`.MFractalVar` object, which contains:
 #
 # - ``structure``: the structure functions (:class:`.StructureFunction`) and
-# associated exponents
+#   associated exponents
 #
 # - ``cumulants``: the cumulant scaling functions (:class:`.Cumulants`) and
-# log-cumulants
+#   log-cumulants
 #
 # - ``spectrum``: the multifractal spectrum (:class:`.MFSpectrum`)
 
@@ -187,13 +193,13 @@ pwt = mfa(WTpL, scaling_ranges, weighted='Nj', q=[-2, -1, 0, 1, 2])
 
 # %% [markdown]
 # The structure functions :math:`S_q(j)` and their associated exponents may be
-# visualized using the :meth:`.StructureFunction.plot()` method
+# visualized using the :meth:`~.StructureFunction.plot()` method
 
 # %%
 pwt.structure.plot(figsize=(10, 4), nrow=2)
 
 # %% [markdown]
-# We can plot :math:`\zeta(q)` using the :meth:`StructureFunction.plot_scaling`
+# We can plot :math:`\zeta(q)` using the :meth:`~.StructureFunction.plot_scaling`
 # method
 
 # %%

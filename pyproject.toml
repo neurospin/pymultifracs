@@ -5,14 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pymultifracs"
 dynamic = ["version"]
-description = "Implements wavelet based fractal and multifractal analysis of 1d signals."
+description = "Implements wavelet based multifractal analysis of 1d signals."
 readme = "README.rst"
 authors = [
     { name = "Merlin Dumeur" },
     { name = "Omar Darwiche Domingues" },
     { name = "Roberto Fabio Leonarduzzi" }
 ]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
@@ -24,15 +25,10 @@ dependencies = [
 classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
-    "License :: OSI Approved",
-    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
     "Topic :: Software Development",
     "Topic :: Scientific/Engineering",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX",
-    "Operating System :: Unix",
-    "Operating System :: MacOS",
-    "Programming Language :: Python :: 3"
+    "Operating System :: OS Independent",
 ]
 
 [project.urls]
@@ -43,8 +39,10 @@ Tracker = "https://github.com/neurospin/pymultifracs/issues/"
 [project.optional-dependencies]
 bootstrap = ["recombinator"]
 robust = ["statsmodels", "ruptures", "numba", "tqdm"]
+full = ["pymultifracs[bootstrap,robust]"]
 test = ["pytest", "pytest-xdist", "pytest-cov", "statsmodels", "recombinator", "joblib"]
-doc = ["sphinx", "numpydoc", "pydata-sphinx-theme", "sphinx-gallery", "joblib", "pooch", "myst-parser"]
+doc = ["sphinx", "numpydoc", "pydata-sphinx-theme", "sphinx-gallery", "joblib", "pooch", "myst-parser", "sphinx-tippy"]
+dev = ["pymultifracs[bootstrap,robust,test,doc]"]
 
 [tool.setuptools]
 zip-safe = false

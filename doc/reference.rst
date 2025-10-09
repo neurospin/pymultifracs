@@ -1,6 +1,6 @@
-=============
-API Reference
-=============
+======================
+PyMultifracs Reference
+======================
 
 Multifractal Analysis
 =====================

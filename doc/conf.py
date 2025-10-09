@@ -24,7 +24,7 @@ from sphinx.ext.autosummary.generate import AutosummaryRenderer
 
 # -- Project information -----------------------------------------------------
 
-project = 'PyMultiFracs'
+project = 'pymultifracs'
 copyright = '2020-2025, M. Dumeur, P. Ciuciu, V. van Wassenhove, P. Abry'
 author = 'M. Dumeur, O. D. Domingues, P. Ciuciu, V. van Wassenhove, P. Abry'
 
@@ -48,6 +48,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.intersphinx',
               # 'sphinx.ext.linkcode',
               'sphinx_gallery.gen_gallery',
+              'sphinx_tippy',
               'numpydoc',
             #   'sphinx_autodoc_typehints',
               # 'sphinx_gallery.notebook',
@@ -147,7 +148,8 @@ intersphinx_mapping = {
     'joblib': ('https://joblib.readthedocs.io/en/latest', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
     'seaborn': ('https://seaborn.pydata.org/', None),
-    'pywavelets': ('https://pywavelets.readthedocs.io/en/latest/', None),
+    'pywavelets': ('https://pywavelets.readthedocs.io/en/latest', None),
+    'xarray': ('https://docs.xarray.dev/en/stable', None),
     # "numba": ("https://numba.readthedocs.io/en/latest", None),
     # "joblib": ("https://joblib.readthedocs.io/en/latest", None),
     # "statsmodels": ("https://www.statsmodels.org/dev", None),
@@ -261,8 +263,8 @@ numpydoc_xref_ignore = {
     "to",
     "any",
     # unlinkable
-    "CoregistrationUI",
-    "mne_qt_browser.figure.MNEQtBrowser",
+    # "CoregistrationUI",
+    # "mne_qt_browser.figure.MNEQtBrowser",
     # pooch, since its website is unreliable and users will rarely need the links
     "pooch.Unzip",
     "pooch.Untar",
@@ -395,6 +397,14 @@ source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown'
 }
+
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "smartquotes",
+    # "amsmath"
+]
 
 # %% Adjusting the displayed name of functions
 # https://stackoverflow.com/a/72658470

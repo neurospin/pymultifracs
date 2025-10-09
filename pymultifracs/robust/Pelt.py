@@ -34,7 +34,8 @@ class Pelt(BaseEstimator):
     """
 
     def __init__(self, model="l2", custom_cost=None, min_size=2, max_size=None,
-                 jump=5, params=None, n_jobs=1):
+                 jump=5, params=None, n_jobs=1, trim_adimissible=False,
+                 update_beta=False):
         """Initialize a Pelt instance.
 
         Parameters
@@ -70,6 +71,8 @@ class Pelt(BaseEstimator):
         self.jump = jump
         self.n_samples = None
         self.n_jobs = n_jobs
+        self.trim_admissible = trim_adimissible
+        self.update_beta = update_beta
 
     def _seg(self, pen):
         """Computes the segmentation for a given penalty using PELT (or a list
@@ -88,7 +91,7 @@ class Pelt(BaseEstimator):
         partitions[0] = {(0, 0): 0}
         admissible = []
 
-        beta_factor = 1.1
+        # beta_factor = 1.1
 
         signal = self.cost.signal
         cost_w = self.cost.w
@@ -184,22 +187,23 @@ class Pelt(BaseEstimator):
                 # if len(admissible) == n_admissible_last:
                 # pen -= np.arctan(len(admissible) - 200) / np.pi * 2
 
-                if len(admissible) > n_admissible_last:
-                    if len(admissible) > 100:
-                        pen *= .95
-                else:
-                    # pen += np.arctan(n_admissible_last - len(admissible)) / np.pi * 4
-                    pen += .1 * (n_admissible_last - len(admissible))
+                # dynamically upate beta
+                if self.update_beta:
+                    if len(admissible) > n_admissible_last:
+                        if len(admissible) > 100:
+                            pen *= .95
+                    else:
+                        # pen += np.arctan(n_admissible_last - len(admissible)) / np.pi * 4
+                        pen += .1 * (n_admissible_last - len(admissible))
 
-                # trim segments that are too long
-
-                if len(admissible) > 400:
-                    admissible = [
-                        t for t in admissible if bkp - t <= self.max_size
-                    ]
+                # if self.trim_admissible and len(admissible) > 400:
+                # trim segments that are longer than max_size
+                admissible = [
+                    t for t in admissible if bkp - t <= self.max_size
+                ]
 
                 # print(bkp, pen)
-                if bkp % 500 == 0:
+                if self.verbose and bkp % 500 == 0:
                     print(pen, len(admissible))
                 #     1/0
 

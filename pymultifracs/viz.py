@@ -335,6 +335,8 @@ def plot_cumulants(cm, figsize, nrow=2, j1=None, j2=None, filename=None,
     if filename is not None:
         plt.savefig(filename)
 
+    return fig.gca()
+
 
 def plot_coef(mrq, j1, j2, ax=None, vmin=None, vmax=None, cbar=True,
               figsize=(2.5, 1), gamma=1, nan_idx=None, signal_idx=0,

@@ -96,8 +96,8 @@ estimation_grid = {
 }
 
 # %%
-# Finally, we instantiate the :class:`Benchmark` class and compute the
-# benchmark.
+# Finally, we instantiate the :class:`~pymultifracs.Benchmark` class and
+# compute the benchmark.
 
 bench = Benchmark(
     signal_gen_grid, signal_param_grid, estimation_grid, estimation_param_grid)

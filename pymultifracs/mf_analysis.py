@@ -10,12 +10,12 @@ import numpy as np
 from .scalingfunction import Cumulants, StructureFunction, MFSpectrum
 from .autorange import sanitize_scaling_ranges
 from .utils import MFractalVar
-from .bootstrap import _need_redo_bootstrap
 
 
 def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         bootstrap_weighted=None, R=1, estimates="auto", robust=False,
-        robust_kwargs=None, idx_reject=None, check_regularity=True, min_j=1):
+        robust_kwargs=None, idx_reject=None, check_regularity=True, min_j=1,
+        bias_correction=False):
     """
     Perform multifractal analysis, given wavelet coefficients.
 
@@ -70,6 +70,26 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
     check_regularity : bool
         Whether to check the minimum regularity requirements are met by the
         MRQs.
+    min_j : int | str
+        Minimum temporal scale for which to compute the scaling functions.
+        Can be set > 1 to save computational time on large datasets.
+
+        If set to ``"auto"``, it will pick the minimum value necessary so that
+        exponents can be computed for all specified scaling ranges.
+
+        If the minimal value of :math:`j` in ``scaling_range`` is below
+        ``min_j``, it will default to the behavior of ``"auto"``.
+
+    bias_correction : bool
+        Whether to use the unbiased :math:`k`-statistic instead of the sample
+        cumulants in the estimation of the cumulant scaling functions.
+        The `k`-statistic is the minimum variance unbiased estimator of the
+        cumulants.
+
+        Important only when the number of coefficients is small, especially
+        at higher :math:`j` values.
+
+        .. versionadded:: 0.3.2 Unbiased estimation of :math:`C_m(j)`.
 
     Returns
     -------
@@ -158,6 +178,7 @@ def mfa(mrq, scaling_ranges, weighted=None, n_cumul=2, q=None,
         'robust': robust,
         'idx_reject': idx_reject,
         'min_j': min_j,
+        'bias_correction': bias_correction,
     }
 
     if robust_kwargs is not None:

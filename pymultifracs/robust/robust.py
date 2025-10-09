@@ -11,6 +11,7 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
+from joblib import Parallel, delayed
 
 from scipy import stats, special
 import scipy.spatial.distance as distance
@@ -337,12 +338,113 @@ def compute_aggregate(CDF, j1, j2):
     return agg
 
 
+def _segment_reject_signal(
+        signal_idx, range_idx, pk, pelt_beta, threshold, hilbert_weighted, j1,
+        pelt_jump=1, skip_scales=None, verbose=False, return_stat=False):
+
+    import ruptures as rpt
+    from .hilbert import HilbertCost, w_hilbert
+
+    mask_nan_global = np.isnan(pk).any(dim=Dim.j).values
+
+    w = xr.DataArray(
+        (pk.values * np.log(pk).where(pk == 0, 0).values).sum(
+            axis=pk.dims.index(Dim.k_j)),
+        dims=(d for d in pk.dims if d != Dim.k_j)
+    )
+
+    if not hilbert_weighted:
+        w = np.ones_like(w)
+
+    if skip_scales is not None:
+        for scale in skip_scales:
+            w[scale-j1] = 0
+
+    w /= w.sum()
+    w *= w.shape[0]
+
+    if verbose:
+        print(f'{w=}')
+
+    pelt = rpt.Pelt(custom_cost=HilbertCost(w=w), jump=pelt_jump)
+
+    result = [0] + pelt.fit_predict(
+        pk.values[~mask_nan_global], pelt_beta)
+
+    result[-1] -= 1
+
+    if verbose:
+
+        rpt.display(
+            pk.isel(j=0).values[~mask_nan_global], [], result, figsize=(7, 2))
+        plt.show()
+
+        kernel_matrix = distance.squareform(distance.pdist(
+            pk.values[~mask_nan_global], metric=w_hilbert, w=w))
+        sns.heatmap(kernel_matrix)
+        plt.vlines(result, 0, max(result))
+        plt.show()
+
+    reachable_index = np.arange(pk.sizes[Dim.k_j])[~mask_nan_global]
+    result = {int(j): [reachable_index[r] for r in result]
+              for j in pk.j}
+
+    output = {}
+
+    for j in result:
+
+        result[j][-1] += 1
+
+        # skip this scale because it does not contain relevant information
+        if skip_scales is not None and j in skip_scales:
+            continue
+
+        stat = []
+        median = []
+
+        samples = []
+
+        for i in range(len(result[j]) - 1):
+            samples.append(
+                pk.sel({
+                    Dim.j: j,
+                    Dim.k_j: np.s_[result[j][i]:result[j][i+1]]
+                    })
+            )
+
+        if len(samples) == 1:
+            continue
+
+        for i, samp in enumerate(samples):
+
+            # python >= 3.11
+            other_samples = np.concatenate((*samples[:i], *samples[i+1:]))
+
+            stat.append(stats.wasserstein_distance(
+                -np.log(1 - samp),
+                # python >= 3.11
+                # -np.log(1 - np.r_[*samples[:i], *samples[i+1:]])))
+                -np.log(1 - other_samples)))
+            median.append(np.median(samp))
+
+        if threshold is None:
+            output[j] = np.array(stat)
+
+        else:
+            # threshold = 2 ** (j / 4) * 1.25
+            output[j] = np.arange(len(stat))[
+                (np.array(stat) > threshold) & (np.array(median) > .75)]
+
+        if verbose:
+            print(stat)
+
+    return output, result, signal_idx, range_idx
+
+
 def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
                            generalized=False, pelt_jump=1, threshold=2.5,
-                           hilbert_weighted=False, remove_edges=False):
-
-    from .hilbert import HilbertCost, w_hilbert
-    import ruptures as rpt
+                           hilbert_weighted=False, remove_edges=False,
+                           n_jobs=1):
 
     if generalized:
 
@@ -385,159 +487,80 @@ def cluster_reject_leaders(j1, j2, cm, leaders, pelt_beta, verbose=False,
         plt.show()
 
     if remove_edges:
+
         idx_reject = get_edge_reject(leaders)
+
+        if threshold is None:
+
+            temp = {
+                j: xr.zeros_like(idx_reject[j], dtype=float)
+                for j in idx_reject
+            }
+
+            for j in temp:
+                temp[j].values[idx_reject[j].values] = np.nan
+
+            idx_reject = temp
+
     else:
-        idx_reject = {j: xr.zeros_like(CDF[j], dtype=bool) for j in CDF}
+        idx_reject = {
+            j: xr.zeros_like(
+                CDF[j], dtype=bool if threshold is not None else float)
+            for j in CDF}
 
     agg = compute_aggregate(CDF, j1, j2)
 
-    for idx_range, idx_signal in np.ndindex(
-            CDF[j1].sizes[Dim.scaling_range], CDF[j1].sizes[Dim.channel]):
+    inputs = [
+        (idx_signal, idx_range,
+         agg.isel(channel=idx_signal, scaling_range=idx_range),
+         skip_scales[(idx_range, idx_signal)])
+        for idx_range, idx_signal in np.ndindex(
+            CDF[j1].sizes[Dim.scaling_range], CDF[j1].sizes[Dim.channel])
+    ]
 
-        mask_nan_global = np.isnan(
-            agg.isel(channel=idx_signal,
-                     scaling_range=idx_range)).any(dim=Dim.j).values
+    out = Parallel(n_jobs=n_jobs)(
+        delayed(_segment_reject_signal)(
+            signal_idx, range_idx, pk, pelt_beta, threshold, hilbert_weighted,
+            j1, pelt_jump=pelt_jump, skip_scales=skip, verbose=verbose)
+        for signal_idx, range_idx, pk, skip in inputs)
 
-        pk = agg.isel(channel=idx_signal, scaling_range=idx_range)
-        w = xr.DataArray(
-            (pk.values * np.log(pk).where(pk == 0, 0).values).sum(
-             axis=pk.dims.index(Dim.k_j)),
-            dims=(d for d in pk.dims if d != Dim.k_j)
-        )
+    for outlier_idx, result, signal_idx, range_idx in out:
 
-        if not hilbert_weighted:
-            w = np.ones_like(w)
+        for j in result:
 
-        if len(skip_scales) > 0:
-            for scale in skip_scales[(idx_range, idx_signal)]:
-                w[scale-j1] = 0
+            if threshold is None:
 
-        w /= w.sum()
-        w *= w.shape[0]
+                for i, stat in enumerate(outlier_idx[j]):
 
-        if verbose:
-            print(f'{w=}')
+                    idx_reject[j][
+                        {Dim.k_j: np.s_[result[j][i] // (2 ** (j-j1)):
+                                        result[j][i+1] // (2 ** (j-j1))+1],
+                            Dim.scaling_range: range_idx,
+                            Dim.channel: signal_idx}] = stat
 
-        pelt = rpt.Pelt(custom_cost=HilbertCost(w=w), jump=pelt_jump)
-
-        result = [0] + pelt.fit_predict(
-            agg.isel(channel=idx_signal,
-                     scaling_range=idx_range).values[~mask_nan_global],
-            pelt_beta)
-
-        result[-1] -= 1
-
-        if verbose:
-            rpt.display(
-                agg.isel(channel=idx_signal, scaling_range=idx_range, j=0
-                         ).values[~mask_nan_global],
-                [], result, figsize=(7, 2))
-            kernel_matrix = distance.squareform(distance.pdist(
-                agg.isel(scaling_range=idx_range, channel=idx_signal
-                         ).values[~mask_nan_global],
-                metric=w_hilbert, w=w))
-            plt.show()
-            sns.heatmap(kernel_matrix)
-            plt.vlines(result, 0, max(result))
-            plt.show()
-
-        reachable_index = np.arange(agg.shape[0])[~mask_nan_global]
-        result_j = [reachable_index[r] for r in result]
-        result_j[-1] += 1
-
-        # N_bins = ceil(1.5 * agg[~mask_nan_global].shape[0] ** (1/3))
-
-        for j in agg.j:
-
-            j = int(j)
-
-            # skip this scale because it does not contain relevant information
-            if j in skip_scales[(idx_range, idx_signal)]:
                 continue
 
-            stat = []
-            median = []
-
-            samples = []
-
-            for i in range(len(result) - 1):
-                samples.append(
-                    agg.isel(
-                        scaling_range=idx_range, channel=idx_signal
-                        ).sel({
-                            Dim.j: j,
-                            Dim.k_j: np.s_[result_j[i]:result_j[i+1]]
-                            })
-                )
-
-            if len(samples) == 1:
-                continue
-
-            right_edge = agg.isel(
-                scaling_range=idx_range, channel=idx_signal).sel(j=j).max(
-                    skipna=True, dim=Dim.k_j)
-            # bins = np.sort(
-            #     np.r_[1, 1-np.geomspace(1 - right_edge, 1, N_bins-1)])
-
-            for i, samp in enumerate(samples):
-
-                # python >= 3.11
-                # other_samples = np.r_[*samples[:i], *samples[i+1:]]
-                other_samples = np.concatenate((*samples[:i], *samples[i+1:]))
-
-                # bins = np.linspace(0, 1, N_bins)
-                # samp_hist, _ = np.histogram(samp, bins=bins)
-                # other_hist, _ = np.histogram(other_samples, bins=bins)
-
-                # samp_hist = samp_hist / samp_hist.sum()
-                # other_hist = other_hist / other_hist.sum()
-
-                # stat.append(special.kl_div(samp_hist, other_hist).sum())
-                stat.append(stats.wasserstein_distance(
-                    -np.log(1 - samp),
-                    # python >= 3.11
-                    # -np.log(1 - np.r_[*samples[:i], *samples[i+1:]])))
-                    -np.log(1 - other_samples)))
-                # stat.append(spatial.distance.jensenshannon(samp_hist, other_hist))
-                median.append(np.median(samp))
-
-            # threshold = 2 ** (j / 4) * 1.25
-            outlier_idx = np.arange(len(stat))[
-                (np.array(stat) > threshold) & (np.array(median) > .75)]
-
-            # mask = np.zeros(idx_reject[j1+j].shape[0], dtype=bool)
-
-            # mask_nan = np.isnan(CDF[j1+j][:, idx_range, idx_signal])
-
-            # annoyingly, masking returns a view
-            # accessible_indices = np.arange(mask.shape[0])[~mask_nan_global]
-
-            for idx in outlier_idx:
-
-                # sl = accessible_indices[result[idx] // (2 ** (j)):result[idx+1] // (2 ** (j))+1]
-                # mask[sl] = True
+            for idx in outlier_idx[j]:
 
                 idx_reject[j][
-                    {Dim.k_j: np.s_[result_j[idx] // (2 ** (j-j1)):
-                                    result_j[idx+1] // (2 ** (j-j1))+1],
-                     Dim.scaling_range: idx_range,
-                     Dim.channel: idx_signal}] = True
+                    {Dim.k_j: np.s_[result[j][idx] // (2 ** (j-j1)):
+                                    result[j][idx+1] // (2 ** (j-j1))+1],
+                        Dim.scaling_range: range_idx,
+                        Dim.channel: signal_idx}] = True
 
                 for jj in range(j-j1):
                     idx_reject[j1+jj][
-                        result_j[idx] // (2 ** (jj)):
-                        result_j[idx+1] // (2 ** (jj))+1,
-                        idx_range, idx_signal] = True
-
-            if verbose:
-                print(stat)
+                        {Dim.k_j: np.s_[result[j][idx] // (2 ** (jj)):
+                                        result[j][idx+1] // (2 ** (jj))+1],
+                            Dim.scaling_range: range_idx,
+                            Dim.channel: signal_idx}] = True
 
     return idx_reject
 
 
 def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
                  robust_cm=False, verbose=False, generalized=False,
-                 remove_edges=False):
+                 remove_edges=False, n_jobs=1, spread=3):
     """Detect outliers in a signal.
 
     Parameters
@@ -548,18 +571,33 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
         List of pairs of (j1, j2) ranges of scales for the linear regressions.
     pelt_beta : float
         Regularization parameter for the PELT segmentation.
-    threshold : float
+    threshold : float | None
         Wasserstein distance threshold to indentify a segment as outlier.
+        If None, the function returns an array of floats, corresponding to the
+        Wasserstein statistic, which then needs to be transformed into a
+        boolean array.
     pelt_jump : int
         Optional, PELT algorithm checks segmentations every `pelt_jump` point.
     robust_cm : bool
         Whether to use robust cumulants in the detection.
-    generalized : bool
-        Whether to use the exponential power distribution model instead of
-        the normal distribution for the log 1-leaders in the detection.
     verbose : bool, optional
         Display figures outlining the detection process. If multiple signals
         are being processed, will only show figures for the first signal.
+    generalized : bool
+        Whether to use the exponential power distribution model instead of
+        the normal distribution for the log 1-leaders in the detection.
+    remove_edges : bool
+        Whether to remove the edge coefficients at finer scales (not covered
+        by the detection algorithm).
+    n_jobs : int
+        Number of joblib parallel threads to use (across channels).
+
+        .. versionadded:: 0.3.2 Multiprocessing support was added
+    spread : int
+        Number of coefficients neighboring each detected segments that should
+        also be removed. Useful to remove the influence of affected
+        coefficients at the edge of detection, especially in high noise
+        conditions. Should normally be >= 3.
 
     Returns
     -------
@@ -594,7 +632,10 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
     idx_reject = cluster_reject_leaders(
         min_scale, j2, lwt.cumulants, leaders, verbose=verbose,
         generalized=generalized, pelt_beta=pelt_beta, pelt_jump=pelt_jump,
-        threshold=threshold, remove_edges=remove_edges)
+        threshold=threshold, remove_edges=remove_edges, n_jobs=n_jobs)
+
+    if threshold is None:
+        return None, idx_reject
 
     for j in range(min(idx_reject), max(idx_reject)):
 
@@ -608,8 +649,6 @@ def get_outliers(wt_coefs, scaling_ranges, pelt_beta, threshold, pelt_jump=1,
         # print(combined.shape, idx_reject[j+1].shape)
 
     for j in range(min(idx_reject), max(idx_reject)+1):
-
-        spread = 3
 
         for k in range(spread):
 
