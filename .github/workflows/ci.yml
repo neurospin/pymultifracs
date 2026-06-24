@@ -75,6 +75,9 @@ jobs:
           activate-environment: pymultifracs
           # mamba-version: "*"
           # use-only-tar-bz2: true
+      - name: Set mpl backend
+        if: matrix.os == 'windows-latest'
+        run: echo "MPLBACKEND=Agg" >> $GITHUB_ENV
       - name: Testing
         # mamba install -c numba -c conda-forge numpy scipy pywavelets seaborn numba statsmodels pytest pytest-xdist pytest-cov tqdm joblib
         run: |

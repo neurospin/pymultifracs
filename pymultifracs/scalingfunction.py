@@ -6,6 +6,7 @@ Authors: Merlin Dumeur <merlin@dumeur.net>
 # pylint: disable=W0221
 
 from dataclasses import dataclass, field, InitVar
+from functools import partial
 import inspect
 import warnings
 
@@ -16,10 +17,11 @@ from scipy import special
 import matplotlib.pyplot as plt
 
 from .regression import prepare_weights, prepare_regression, \
-    linear_regression, compute_R2, compute_RMSE
+    linear_regression, compute_R2, compute_RMSE, linear_regression_ufunc
 from .autorange import compute_Lambda, compute_R, find_max_lambda
 from .utils import fast_power, mask_reject, isclose, fixednansum, \
     AbstractDataclass, Formalism, Dim, _expand_align, scaling_range_to_str
+from .backend import jnp, jit, JAX_AVAILABLE, lax_cond
 from . import multiresquantity, viz
 
 
@@ -91,9 +93,91 @@ class AbstractScalingFunction(AbstractDataclass):
         return self.__getattribute__(name)
 
 
+def _get_bootstrap_weights(sf, j_min, j_max, value_name=None):
+
+    if sf.bootstrapped_obj is None:
+        # Asking for bootstrap-derived weights from the bootstrapped data:
+        # Avoid double bootstrap by returning the std deviation of the
+        # bootstrap-dervied scaling functions.
+
+        return sf.std_values(value_name).sel(j=slice(j_min, j_max))
+
+    if j_min < sf.bootstrapped_obj.j.min():
+        raise ValueError(
+            f"Bootstrap minimum scale "
+            f"{sf.bootstrapped_obj.j.min()} inferior to minimum "
+            f"scale {j_min} used in estimation")
+
+    return sf.bootstrapped_obj.std_values(value_name).sel(
+        j=slice(j_min, j_max))
+
+
+def _compute_fit(values, weights, scaling_ranges, j, out_name):
+    pass
+
+
+data_array_names = {
+    'regularity': '$h{reg_suffix}(q)$',
+    'dimension': r'$\mathcal{{L}}{var_suffix}(q)$',
+    'structure': 'S_j{var_suffix}(q)',
+    'cumulants': '$C_m{mrq.get_suffix()[0]}(j)$'
+}
+
+
+def _compute_scalingfunctions(mrq, min_j, q, estimates):
+
+    j_array = np.array([j for j in mrq.values if j >= min_j])
+
+    coords = {
+        Dim.j: (Dim.j, j_array),
+        'gamint': ('gamimt', np.array([mrq.gamint])),
+    }
+
+    attrs = {
+        'formalism': mrq.formalism,
+        'weighted': mrq.weighted,
+        'bootstrapped_obj': mrq.bootstrapped_obj
+    }
+
+    scaling_functions = {}
+
+    var_suffix, reg_suffix = mrq.get_suffix()
+
+    if 'c' in estimates:
+        scaling_functions['cumulants'] = compute_cumulants(
+            j_array, mrq, idx_reject, max_cumul, bias_correction
+        )
+
+    if 's' in estimates:
+        scaling_functions['structure'], spectrum = compute_structure(
+            j_array, mrq, idx_reject, q, 'm' in estimate,
+        )
+        if spectrum is not None:
+            scaling_functions.update(spectrum)
+    elif 'm' in estimates:
+        scaling_functions.update(compute_direct_spectrum(
+            j_array, mrq, idx_reject, q))
+
+    # name the data arrays
+    for key, array in scaling_functions.items():
+
+        array.name = data_array_names[key].format(
+            var_suffix=var_suffix, reg_suffix=reg_suffix)
+
+    return xr.Dataset(scaling_functions, coords, attrs)
+
+
+# @xr.register_dataset_accessor('scaling_function')
+# class ScalingFunctionXR:
+#     """
+#     Provides the necessary methods to represent scaling functions in
+#     xarray.Dataset form.
+#     """
+
+
 @dataclass(kw_only=True)
 class ScalingFunction(AbstractScalingFunction):
-    """"
+    """
     General DWT-based scaling function.
     """
     mrq: InitVar[multiresquantity.WaveletDec]
@@ -212,55 +296,39 @@ class ScalingFunction(AbstractScalingFunction):
 
         return j1, j2, j_min, j_max
 
+    def _get_weights(self, j, j_min, j_max, value_name):
+
+        return prepare_weights(
+            lambda: self.get_nj_interv(j_min, j_max), self.weighted,
+            self.scaling_ranges, j,
+            lambda: _get_bootstrap_weights(self, j_min, j_max, value_name)
+        )
+
     def _compute_fit(self, value_name='values', out_name=None):
 
         values = getattr(self, value_name)
 
-        # slope = np.zeros(
-        #     (values.shape[0], len(self.scaling_ranges),
-        #      values.shape[-1]))
-
-        x, n_ranges, j_min, j_max, _, _ = prepare_regression(
+        n_ranges, j_min, j_max, _, _ = prepare_regression(
             self.scaling_ranges, self.j, values.dims)
-
-        # self.intercept = np.zeros_like(slope)
 
         y = values.sel(j=slice(j_min, j_max))
 
-        if self.weighted == 'bootstrap':
+        self.weights = self._get_weights(y.j, j_min, j_max, value_name)
 
-            if self.bootstrapped_obj is None:
+        y = xr.where(self.weights == 0, 0, y)
 
-                std = self.std_values(value_name).sel(j=slice(j_min, j_max))
+        output = xr.apply_ufunc(
+            linear_regression_ufunc,
+            y.coords[Dim.j].astype(float), y, self.weights,
+            input_core_dims=[[Dim.j], [Dim.j], [Dim.j]],
+            output_core_dims=[['coef']],
+            join='inner',
+            vectorize=False,
+            output_sizes={'coef': 2},
+        )
 
-            else:
-
-                if j_min < self.bootstrapped_obj.j.min():
-                    raise ValueError(
-                        f"Bootstrap minimum scale "
-                        f"{self.bootstrapped_obj.j.min()} inferior to minimum "
-                        f"scale {j_min} used in estimation")
-
-                # std_slice = np.s_[
-                #     int(j_min - self.bootstrapped_obj.j.min()):
-                #     int(j_max - self.bootstrapped_obj.j.min() + 1)]
-
-                std = self.bootstrapped_obj.std_values(value_name).sel(
-                    j=slice(j_min, j_max))
-
-        else:
-            std = None
-
-        self.weights = prepare_weights(
-            self.get_nj_interv, self.weighted, n_ranges, j_min, j_max,
-            self.scaling_ranges, y, std)
-
-        # nan_weighting = np.ones_like(y)
-        # nan_weighting[np.isnan(y)] = np.nan
-
-        # self.weights *= nan_weighting
-
-        slope, self.intercept = linear_regression(x, y, self.weights)
+        slope = output.isel(coef=0)
+        self.intercept = output.isel(coef=1)
 
         if out_name is not None:
             slope = setattr(self, out_name, slope)
@@ -273,6 +341,168 @@ class ScalingFunction(AbstractScalingFunction):
             return 0
 
         return self.values.sizes[Dim.bootstrap]
+
+
+def _return_single_nan(*args):
+    return jnp.array([jnp.nan])
+
+
+def _prepare_mask(X, reject_mask):
+
+    mask_nan = jnp.isnan(X) | jnp.isinf(X) | reject_mask
+
+    N_useful = (~mask_nan).sum()
+
+    return_nan = N_useful < 3
+
+    return mask_nan, N_useful, return_nan
+
+
+def _get_mrq_q(X, q):
+    return jnp.abs(X) ** q
+
+
+# @partial(jnp.vectorize, signature='(n),(n),()->()'')
+def _structure_gufunc(X, reject_mask, q: float | int):
+
+    mask_nan, N_useful, return_nan = _prepare_mask(X, reject_mask)
+
+    branch_true = lambda X, mask_nan, q: ((jnp.nan, X, mask_nan), return_nan)
+    branch_false = lambda X, mask_nan, q: ((_Sq_gufunc(X, mask_nan, q), X, mask_nan), return_nan)
+
+    return lax_cond(
+        return_nan, branch_true, branch_false,
+        X, mask_nan, q
+    )
+
+    # X, mask_nan, Sq = _structure_gufunc(X, mask_nan, q)
+
+
+@partial(jnp.vectorize, signature='(n),(n),()->(1)')
+def structure_gufunc(X, reject_mask, q):
+    return jnp.r_[_structure_gufunc(X, reject_mask, q)[0][0]]
+
+
+@partial(jnp.vectorize, signature='(n),(n),()->(2)')
+def spectrum_gufunc(X, reject_mask, q):
+
+    mask_nan, N_useful, return_nan = _prepare_mask(X, reject_mask)
+
+    branch_true = lambda X, mask_nan, N_useful: jnp.array([jnp.nan, jnp.nan])
+    branch_false = lambda X, mask_nan, N_useful: spectrum_gufunc(
+        X, reject_
+    )
+
+    return lax_cond(
+        return_nan, branch_true, branch_false,
+        X, mask_nan, N_useful)
+
+
+@partial(jnp.vectorize, signature='(n),(n),()->(3)')
+def structure_spectrum_gufunc(X, reject_mask, q):
+
+    (X, mask_nan, Sq), return_nan = _structure_gufunc(X, reject_mask, q)
+
+    branch_true = lambda X, mask_nan, N_useful: jnp.nan, jnp.nan
+    branch_false = lambda X, mask_nan, N_useful: _spectrum_from_structure_gufunc(X, mask_nan, N_useful)
+
+    return jnp.r_[
+        Sq,
+        *lax_cond(
+            return_nan, branch_true, branch_false,
+            X, mask_nan, N_useful
+        )
+    ]
+
+
+def _spectrum_from_structure_gufunc(X, mask_nan, N_useful):
+
+    Z = jnp.sum(X, where=~mask_nan)
+
+    R = X / Z
+
+    V = jnp.sum(R * jnp.log2(X), where=~mask_nan)
+    U = jnp.log2(N_useful) + jnp.sum(R * jnp.log2(R), where=~mask_nan)
+
+    return U, V
+
+
+def _Sq_gufunc(X, mask_nan, q):
+
+    X = _get_mrq_q(X, q)
+
+    return jnp.log2(jnp.mean(X, where=~mask_nan)), X
+
+
+def compute_structure(j_array, mrq, idx_reject, q, direct_spectrum=False):
+
+    outputs = []
+
+    compute_gufunc = (
+        structure_spectrum_gufunc if direct_spectrum else structure_gufunc)
+    output_dim_size = 3 if direct_spectrum else 1
+
+    for j in j_array:
+
+        if idx_reject is None or j not in idx_reject:
+            mask = xr.DataArray(
+                jnp.zeros(X.sizes_[Dim.k_j], dtype=bool),
+                dims=Dim.k_j
+            )
+        else:
+            mask = idx_reject[j]
+
+        outputs.append(
+            xr.apply_ufunc(
+                compute_gufunc,
+                mrq.get_values(j, None), mask, q,
+                input_core_dims=[[Dim.k_j], [Dim.k_j], []],
+                output_core_dims=[['output']],
+                join='inner',
+                vectorize=False,
+                output_sizes={'output': output_dim_size},
+            )
+        )
+
+    output = xr.concat(outputs, dim=Dim.j)
+
+    structure = output.isel(output=0)
+
+    spectrum = None
+
+    if direct_spectrum:
+        regularity = output.isel(output=1)
+        dimension = output.isel(output=2)
+
+        spectrum = {'regularity': regularity, 'dimension': dimension}
+
+    return structure, None
+
+
+def compute_direct_spectrum(j_array, mrq, idx_reject, q):
+
+    outputs = []
+
+    for j in j_array:
+
+        outputs.append(
+            xr.apply_ufunc(
+                compute_gufunc,
+                mrq.get_values(j, None), mask, q,
+                input_core_dims=[[Dim.k_j], [Dim.k_j], []],
+                output_core_dims=[['output']],
+                join='inner',
+                vectorize=False,
+                output_sizes={'output': 2},
+            )
+        )
+
+    output = xr.concat(outputs, dim=Dim.j)
+
+    return {
+        'regularity': output.isel(output=0),
+        'dimension': output.isel(output=1),
+    }
 
 
 @dataclass(kw_only=True)
@@ -324,14 +554,17 @@ class StructureFunction(ScalingFunction):
         bootstraping has been used.
     """
     q: np.ndarray
-    H: np.ndarray = field(init=False)
+    direct_spectrum: InitVar[bool] = False
+    spec: xr.DataArray = field(init=False)
 
-    def __post_init__(self, idx_reject, mrq, min_j):
+    def __post_init__(self, idx_reject, mrq, min_j, direct_spectrum):
 
         super().__post_init__(idx_reject, mrq, min_j)
 
         if self.bootstrapped_obj is not None:
             self.bootstrapped_obj = self.bootstrapped_obj.structure
+
+        self.q = xr.DataArray(self.q, coords={Dim.q: self.q})
 
         dims = (Dim.q, Dim.j, Dim.scaling_range)
         shape = (len(self.q), len(self.j), len(self.scaling_ranges))
@@ -357,41 +590,52 @@ class StructureFunction(ScalingFunction):
             np.zeros(shape), dims=dims, coords=coords,
             name=f"$S_q{self.variable_suffix}(j)$")
 
-        self._compute(mrq, idx_reject)
+        self._compute(mrq, idx_reject, direct_spectrum)
         self._compute_fit()
 
         self.slope.name = rf'$\zeta(q){self.variable_suffix}$'
-        # self.intercept.name = rf'$\zeta(q){self.variable_suffix}$'
 
-    def _compute(self, mrq, idx_reject):
+    def _compute(self, mrq, idx_reject, compute_spectrum=False):
+        """
+        Computes the values of the Structure functions for all (q, j),
+        and optionally the scaling functions used in direct determination
+        of the multifractal spectrum.
+        """
+
+        S = []
+
+        if compute_spectrum:
+            fun = structure_spectrum_gufunc
+        else:
+            fun = structure_gufunc
 
         for j in self.j:
 
-            c_j = mrq.get_values(j, idx_reject)
+            X = mrq.get_values(j, None)
 
-            # c_j = _expand_align(c_j, reference_order=self.dims[1:])
+            if idx_reject is None or j not in idx_reject:
+                mask = xr.DataArray(
+                    jnp.zeros(X.sizes[Dim.k_j], dtype=bool),
+                    dims=Dim.k_j
+                )
+            else:
+                mask = idx_reject[j]
 
-            for q in self.q:
+            S.append(xr.apply_ufunc(
+                fun, X, mask, self.q,
+                input_core_dims=[[Dim.k_j], [Dim.k_j], []],
+                output_core_dims=[['coef']],
+                join='inner',
+                vectorize=False,
+                output_sizes={'coef': 3 if compute_spectrum else 1})
+            )
 
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        'ignore', "Mean of empty slice",
-                        category=RuntimeWarning)
+        S = xr.concat(S, dim=Dim.j)
 
-                    self.values.loc[{Dim.q: q, Dim.j: j}] = xr.DataArray(
-                        np.log2(np.nanmean(fast_power(np.abs(c_j.values), q),
-                                           axis=c_j.dims.index(Dim.k_j))),
-                        dims=[d for d in c_j.dims if d != Dim.k_j])
+        self.values = S.isel(coef=0)
 
-            mask_nan = np.isnan(c_j) | np.isinf(c_j)
-            N_useful = (~mask_nan).sum(dim=Dim.k_j)
-            idx_unreliable = N_useful < 3
-
-            if idx_unreliable.any():
-                self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
-                    ~idx_unreliable, np.nan)
-
-        self.values.values[np.isinf(self.values)] = np.nan
+        if compute_spectrum:
+            return S.isel(coef=jnp.s_[1:2])
 
     def _get_H(self):
         return self.slope.sel(q=2) / 2
@@ -602,6 +846,101 @@ class StructureFunction(ScalingFunction):
             plt.savefig(filename)
 
 
+def _cumulant_bias_correction(C, max_cumul: int, N_useful: int):
+
+    correction_factor = 1
+
+    for m in range(2, max_cumul + 1):
+
+        correction_factor *= N_useful / (N_useful - (m-1))
+        C[m-1] = C[m-1] * correction_factor
+
+    return C
+
+def _cumulant_ufunc(X, mask_nan, max_cumul: int, bias_correction: bool, N_useful: int):
+
+    Mu = []
+    C = []
+
+    for m in range(1, max_cumul + 1):
+        Mu.append(jnp.sum(X ** m, where=~mask_nan))
+
+    C.append(Mu[0])
+
+    for i, m in enumerate(range(2, max_cumul + 1)):
+
+        aux = jnp.zeros_like(C[0])
+
+        for n in np.arange(1, m):
+            aux = aux + (special.binom(m-1, n-1) * C[n-1] * Mu[m-n])
+
+        C.append(Mu[m-1] - aux)
+
+    branch_true = lambda C, N_useful:  _cumulant_bias_correction(C, max_cumul, N_useful)
+    branch_false = lambda C, _: C
+
+    return jnp.r_[*lax_cond(
+        bias_correction,
+        branch_true,
+        branch_false,
+        C, N_useful
+    )]
+
+
+def _return_nan(X, mask_nan, max_cumul: int, bias_correction: bool, N_useful: int):
+    return jnp.zeros((max_cumul)) + jnp.nan
+
+
+# @jit(static_argnames=['max_cumul', 'bias_correction'])
+@partial(jnp.vectorize, signature='(n),(n)->(m)', excluded={2, 3})
+def cumulant_ufunc(X, reject_mask, max_cumul: int, bias_correction: bool):
+
+    X = jnp.abs(X)
+    X = jnp.log(X)
+
+    mask_nan = jnp.isnan(X) | jnp.isinf(X) | reject_mask
+
+    N_useful = (~mask_nan).sum()
+
+    branch_true = lambda X, mask_nan, N_useful: _return_nan(X, mask_nan, max_cumul, bias_correction, N_useful)
+    branch_false = lambda X, mask_nan, N_useful: _cumulant_ufunc(X, mask_nan, max_cumul, bias_correction, N_useful)
+
+    return lax_cond(
+        N_useful < 3, branch_true, branch_false,
+        X, mask_nan, N_useful
+    )
+
+
+def compute_cumulants(j_array, mrq, idx_reject, max_cumul, bias_correction,
+        ):
+
+    cumulants = []
+
+    for j in j_array:
+
+        if idx_reject is None or j not in idx_reject:
+            mask = xr.DataArray(
+                jnp.zeros(X.sizes[Dim.k_j], dtype=bool),
+                dims=Dim.k_j)
+        else:
+            mask = idx_reject[j]
+
+        cumulants.append(xr.apply_ufunc(
+            cumulant_ufunc,
+            mrq.get_values(j, None), mask, max_cumul,
+            bias_correction,
+            input_core_dims=[[Dim.k_j], [Dim.k_j], [], []],
+            output_core_dims=[[Dim.m]],
+            join='inner',
+            vectorize=False,
+            output_sizes={Dim.m: max_cumul}
+        ))
+
+    out = xr.concat(cumulants, dim=Dim.j)
+
+    return out
+
+
 @dataclass(kw_only=True)
 class Cumulants(ScalingFunction):
     r"""
@@ -689,7 +1028,7 @@ class Cumulants(ScalingFunction):
             mrq_shapes.append(s)
 
         self.values = xr.DataArray(
-            np.zeros((*shape, *mrq_shapes)),
+            jnp.zeros((*shape, *mrq_shapes)),
             dims=(*dims, *mrq_dims),
             coords={Dim.j: self.j, Dim.m: self.m,
                     Dim.scaling_range: [scaling_range_to_str(s)
@@ -703,10 +1042,12 @@ class Cumulants(ScalingFunction):
             self._compute(mrq, idx_reject, bias_correction)
 
         self._compute_fit()
-        self.log_cumulants = self.slope * np.log2(np.e)
+        self.log_cumulants = self.slope * jnp.log2(jnp.e)
 
-        self.slope.name = f'$c_m{self.variable_suffix}$'
+        # self.slope.name = f'$c_m{self.variable_suffix}$'
         self.intercept.name = f'$c_m^0{self.variable_suffix}$'
+
+        self.log_cumulants.name = f'$c_m{self.variable_suffix}$'
 
     def __repr__(self):
 
@@ -756,88 +1097,112 @@ class Cumulants(ScalingFunction):
 
     def _compute(self, mrq, idx_reject, bias_correction):
 
-        moments = xr.zeros_like(self.values)
+        cumulants = []
 
         for j in self.j:
 
-            T_X_j = np.abs(mrq.get_values(j, None))
-            dims = T_X_j.dims
-            # T_X_j = T_X_j.values
-
-            np.log(T_X_j.values, out=T_X_j.values)
-
-            mask_nan = np.isnan(T_X_j)
-            mask_nan |= np.isinf(T_X_j)
-
-            if idx_reject is not None and j in idx_reject:
-                # delta = (mrq.interval_size - 1) // 2
-                mask_nan |= idx_reject[j]
-
-            T_X_j.values[mask_nan.values] = 0
-
-            N_useful = (~mask_nan).sum(dim=Dim.k_j)
-            idx_unreliable = N_useful < 3
-
-            for m in self.m:
-
-                loc_dict = {Dim.m: m, Dim.j: j}
-
-                moments.loc[loc_dict] = xr.DataArray(
-                    np.sum(fast_power(T_X_j.values, m),
-                           axis=dims.index(Dim.k_j)) / N_useful.values,
-                    dims=[d for d in dims if d != Dim.k_j],
+            if idx_reject is None or j not in idx_reject:
+                mask = xr.DataArray(
+                    jnp.zeros(X.sizes[Dim.k_j], dtype=bool),
+                    dims=Dim.k_j
                 )
+            else:
+                mask = idx_reject[j]
 
-                if m == 1:
-                    self.values.loc[loc_dict] = moments.sel(m=m, j=j)
-                else:
-                    aux = 0
+            cumulants.append(xr.apply_ufunc(
+                cumulant_ufunc,
+                mrq.get_values(j, None), mask, self.n_cumul,
+                self.bias_correction,
+                input_core_dims=[[Dim.k_j], [Dim.k_j], [], []],
+                output_core_dims=[[Dim.m]],
+                join='inner',
+                vectorize=False,
+                output_sizes={Dim.m: self.n_cumul}
+            ))
 
-                    for n in np.arange(1, m):
-                        aux += (special.binom(m-1, n-1)
-                                * self.values.sel(m=n, j=j)
-                                * moments.sel(m=m-n, j=j))
+        self.values = xr.concat(cumulants, dim=Dim.j)
 
-                    self.values.loc[loc_dict] = moments.sel(m=m, j=j) - aux
+        #     T_X_j = np.abs(mrq.get_values(j, None))
+        #     dims = T_X_j.dims
+        #     # T_X_j = T_X_j.values
 
-            if idx_unreliable.any():
-                self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
-                    ~idx_unreliable, np.nan)
+        #     np.log(T_X_j.values, out=T_X_j.values)
 
-            if bias_correction:
+        #     mask_nan = np.isnan(T_X_j)
+        #     mask_nan |= np.isinf(T_X_j)
 
-                correction_factor = xr.ones_like(N_useful, dtype=float)
+        #     if idx_reject is not None and j in idx_reject:
+        #         # delta = (mrq.interval_size - 1) // 2
+        #         mask_nan |= idx_reject[j]
 
-                for m in self.m:
+        #     T_X_j.values[mask_nan.values] = 0
 
-                    if m == 1:
-                        continue
+        #     N_useful = (~mask_nan).sum(dim=Dim.k_j)
+        #     idx_unreliable = N_useful < 3
 
-                    correction_factor *= N_useful / (N_useful - (m-1))
+        #     for m in self.m:
 
-                    loc_dict = {Dim.m: m, Dim.j: j}
+        #         loc_dict = {Dim.m: m, Dim.j: j}
 
-                    if m == 4:
+        #         moments.loc[loc_dict] = xr.DataArray(
+        #             np.sum(fast_power(T_X_j.values, m),
+        #                    axis=dims.index(Dim.k_j)) / N_useful.values,
+        #             dims=[d for d in dims if d != Dim.k_j],
+        #         )
 
-                        correction_term = (
-                            moments.loc[loc_dict]
-                            + moments.sel(m=2, j=j) ** 2 * 3)
+        #         if m == 1:
+        #             self.values.loc[loc_dict] = moments.sel(m=m, j=j)
+        #         else:
+        #             aux = 0
 
-                        correction_term /= N_useful
+        #             for n in np.arange(1, m):
+        #                 aux += (special.binom(m-1, n-1)
+        #                         * self.values.sel(m=n, j=j)
+        #                         * moments.sel(m=m-n, j=j))
 
-                        self.values.loc[loc_dict] += correction_term
+        #             self.values.loc[loc_dict] = moments.sel(m=m, j=j) - aux
 
-                    self.values.loc[loc_dict] *= correction_factor
+        #     if idx_unreliable.any():
+        #         self.values.loc[{Dim.j: j}] = self.values.sel(j=j).where(
+        #             ~idx_unreliable, np.nan)
 
-        self.values.values[np.isinf(self.values)] = np.nan
+        #     if bias_correction:
+
+        #         correction_factor = xr.ones_like(N_useful, dtype=float)
+
+        #         for m in self.m:
+
+        #             if m == 1:
+        #                 continue
+
+        #             correction_factor *= N_useful / (N_useful - (m-1))
+
+        #             loc_dict = {Dim.m: m, Dim.j: j}
+
+        #             # if m == 4:
+
+        #             #     correction_term = (
+        #             #         moments.loc[loc_dict]
+        #             #         + moments.sel(m=2, j=j) ** 2 * 3)
+
+        #             #     correction_term /= N_useful
+
+        #             #     self.values.loc[loc_dict] += correction_term
+
+        #             self.values.loc[loc_dict] *= correction_factor
+
+        # self.values.values[np.isinf(self.values)] = np.nan
 
     def __getattr__(self, name):
 
         if name[0] == 'c' and len(name) == 2 and name[1:].isdigit():
-            return self.log_cumulants.sel(m=int(name[1]))
+            return self.log_cumulants.sel(m=int(name[1])).rename(
+                self.log_cumulants.name.replace('m', name[1])
+            )
 
         if name[0] == 'C' and len(name) == 2 and name[1:].isdigit():
-            return self.values.sel(m=int(name[1]))
+            return self.values.sel(m=int(name[1])).rename(
+                self.values.name.replace('m', name[1]))
 
         if name == 'M':
             return -self.c2
@@ -981,11 +1346,12 @@ class MFSpectrum(ScalingFunction):
             mrq_shapes.append(s)
 
         self.U = xr.DataArray(
-            np.zeros((*shape, *mrq_shapes)), dims=(*dims, *mrq_dims),
+            jnp.zeros((*shape, *mrq_shapes)), dims=(*dims, *mrq_dims),
             coords={Dim.j: self.j, Dim.q: self.q,
                     Dim.scaling_range: [scaling_range_to_str(s)
                                         for s in self.scaling_ranges]},
             name=f'$U{self.variable_suffix}(j, q)$')
+
         self.V = xr.zeros_like(self.U)
         self.V.name = f'$V{self.variable_suffix}(j, q)$'
 
@@ -1008,15 +1374,13 @@ class MFSpectrum(ScalingFunction):
 
         # 1. Compute U(j,q) and V(j, q)
 
-        # shape (n_q, n_scales, n_rep)
-
         for j in self.j:
 
             # nj = mrq.nj[j]
             mrq_values_j = mrq.get_values(j, idx_reject)
             dims = mrq_values_j.dims
             # coords = mrq_values_j.coords
-            mrq_values_j = np.abs(mrq_values_j.values)
+            mrq_values_j = jnp.abs(mrq_values_j.values)
 
             # if 'scaling_range' not in dim_names:
             #     dim_names.insert(1, 'scaling_range')
@@ -1026,7 +1390,7 @@ class MFSpectrum(ScalingFunction):
             #     mrq_values_j, idx_reject, j, mrq.interval_size)
 
             # idx_nan = np.isnan(mrq_values_j)
-            mask_nan = np.isnan(mrq_values_j) | np.isinf(mrq_values_j)
+            mask_nan = jnp.isnan(mrq_values_j) | jnp.isinf(mrq_values_j)
             temp = np.stack(
                 [fast_power(mrq_values_j, q) for q in self.q], axis=0)
             # np.nan ** 0 = 1.0, adressed here

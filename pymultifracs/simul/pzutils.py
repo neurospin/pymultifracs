@@ -9,7 +9,24 @@ Various helper functions for the synthesis of random processes.
 
 import numpy as np
 import warnings
-from scipy import linalg as spla
+from scipy import linalg
+
+
+def generate_temporal_cov_fbm(N, H):
+
+    n = np.arange(N)
+    
+    return (
+        dt ** (2 * H)
+        * sigma ** 2 / 2
+        * (np.abs(n+1) ** (2 * H)
+           + np.abs(n-1) ** (2 * H)
+           - 2 * np.abs(n) ** (2 * H))
+    )
+
+
+def generate_z0(N, R):
+    return np.random.randn(2 * N - 2, R) + 1j * np.random.randn(2 * N -2, R)
 
 
 def gaussian_cme(cov, N, R, z=None):
@@ -54,6 +71,6 @@ def gaussian_chol(cov, N, R, z=None):
     '''
     if z is None:
         z = np.random.randn(N, R)
-    L = spla.cholesky(spla.toeplitz(cov))
+    L = linalg.cholesky(linalg.toeplitz(cov))
     x = L @ z
     return x

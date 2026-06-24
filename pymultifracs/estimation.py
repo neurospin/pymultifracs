@@ -5,14 +5,27 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 
 import warnings
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 
 # from sklearn.linear_model import LinearRegression
 
-from .regression import linear_regression, prepare_regression, prepare_weights
+from .regression import linear_regression, prepare_regression, \
+    prepare_weights, linear_regression_ufunc
 from . import scalingfunction
 from . import utils
 from .utils import Dim
+
+
+def _sup_coeffs_weights(
+        mrq, n_ranges, j_max, j_min, idx_reject):
+
+    if mrq.bootstrapped_obj is not None:
+        return mrq.std_values('_sup_coeffs')(
+            n_ranges, j_max, j_min, idx_reject)
+
+    else:
+        return None
 
 
 def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
@@ -23,31 +36,33 @@ def estimate_hmin(mrq, scaling_ranges, weighted, idx_reject, warn=True,
     """
     # TODO: change so it returns a constant number of outputs
 
-    x, n_ranges, j_min, j_max, *_ = prepare_regression(
+    n_ranges, j_min, j_max, *_ = prepare_regression(
         scaling_ranges, np.array([*mrq.values]), dims=(Dim.j)
     )
 
-    if weighted == 'bootstrap' and mrq.bootstrapped_obj is not None:
-
-        std = mrq.std_values('_sup_coeffs')(n_ranges, j_max, j_min, idx_reject)
-
-    else:
-        std = None
-
-    sup_coeffs = mrq._sup_coeffs(
-        n_ranges, j_max, j_min, idx_reject)
+    sup_coeffs = mrq._sup_coeffs(n_ranges, j_max, j_min, idx_reject)
 
     y = np.log2(sup_coeffs).sel(j=slice(j_min, j_max))
 
     w = prepare_weights(
-        mrq.get_nj_interv, weighted, n_ranges, j_min, j_max,
-        scaling_ranges, y, std=std)
+        mrq.get_nj_interv, weighted, scaling_ranges, y.j,
+        lambda: _sup_coeffs_weights(mrq, n_ranges, j_max, j_min, idx_reject)
+    )
 
-    hmin, intercept = linear_regression(x, y, w)
+    y = xr.where(w == 0, 0, y)
 
-    # warning
-    if 0 in hmin and warn:
-        warnings.warn(f"h_min = {hmin} < 0. gamint should be increased")
+    output = xr.apply_ufunc(
+        linear_regression_ufunc,
+        y.coords[Dim.j].values.astype(float), y, w,
+        input_core_dims=[[Dim.j], [Dim.j], [Dim.j]],
+        output_core_dims=[['coef']],
+        join='inner',
+        vectorize=False,
+        output_sizes={'coef': 2},
+    )
+
+    hmin = output.isel(coef=0)
+    intercept = output.isel(coef=1)
 
     if return_y:
         return hmin, intercept, y
@@ -75,8 +90,8 @@ def estimate_eta_p(wt_coefs, p_exp, scaling_ranges, weighted, idx_reject):
         weighted=weighted, idx_reject=idx_reject,
         bootstrapped_obj=bootstrapped_obj)
 
-    # shape N_ranges, n_channelnals
-    return wavelet_structure.zeta[0]
+    # shape N_ranges, n_channel
+    return wavelet_structure.zeta.isel(q=0)
 
 
 def plot_hmin(wt_coefs, j1, j2_eff, weighted, warn=True):

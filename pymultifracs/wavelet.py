@@ -11,6 +11,8 @@ import numpy as np
 
 from . import multiresquantity
 from .utils import fast_power, max_scale_bootstrap
+from .backend import jnp, jit
+from .routines import _compute_leaders, _correct_pleaders
 
 
 # def _check_formalism(p_exp):
@@ -258,6 +260,55 @@ def _find_sans_voisin(scale, detail, sans_voisin, formalism):
 
 #     return wt_leaders
 
+def _compute_leaders(wt_coefs_values, p_exp, size, max_level, leader_flag):
+
+    pleader_p = dict()
+
+    for scale in range(1, max_level + 1):
+
+        coefs = np.power(np.abs(wt_coefs_values[scale]), p_exp)
+
+        scale_contribution = np.zeros((size, *coefs.shape)) + np.nan
+
+        if size > 1:
+            idx_size = np.s_[(size-1)//2:-((size-1)//2)]
+        else:
+            idx_size = np.s_[:]
+
+        scale_contribution[:, idx_size] = np.stack(
+            [coefs[size-i:-(i-1) or None] for i in range(1, size+1)], axis=0)
+
+        if scale == 1:
+
+            leaders = np.sum(scale_contribution, axis=0)
+            pleader_p[scale] = leaders
+
+            continue
+
+        max_index = pleader_p[scale-1].shape[0] // 2
+
+        lower_contribution = np.zeros((2, *coefs.shape)) + np.nan
+
+        lower_contribution[0, :max_index] = pleader_p[scale-1][::2][:max_index]
+        lower_contribution[1, :max_index] = \
+            pleader_p[scale-1][1::2][:max_index]
+
+        if leader_flag:
+
+            pleader_p[scale] = np.max(np.r_[
+                scale_contribution,
+                .5 * lower_contribution
+            ], axis=0)
+
+        else:
+
+            pleader_p[scale] = np.sum(np.r_[
+                scale_contribution,
+                .5 * lower_contribution
+            ], axis=0)
+
+    return pleader_p
+
 
 def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     """
@@ -282,113 +333,13 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
     if leader_flag:
         p_exp = 1
 
-    pleader_p = {j: np.zeros_like(wt_coefs.values[j]) for j in wt_coefs.values}
+    pleader_p = _compute_leaders(
+        wt_coefs.values, p_exp, size, max_level, leader_flag)
 
     for scale in range(1, max_level + 1):
 
-        # coefs = 2 ** scale * fast_power(np.abs(wt_coefs.values[scale]),
-        #                                 p_exp)
-        coefs = fast_power(
-            np.abs(wt_coefs.values[scale]), p_exp)
-
-        # if (idx_reject is not None and idx_reject[scale].sum() > 0
-        #         and scale >= j1 and scale <= j2_reg):
-
-        #     idx = idx_reject[scale]
-
-        #     # coefs[idx] = np.nan
-
-        #     # print(scale_contrib_reject_count)
-        #     print(idx.sum())
-
-        scale_contribution = np.zeros((size, *coefs.shape)) + np.nan
-
-        if size > 1:
-            idx_size = np.s_[(size-1)//2:-((size-1)//2)]
-        else:
-            idx_size = np.s_[:]
-
-        scale_contribution[:, idx_size] = np.stack([
-            coefs[size-i:-(i-1) or None] for i in range(1, size+1)
-        ], axis=0)
-
-        # if (idx_reject is not None
-        #         and scale in idx_reject
-        #         and idx_reject[scale].sum() > 0):
-
-        #     idx = idx_reject[scale]
-        #     scale_contribution[:, idx.squeeze().transpose()] = np.nan
-
-        if scale == 1:
-
-            leaders = np.sum(scale_contribution, axis=0)
-            pleader_p[scale] = leaders
-
-            # pleader_p[scale] = fast_power(np.power(2., -scale)*leaders,
-            #                               1/p_exp)
-            # print(pleader_p[scale].shape)
-            continue
-
-        max_index = pleader_p[scale-1].shape[0] // 2
-
-        # max_index = (pleader_p[scale-1].shape[0] - 3) // 2 * 2
-
-        # print(pleader_p[scale-1][:-3:2].shape,
-        #       pleader_p[scale-1][3::2].shape)
-
-        lower_contribution = np.zeros((2, *coefs.shape)) + np.nan
-
-        lower_contribution[0][:max_index] = \
-            pleader_p[scale-1][::2][:max_index]
-        lower_contribution[1][:max_index] = \
-            pleader_p[scale-1][1::2][:max_index]
-
-        # lower_contribution = np.stack([
-        #     pleader_p[scale-1][:-size:2],
-        #     pleader_p[scale-1][size::2]
-        # ], axis=0)
-
-        # assert scale_contribution.shape[1] == lower_contribution.shape[1],\
-        #     print(scale_contribution.shape, lower_contribution.shape, scale)
-        #     print(pleader_p[scale-1].shape, coefs.shape, max_index)
-
-        # print(max_index, coefs.shape[0], pleader_p[scale-1].shape[0],
-        #       scale_contribution[:, :max_index // 2].shape)
-
-        # max_index = lower_contribution.shape[1]
-
-        # print(scale_contribution.shape, lower_contribution.shape)
-
-        if leader_flag:
-
-            pleader_p[scale] = np.max(np.r_[
-                scale_contribution,
-                .5 * lower_contribution
-            ], axis=0)
-
-        else:
-
-            leaders = np.sum(np.r_[
-                scale_contribution,
-                .5 * lower_contribution
-            ], axis=0)
-            pleader_p[scale] = leaders
-
-        # finite_idx_wl = np.logical_not(np.isnan(np.abs(leaders)))
-        # leaders[~finite_idx_wl] = np.nan
-
-        # if np.sum(finite_idx_wl, axis=0).min() < 3:
-        #     max_level = scale-1
-        #     break
-
-    for scale in range(1, max_level + 1):
-
-        leaders = fast_power(pleader_p[scale], 1/p_exp)
-
-        # mask_nan = ((~np.isnan(leaders)).sum(axis=0) >= 3) + np.nan
-        # leaders *= mask_nan[None, :]
-
-        wt_leaders._add_values(leaders, scale)
+        pleader_p[scale] = fast_power(pleader_p[scale], 1/p_exp)
+        wt_leaders._add_values(pleader_p[scale], scale)
 
     return wt_leaders
 
@@ -450,6 +401,15 @@ def compute_leaders(wt_coefs, p_exp=np.inf, size=3):
 #                             j2_eff=j2_eff)
 
 
+@jit
+def _integrate_wavelet(wt_coefs, gamint):
+
+    return {
+        scale: wt_coefs[scale] * 2 ** (scale * gamint)
+        for scale in wt_coefs
+    }
+
+
 def integrate_wavelet(wt_coefs, gamint):
     """
     Fractionally integrates the wavelet coef decomposition of a signal
@@ -464,10 +424,10 @@ def integrate_wavelet(wt_coefs, gamint):
         gamint=wt_coefs.gamint + gamint, wt_name=wt_coefs.wt_name,
         n_channel=wt_coefs.n_channel, origin_mrq=wt_coefs)
 
-    for scale in wt_coefs.values:
-
-        wt_int._add_values(
-            wt_coefs.values[scale] * 2 ** (gamint * scale), scale)\
+    temp = _integrate_wavelet(wt_coefs.values, gamint)
+        
+    for scale, val in temp.items():
+        wt_int._add_values(val, scale)
 
     return wt_int
 

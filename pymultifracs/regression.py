@@ -4,33 +4,30 @@ Authors: Omar D. Domingues <omar.darwiche-domingues@inria.fr>
 """
 
 from math import floor
+from functools import partial
 
 import numpy as np
 import xarray as xr
 
-from .utils import Dim
+from .backend import jnp, jit, vmap
+
+from .utils import Dim, scaling_range_to_str
 
 
-def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
-                    scaling_ranges, y, std=None):
+def prepare_weights(sf_nj_fun, weighted, scaling_ranges, j, std=None):
     """
     Calculate regression weights.
     """
 
     if weighted == 'Nj':
-
-        # w = np.tile(
-        #     sf_nj_fun(floor(j_min), floor(j_max)).astype(float)[None, :]
-        #     #     None, :, None, :],
-        #     # (1, 1, n_ranges, 1)
-        # )
-
-        w = sf_nj_fun(floor(j_min), floor(j_max)).astype(float)#.copy(deep=True)
+        w = sf_nj_fun().astype(float)  # .copy(deep=True)
 
     elif weighted == 'bootstrap':
 
+        # Collect the standard deviation of the bootstrapped objects
+        std = std()
+
         if mask := np.isclose(std.values, 0).any():
-            # std.where(np.isclose(std.values, 0), std.where(std > 0).min())
             std.values[mask] = std.where(std > 0).min()
 
         std = 1 / std
@@ -40,23 +37,38 @@ def prepare_weights(sf_nj_fun, weighted, n_ranges, j_min, j_max,
         if std.ndim == 2:
             # TODO check this
             raise ValueError('')
+            n_ranges = len(scaling_ranges)
             w = np.tile(std[:, :, None, None], (1, 1, n_ranges, 1)) ** 2
         # std shape (n_moments, n_scales, n_scaling_ranges, n_channel)
         else:
             w = std ** 2
 
     else:  # weighted is None
-        w = xr.ones_like(y)
+        w = xr.DataArray(jnp.ones(len(j)), coords=j.coords)
 
     if Dim.scaling_range not in w.dims:
-        w = w.expand_dims({Dim.scaling_range: len(scaling_ranges)}).copy()
+        w = w.expand_dims({Dim.scaling_range: [
+                scaling_range_to_str(s) for s in scaling_ranges
+            ]}).copy()
 
     for i, (j1, j2) in enumerate(scaling_ranges):
-        w[{Dim.scaling_range: i, Dim.j: (w.j > j2) | (w.j < j1)}] = np.nan
+
+        # Where j is outside the scaling range, set the weights to zero
+        j1 = xr.DataArray(
+            jnp.array([sr[0] for sr in scaling_ranges]),
+            coords=[w.coords[Dim.scaling_range]], dims=Dim.scaling_range)
+        j2 = xr.DataArray(
+            jnp.array([sr[1] for sr in scaling_ranges]),
+            coords=[w.coords[Dim.scaling_range]], dims=Dim.scaling_range)
+
+        # if (idx_out := (j < j1) | (j > j2)).any():
+        w = xr.where((j < j1) | (j > j2), 0, w)
+
+        # w[{Dim.scaling_range: i, Dim.j: (w.j > j2) | (w.j < j1)}] = jnp.nan
 
     # w.where(np.isnan(y), np.nan)
     # w.values[np.isnan(y)] = np.nan
-    w = w.where(~np.isnan(y), np.nan)
+    # w = w.where(~np.isnan(y), np.nan)
 
     # if np.isnan(y).any():
     #     mask = np.ones_like(y)
@@ -77,12 +89,24 @@ def prepare_regression(scaling_ranges, j, dims):
     j_max = max(sr[1] for sr in scaling_ranges)
 
     # same shape as scaling function
-    x = xr.DataArray(
-        np.arange(j_min, j_max + 1), coords={'j': np.arange(j_min, j_max + 1)})
+    # x = xr.DataArray(
+    #     np.arange(j_min, j_max + 1).astype(float),
+    #     coords={'j': np.arange(j_min, j_max + 1)}
+    # )
     # x = x.expand_dims([d for d in dims if d != Dim.j])
     # x = x.transpose(*dims)
 
-    return x, n_ranges, j_min, j_max, j_min - j.min(), j_max - j.min() + 1
+    return n_ranges, j_min, j_max, j_min - j.min(), j_max - j.min() + 1
+
+
+@jit
+@partial(jnp.vectorize, signature='(n),(n),(n)->(2)')
+def linear_regression_ufunc(x, y, weights):
+    """
+    Performs a single (weighted) linear regression.
+    Meant to be called with :func:`xr.apply_ufunc`.
+    """
+    return jnp.polyfit(x, y, w=weights, full=False, deg=1)
 
 
 def linear_regression(x, y, nj, return_variance=False):
@@ -106,6 +130,7 @@ def linear_regression(x, y, nj, return_variance=False):
 
     # bj = np.array(nj, dtype=np.float)
     assert isinstance(nj, xr.DataArray)
+
     # assert nj.shape[1] == x.shape[1]
 
     # slope, intercept = np.polyfit(x, y, 1, )

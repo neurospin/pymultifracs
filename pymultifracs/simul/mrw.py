@@ -9,7 +9,7 @@ Synthesis of multifractal random walk and derived processes.
 import numpy as np
 from numpy.fft import fft, ifft
 
-from .fbm import fgn
+from .fbm import fgn, multivariate_fgn
 from .pzutils import gaussian_cme, gaussian_chol
 
 
@@ -91,6 +91,85 @@ def mrw(shape, H, lam, L=None, sigma=1, method='cme', z0=(None, None)):
     mrw = np.cumsum(e * np.exp(w), axis=0)
 
     return mrw.squeeze() if do_squeeze else mrw
+
+
+def nvariate_mrw(
+        n_samples, n_variate, H, lam, L=None, sigma=1, method='cme',
+        z0=(None, None), rho=0.0):
+    '''
+    Create a realization of fractional Brownian motion using circulant
+    matrix embedding.
+
+    Parameters
+    ----------
+    shape : int | tuple(int, int)
+        If integer, it is the  number of samples N. If tuple it is (N, R),
+        the number of samples and realizations, respectively.
+    H : float
+        Hurst exponent
+    lam : float
+        Lambda, intermittency parameter
+    L : float
+        Integral scale
+    sigma : float
+        Variance of process
+    method : str
+        Method to use: `'cme'` selects circulant matrix embedding
+        (default, O(:math:`NlogN`) in memory), `'chol'` selects Cholesky
+        decomposition (O(:math:`N^2`) in memory).
+    z0 : tuple(ndarray of float, ndarray of float)
+        Optional tuple of white noise values, to fix the random component across
+        simulations. The shape should be :math:`(2N-2,R)` for `'cme'` and
+        :math:`(N,R)`.
+
+    .. note:: Arrays in `z0` can be generated using the following command:
+        .. code-block:: python
+            np.random.randn(2*N - 2, R) + 1j * np.random.randn(2*N - 2, R)
+        or .. code-block:: python
+            z = np.random.randn(N, R).
+
+    Returns
+    -------
+    mrw : ndarray
+        Synthesized mrw realizations. If `shape` is scalar,
+        fbm is ofshape (N,). Otherwise, it is of shape (N, R).
+
+
+
+    References
+    ----------
+    .. [1] Bacry, Delour, Muzy, "Multifractal Random Walk", Physical Review E,
+        2001
+    '''
+
+    N = n_samples
+    R = n_variate
+
+    # Is 0.5 or 0 the lower bound ? Search biblio
+    if not 0 <= H <= 1:
+        raise ValueError('H must satisfy 0 <= H <= 1')
+
+    if L is None:
+        L = N
+
+    if L > N:
+        raise ValueError('Integral scale L is larger than data length N')
+
+    # 1) Gaussian process w
+    w = gaussian_w(N, R, L, lam, 1, method, z0[1])
+
+    #   Adjust mean to ensure convergence of variance
+    r = 1/2  # see Bacry, Delour & Muzy, Phys Rev E, 2001, page 4
+    w = w - np.mean(w, axis=0) - r * lam**2 * np.log(L)
+
+    # 2) fGn e
+    e = multivariate_fgn(
+        n_samples, n_variate, H, rho, sigma=sigma, method=method, z0=z0[0])
+
+    # 3) mrw
+    mrw = np.cumsum(e * np.exp(w), axis=0)
+
+    return mrw.squeeze()
 
 
 def mrw_cumul(shape, c1, c2, L, **kwargs):

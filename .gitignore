@@ -1,5 +1,6 @@
 *.m~
 *~
+.direnv
 
 # Compiled python modules.
 *.pyc
@@ -61,3 +62,4 @@ examples/*.mat
 .coverage*
 
 # pymultifracs/_version.py
+.aider*

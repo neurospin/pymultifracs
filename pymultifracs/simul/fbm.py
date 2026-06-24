@@ -7,7 +7,49 @@ Synthesis of fractional brownian motions through circulant matrix embedding.
 """
 
 import numpy as np
+from scipy import linalg
 from .pzutils import gaussian_cme, gaussian_chol
+
+
+def multivariate_fgn(n_samples, n_variate, H, rho=0.0, **fgn_kwargs):
+    """
+    Generates a N-variate fractional with a given correlation structure
+
+    Parameters
+    ----------
+    n_samples: int
+        Number of samples
+    n_variate: int
+        Number of signals
+    H: float
+        Hurst exponent, should be in (0, 1).
+    rho: float | ndarray
+        Correlation coefficient between fGns if float, gets promoted to
+        a correlation matrix filled with off diagonal elements taking the value
+        passed to `rho`.
+    fgn_kwargs: dict
+        Arguments to pass to the fgn() call.
+
+    Returns
+    -------
+    fGn: ndarray
+        Synthetized n-variate fgn
+    """
+
+    fGn = fgn((n_samples, n_variate), H, **fgn_kwargs)
+
+    if not isinstance(rho, np.ndarray):
+        cor = np.ones((n_variate, n_variate)) * rho + (1 - rho) * np.eye(n_variate)
+    else:
+        if rho.ndim != 2:
+            raise ValueError(
+                '"rho" should be either a float or a 2D numpy array.')
+
+        cor = rho
+
+    L = linalg.cholesky(cor, lower=True)
+
+    return fGn @ L.T
 
 
 def fgn(shape, H, sigma=1, dt=None, method='cme', z0=None):

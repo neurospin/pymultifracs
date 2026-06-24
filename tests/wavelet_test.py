@@ -1,7 +1,6 @@
 import numpy as np
 
 from pymultifracs.wavelet import wavelet_analysis
-from pymultifracs.estimation import estimate_hmin
 
 
 def test_wavelet_fbm(fbm_file):
